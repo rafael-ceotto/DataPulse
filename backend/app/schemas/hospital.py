@@ -16,7 +16,7 @@ class Hospital(BaseModel):
     @field_validator("overall_rating", mode="before")
     @classmethod
     def empty_string_to_none(cls, v):
-        if v == "":
+        if v == "" or v == "Not Available":
             return None
         return v
 
