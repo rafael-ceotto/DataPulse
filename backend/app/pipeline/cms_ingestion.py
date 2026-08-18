@@ -5,7 +5,7 @@ import io
 import httpx
 from pydantic import ValidationError
 
-from backend.app.schemas.hospital import Hospital
+from app.schemas.hospital import Hospital
 
 URL = "https://data.cms.gov/provider-data/sites/default/files/resources/893c372430d9d71a1c52737d01239d47_1785189955/Hospital_General_Information.csv"
 
