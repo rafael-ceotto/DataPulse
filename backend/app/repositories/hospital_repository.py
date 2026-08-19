@@ -1,5 +1,6 @@
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.exc import SQLAlchemyError
+from sqlalchemy import select
 
 from app.models.hospital import Hospital as HospitalModel
 
@@ -28,3 +29,17 @@ async def save_hospitals(session: AsyncSession,
                             except SQLAlchemyError as e:
                                 await session.rollback()
                                 raise e
+                            
+async def get_hospitals(session: AsyncSession, page: int = 1, limit: int = 20, state: str | None = None) -> list[HospitalModel]:
+    query = select(HospitalModel)
+    if state:
+        query = query.where(HospitalModel.state == state)
+    query = query.offset((page - 1) * limit).limit(limit)
+    result = await session.execute(query)
+    return result.scalars().all()
+   
+    
+async def get_hospitals_by_id(session: AsyncSession, facility_id: str) -> HospitalModel | None:
+    result = await session.execute(select(HospitalModel).where(HospitalModel.facility_id == facility_id))
+    return result.scalar_one_or_none()
+    
