@@ -7,6 +7,7 @@ from sqlalchemy.ext.asyncio import create_async_engine
 from app.core.config import Settings
 from app.core.database import Base
 from app.models.hospital import Hospital
+from app.models.pipeline_run import PipelineRun
 
 settings = Settings()
 config = context.config
