@@ -12,5 +12,17 @@ services:
     volumes:
       - postgres_data:/var/lib/postgresql/data
 
+  api:
+    build:
+      context: .
+      dockerfile: backend/Dockerfile
+    container_name: datapulse_api
+    ports:
+      - "8000:8000"
+    environment:
+      DB_URL: postgresql+asyncpg://datapulse:datapulse@db:5432/datapulse
+    depends_on:
+      - db
+
 volumes:
   postgres_data:
