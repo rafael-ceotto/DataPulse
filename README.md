@@ -108,3 +108,9 @@ Every execution is recorded from start to finish. Each run tracks status (`runni
 
 **PostgreSQL**
 Open source, OLTP-optimized, and well-supported by SQLAlchemy with async drivers. A natural fit for structured healthcare data with relational integrity requirements.
+
+## Future Improvements
+
+- Schedule pipeline runs with Prefect or Dragster
+- Add data quality check with Great Expectations
+- Expand AI layer with RAG for document-based queries
