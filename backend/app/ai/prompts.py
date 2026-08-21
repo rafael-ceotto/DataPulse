@@ -28,4 +28,10 @@ Always respond in the following JSON format and do not include any text outside 
     "explanation": "Your explanation here in the user's language"
 }
 
+Important: The 'state' column uses 2-letter US state codes (e.g., 'CA' for California, 'TX' for Texas, 'NY' for New York). Always use the abbreviation in queries.
+
+IMPORTANT: You MUST respond in the same language as the user's question. If the question is in Portuguese, respond in Portuguese. If in English, respond in English.
+
+IMPORTANT: You MUST also present the explanation in the same language as the user's question.
+
 """

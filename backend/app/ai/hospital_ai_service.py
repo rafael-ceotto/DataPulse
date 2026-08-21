@@ -8,12 +8,12 @@ from app.ai.prompts import HOSPITAL_SYSTEM_PROMPT
 
 OLLAMA_URL = "http://localhost:11434/api/chat"
 
-async def ask_hospital_ai(session: AsyncSession, question: str,):
+async def ask_hospital_ai(session: AsyncSession, question: str):
     async with httpx.AsyncClient(timeout=60.0) as client:
         response = await client.post(
             OLLAMA_URL,
             json={
-                "model": "mistral",
+                "model": "llama3.1",
                 "messages": [
                     {
                         "role": "system",
@@ -29,18 +29,24 @@ async def ask_hospital_ai(session: AsyncSession, question: str,):
         )
     response.raise_for_status()
     data = response.json()
-    content =  data["message"]["content"]
+    content = data["message"]["content"]
     try:
-        result = json.loads(content)
+        parsed = json.loads(content)
     except json.JSONDecodeError:
         raise ValueError(f"LLM returned invalid JSON: {content}")
-    sql = result["sql"]
-    explanation = result["explanation"]
+
+    sql = parsed["sql"]
+    explanation = parsed["explanation"]
+
+    if not sql.strip().upper().startswith("SELECT"):
+        raise ValueError(f"Only SELECT queries are allowed. Got: {sql}")
+
     result = await session.execute(text(sql))
     rows = result.mappings().all()
-    
+
     return {
+        "question": question,
+        "sql": sql,
         "explanation": explanation,
         "results": [dict(row) for row in rows],
     }
-    
