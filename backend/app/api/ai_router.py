@@ -14,6 +14,3 @@ async def get_session():
 class AIQueryRequest(BaseModel):
     question: str
     
-@router.post("/api/v1/ai/query")
-async def ai_query(request: AIQueryRequest, session: AsyncSession = Depends(get_session),):
-    return await ask_hospital_ai(session, request.question)

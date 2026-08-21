@@ -1,28 +1,31 @@
 from fastapi import APIRouter, Depends, HTTPException
-
+from pydantic import BaseModel
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.database import AsyncSessionLocal
 from app.services.hospital_service import ingest_hospitals
 from app.repositories.hospital_repository import get_hospitals, get_hospitals_by_id, save_hospitals
+from app.ai.hospital_ai_service import ask_hospital_ai
 
 router = APIRouter()
 
 async def get_session():
     async with AsyncSessionLocal() as session:
         yield session
-        
+
+class AIQueryRequest(BaseModel):
+    question: str
+
 @router.post("/api/v1/pipeline/run")
-async def run_pipeline(session: AsyncSession = Depends(get_session),
-):
+async def run_pipeline(session: AsyncSession = Depends(get_session)):
     counter = await ingest_hospitals(session)
-    return{
-        "message":"Pipeline executed successfully",
+    return {
+        "message": "Pipeline executed successfully",
         "processed": counter,
     }
-    
+
 @router.get("/api/v1/hospitals")
-async def list_hospitals(page: int =1, limit: int=20, state: str | None = None, session: AsyncSession = Depends(get_session)):
+async def list_hospitals(page: int = 1, limit: int = 20, state: str | None = None, session: AsyncSession = Depends(get_session)):
     return await get_hospitals(session, page, limit, state)
 
 @router.get("/api/v1/hospitals/{facility_id}")
@@ -31,3 +34,7 @@ async def get_hospitals_facility_id(facility_id: str, session: AsyncSession = De
     if hospital is None:
         raise HTTPException(status_code=404, detail="Hospital not found")
     return hospital
+
+@router.post("/api/v1/ai/query")
+async def ai_query(request: AIQueryRequest, session: AsyncSession = Depends(get_session)):
+    return await ask_hospital_ai(session, request.question)
