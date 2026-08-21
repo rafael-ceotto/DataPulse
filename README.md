@@ -65,6 +65,7 @@ API docs available at `http://localhost:8000/docs`
 | POST | `/api/v1/pipeline/run` | Triggers CMS data ingestion and logs execution results |
 | GET | `/api/v1/hospitals` | Returns a paginated list of hospitals. Supports `page`, `limit`, and `state` filters |
 | GET | `/api/v1/hospitals/{facility_id}` | Returns a single hospital by facility ID |
+| POST | `/api/v1/ai/query` | Accepts a natural language question and returns a SQL query, results, and explanation |
 
 **Example:**
 
@@ -85,6 +86,39 @@ pytest tests/integration -v
 
 # API tests only
 pytest tests/api -v
+```
+
+## AI Layer
+
+DataPulse includes a natural language query interface powered by a local LLM via Ollama.
+
+**How it works:**
+
+1. User submits a question in natural language
+2. LLM receives the question alongside the database schema as context
+3. LLM generates a valid PostgreSQL SELECT query
+4. Query is executed against the database
+5. LLM explains the results in the user's language
+
+**Features:**
+- Multilingual support — responds in the same language as the question
+- SELECT-only enforcement — only read queries are allowed, preventing any data modification
+- Local LLM — runs entirely on your machine via Ollama, no external API calls or costs
+
+**Model:** llama3.1 (via Ollama)
+
+**Example:**
+```json
+POST /api/v1/ai/query
+{
+    "question": "Which states have the most 5-star hospitals?"
+}
+```
+
+**Setup:**
+```bash
+# Install Ollama from https://ollama.com/download
+ollama pull llama3.1
 ```
 
 ## Technical Decisions
@@ -111,6 +145,6 @@ Open source, OLTP-optimized, and well-supported by SQLAlchemy with async drivers
 
 ## Future Improvements
 
-- Schedule pipeline runs with Prefect or Dragster
+- Schedule pipeline runs with Prefect or Dagster
 - Add data quality check with Great Expectations
 - Expand AI layer with RAG for document-based queries
