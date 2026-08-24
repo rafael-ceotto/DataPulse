@@ -5,11 +5,14 @@ from pydantic import BaseModel
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.database import AsyncSessionLocal
+from app.core.cache import get_cache, set_cache, invalidate_cache
 from app.services.hospital_service import ingest_hospitals
 from app.repositories.hospital_repository import get_hospitals, get_hospitals_by_id, save_hospitals, get_rating_distribution
 from app.ai.hospital_ai_service import ask_hospital_ai
 from app.services.infection_service import ingest_infections
 from app.repositories.infection_repository import get_infections, get_infections_by_facility
+
+import hashlib
 
 
 router = APIRouter()
@@ -25,6 +28,8 @@ class AIQueryRequest(BaseModel):
 @router.post("/api/v1/pipeline/run")
 async def run_pipeline(session: AsyncSession = Depends(get_session)):
     counter = await ingest_hospitals(session)
+    await invalidate_cache("rating_distribution")
+    await invalidate_cache("ai_query:*")
     return {
         "message": "Pipeline executed successfully",
         "processed": counter,
@@ -44,7 +49,13 @@ async def get_hospitals_facility_id(facility_id: str, session: AsyncSession = De
 @router.post("/api/v1/ai/query")
 @limiter.limit("5/minute")
 async def ai_query(request: Request, body: AIQueryRequest, session: AsyncSession = Depends(get_session)):
-    return await ask_hospital_ai(session, body.question)
+    cache_key = f"ai_query:{hashlib.md5(body.question.lower().encode()).hexdigest()}"
+    cached = await get_cache(cache_key)
+    if cached:
+        return cached
+    result = await ask_hospital_ai(session, body.question)
+    await set_cache(cache_key, result, ttl=600)
+    return result
 
 @router.post("/api/v1/pipeline/run/infections")
 async def run_infections_pipeline(session: AsyncSession = Depends(get_session)):
@@ -73,4 +84,10 @@ async def get_facility_infections(facility_id: str, session: AsyncSession = Depe
 
 @router.get("/api/v1/hospitals/metrics/rating-distribution")
 async def rating_distribution(session: AsyncSession = Depends(get_session)):
-    return await get_rating_distribution(session)
+    cache_key = "rating_distribution"
+    cached = await get_cache(cache_key)
+    if cached:
+        return cached
+    data = await get_rating_distribution(session)
+    await set_cache(cache_key, data, ttl=3600)
+    return data
