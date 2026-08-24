@@ -6,6 +6,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.database import AsyncSessionLocal
 from app.core.cache import get_cache, set_cache, invalidate_cache
+from app.core.auth import get_current_user
 from app.services.hospital_service import ingest_hospitals
 from app.repositories.hospital_repository import get_hospitals, get_hospitals_by_id, save_hospitals, get_rating_distribution
 from app.ai.hospital_ai_service import ask_hospital_ai
@@ -26,7 +27,7 @@ class AIQueryRequest(BaseModel):
     question: str
 
 @router.post("/api/v1/pipeline/run")
-async def run_pipeline(session: AsyncSession = Depends(get_session)):
+async def run_pipeline(session: AsyncSession = Depends(get_session), current_user: dict = Depends(get_current_user)):
     counter = await ingest_hospitals(session)
     await invalidate_cache("rating_distribution")
     await invalidate_cache("ai_query:*")
@@ -48,7 +49,7 @@ async def get_hospitals_facility_id(facility_id: str, session: AsyncSession = De
 
 @router.post("/api/v1/ai/query")
 @limiter.limit("5/minute")
-async def ai_query(request: Request, body: AIQueryRequest, session: AsyncSession = Depends(get_session)):
+async def ai_query(request: Request, body: AIQueryRequest, session: AsyncSession = Depends(get_session), current_user: dict = Depends(get_current_user)):
     cache_key = f"ai_query:{hashlib.md5(body.question.lower().encode()).hexdigest()}"
     cached = await get_cache(cache_key)
     if cached:
@@ -58,9 +59,9 @@ async def ai_query(request: Request, body: AIQueryRequest, session: AsyncSession
     return result
 
 @router.post("/api/v1/pipeline/run/infections")
-async def run_infections_pipeline(session: AsyncSession = Depends(get_session)):
+async def run_infections_pipeline(session: AsyncSession = Depends(get_session), current_user: dict = Depends(get_current_user)):
     counter = await ingest_infections(session)
-    return{
+    return {
         "message": "Infections pipeline executed successfully",
         "processed": counter,
     }

@@ -5,6 +5,7 @@ from slowapi.util import get_remote_address
 from slowapi.errors import RateLimitExceeded
 
 from app.api.hospital_router import router
+from app.api.auth_router import router as auth_router
 
 limiter = Limiter(key_func=get_remote_address)
 
@@ -22,6 +23,7 @@ app.add_middleware(
 )
 
 app.include_router(router)
+app.include_router(auth_router)
 
 @app.get("/")
 def root():
