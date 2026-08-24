@@ -1,4 +1,6 @@
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, Request
+from slowapi import Limiter
+from slowapi.util import get_remote_address
 from pydantic import BaseModel
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -8,6 +10,7 @@ from app.repositories.hospital_repository import get_hospitals, get_hospitals_by
 from app.ai.hospital_ai_service import ask_hospital_ai
 
 router = APIRouter()
+limiter = Limiter(key_func=get_remote_address)
 
 async def get_session():
     async with AsyncSessionLocal() as session:
@@ -36,5 +39,6 @@ async def get_hospitals_facility_id(facility_id: str, session: AsyncSession = De
     return hospital
 
 @router.post("/api/v1/ai/query")
-async def ai_query(request: AIQueryRequest, session: AsyncSession = Depends(get_session)):
-    return await ask_hospital_ai(session, request.question)
+@limiter.limit("5/minute")
+async def ai_query(request: Request, body: AIQueryRequest, session: AsyncSession = Depends(get_session)):
+    return await ask_hospital_ai(session, body.question)
