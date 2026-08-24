@@ -1,19 +1,13 @@
 const API_URL = "";
 
-export async function getHospitals(page = 1, limit = 20, state = "") {
+export async function getHospitals(page = 1, limit = 20, state = "", search = "") {
   const params = new URLSearchParams({
     page: page.toString(),
     limit: limit.toString(),
   });
-
-  if (state) {
-    params.append("state", state);
-  }
-
-  const response = await fetch(
-    `${API_URL}/api/v1/hospitals?${params}`
-  );
-
+  if (state) params.append("state", state);
+  if (search) params.append("search", search);
+  const response = await fetch(`${API_URL}/api/v1/hospitals?${params}`);
   return response.json();
 }
 

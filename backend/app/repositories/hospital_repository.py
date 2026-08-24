@@ -39,10 +39,12 @@ async def save_hospitals(session: AsyncSession,
         raise e
 
 
-async def get_hospitals(session: AsyncSession, page: int = 1, limit: int = 20, state: str | None = None) -> list[HospitalModel]:
+async def get_hospitals(session: AsyncSession, page: int = 1, limit: int = 20, state: str | None = None, search: str | None = None) -> list[HospitalModel]:
     query = select(HospitalModel)
     if state:
         query = query.where(HospitalModel.state == state)
+    if search:
+        query = query.where(HospitalModel.facility_name.ilike(f"%{search}%"))
     query = query.offset((page - 1) * limit).limit(limit)
     result = await session.execute(query)
     return result.scalars().all()

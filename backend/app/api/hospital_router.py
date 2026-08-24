@@ -25,8 +25,8 @@ async def run_pipeline(session: AsyncSession = Depends(get_session)):
     }
 
 @router.get("/api/v1/hospitals")
-async def list_hospitals(page: int = 1, limit: int = 20, state: str | None = None, session: AsyncSession = Depends(get_session)):
-    return await get_hospitals(session, page, limit, state)
+async def list_hospitals(page: int = 1, limit: int = 20, state: str | None = None, search: str | None = None, session: AsyncSession = Depends(get_session)):
+    return await get_hospitals(session, page, limit, state, search)
 
 @router.get("/api/v1/hospitals/{facility_id}")
 async def get_hospitals_facility_id(facility_id: str, session: AsyncSession = Depends(get_session)):

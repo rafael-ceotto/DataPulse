@@ -124,12 +124,8 @@ export default function HospitalList() {
 
   useEffect(() => {
     if (!open) return;
-    getHospitals(page, limit, stateFilter).then(setHospitals);
-  }, [page, stateFilter, open]);
-
-  const filtered = search.trim()
-    ? hospitals.filter((h) => h.facility_name.toLowerCase().includes(search.toLowerCase()))
-    : hospitals;
+    getHospitals(page, limit, stateFilter, search).then(setHospitals);
+  }, [page, stateFilter, search, open]);
 
   return (
     <section style={{ marginTop: 24 }}>
@@ -174,7 +170,7 @@ export default function HospitalList() {
             <input
               type="text"
               value={search}
-              onChange={(e) => setSearch(e.target.value)}
+              onChange={(e) => { setSearch(e.target.value); setPage(1); }}
               placeholder="Search by hospital name..."
               style={{ ...control, flex: "1 1 220px" }}
             />
@@ -194,7 +190,7 @@ export default function HospitalList() {
           </div>
 
           <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(288px, 1fr))", gap: 16, alignItems: "start" }}>
-            {filtered.map((h) => (
+            {hospitals.map((h) => (
               <HospitalCard
                 key={h.facility_id}
                 hospital={h}
@@ -205,7 +201,7 @@ export default function HospitalList() {
             ))}
           </div>
 
-          {filtered.length === 0 && (
+          {hospitals.length === 0 && (
             <div style={{ background: theme.darkInput, border: `1px dashed #2c3b44`, borderRadius: 14, padding: "48px 24px", textAlign: "center", color: "#6f8a95", fontSize: 14.5 }}>
               No hospitals found.
             </div>
