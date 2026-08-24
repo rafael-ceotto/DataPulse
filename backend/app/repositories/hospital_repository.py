@@ -57,3 +57,16 @@ async def get_hospitals(session: AsyncSession, page: int = 1, limit: int = 20, s
 async def get_hospitals_by_id(session: AsyncSession, facility_id: str) -> HospitalModel | None:
     result = await session.execute(select(HospitalModel).where(HospitalModel.facility_id == facility_id))
     return result.scalar_one_or_none()
+
+async def get_rating_distribution(session: AsyncSession) -> list[dict]:
+    result = await session.execute(
+        select(
+            HospitalModel.state,
+            func.avg(HospitalModel.overall_rating).label("avg_rating"),
+            func.count(HospitalModel.facility_id).label("total",)
+        )
+        .where(HospitalModel.overall_rating.isnot(None))
+        .group_by(HospitalModel.state)
+        .order_by(func.avg(HospitalModel.overall_rating).desc())
+    )
+    return [{"state": r.state, "avg_rating": round(float(r.avg_rating), 2), "total": r.total} for r in result]

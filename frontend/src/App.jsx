@@ -1,6 +1,7 @@
 import React from "react";
 import AIQuery from "./components/AIQuery";
 import HospitalList from "./components/HospitalList";
+import RatingChart from "./components/RatingChart";
 import { theme } from "./theme";
 
 function Header() {
@@ -84,6 +85,7 @@ export default function App() {
       <Header />
       <main style={{ maxWidth: 1160, margin: "0 auto", padding: 28 }}>
         <AIQuery />
+        <RatingChart />
         <HospitalList />
       </main>
     </div>

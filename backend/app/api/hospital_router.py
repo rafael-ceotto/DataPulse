@@ -6,10 +6,11 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.database import AsyncSessionLocal
 from app.services.hospital_service import ingest_hospitals
-from app.repositories.hospital_repository import get_hospitals, get_hospitals_by_id, save_hospitals
+from app.repositories.hospital_repository import get_hospitals, get_hospitals_by_id, save_hospitals, get_rating_distribution
 from app.ai.hospital_ai_service import ask_hospital_ai
 from app.services.infection_service import ingest_infections
 from app.repositories.infection_repository import get_infections, get_infections_by_facility
+
 
 router = APIRouter()
 limiter = Limiter(key_func=get_remote_address)
@@ -69,3 +70,7 @@ async def get_facility_infections(facility_id: str, session: AsyncSession = Depe
     if not infections:
         raise HTTPException(status_code=404, detail="No infection data found for this facility")
     return infections
+
+@router.get("/api/v1/hospitals/metrics/rating-distribution")
+async def rating_distribution(session: AsyncSession = Depends(get_session)):
+    return await get_rating_distribution(session)
