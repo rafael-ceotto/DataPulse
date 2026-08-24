@@ -8,6 +8,8 @@ from app.core.database import AsyncSessionLocal
 from app.services.hospital_service import ingest_hospitals
 from app.repositories.hospital_repository import get_hospitals, get_hospitals_by_id, save_hospitals
 from app.ai.hospital_ai_service import ask_hospital_ai
+from app.services.infection_service import ingest_infections
+from app.repositories.infection_repository import get_infections, get_infections_by_facility
 
 router = APIRouter()
 limiter = Limiter(key_func=get_remote_address)
@@ -42,3 +44,28 @@ async def get_hospitals_facility_id(facility_id: str, session: AsyncSession = De
 @limiter.limit("5/minute")
 async def ai_query(request: Request, body: AIQueryRequest, session: AsyncSession = Depends(get_session)):
     return await ask_hospital_ai(session, body.question)
+
+@router.post("/api/v1/pipeline/run/infections")
+async def run_infections_pipeline(session: AsyncSession = Depends(get_session)):
+    counter = await ingest_infections(session)
+    return{
+        "message": "Infections pipeline executed successfully",
+        "processed": counter,
+    }
+    
+@router.get("/api/v1/infections")
+async def list_infections(
+    state: str | None = None,
+    compared_to_national: str | None = None,
+    page: int = 1,
+    limit: int = 20,
+    session: AsyncSession = Depends(get_session)
+):
+    return await get_infections(session, state, compared_to_national, page, limit)
+
+@router.get("/api/v1/infections/{facility_id}")
+async def get_facility_infections(facility_id: str, session: AsyncSession = Depends(get_session)):
+    infections = await get_infections_by_facility(session, facility_id)
+    if not infections:
+        raise HTTPException(status_code=404, detail="No infection data found for this facility")
+    return infections

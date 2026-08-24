@@ -8,6 +8,7 @@ from app.core.config import Settings
 from app.core.database import Base
 from app.models.hospital import Hospital
 from app.models.pipeline_run import PipelineRun
+from app.models.infection import HospitalInfection
 
 settings = Settings()
 config = context.config
