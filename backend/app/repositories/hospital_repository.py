@@ -22,12 +22,14 @@ async def save_hospitals(session: AsyncSession,
                 hospital_ownership=hospital.hospital_ownership,
                 emergency_services=hospital.emergency_services,
                 overall_rating=hospital.overall_rating,
+                telephone_number=hospital.telephone_number,
             ).on_conflict_do_update(
                 index_elements=["facility_id"],
                 set_=dict(
                     facility_name=hospital.facility_name,
                     overall_rating=hospital.overall_rating,
                     hospital_ownership=hospital.hospital_ownership,
+                    telephone_number=hospital.telephone_number
                 )
             )
             await session.execute(stmt)

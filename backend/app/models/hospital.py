@@ -15,3 +15,4 @@ class Hospital(Base):
     hospital_ownership: Mapped[str] = mapped_column(String, nullable=False)
     emergency_services: Mapped[str] = mapped_column(String, nullable=False)
     overall_rating: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    telephone_number: Mapped[str | None] =  mapped_column(String, nullable=False)

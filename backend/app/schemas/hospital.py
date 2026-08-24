@@ -12,6 +12,7 @@ class Hospital(BaseModel):
     hospital_ownership: str
     emergency_services: str
     overall_rating: int | None = None
+    telephone_number: str | None = None
 
     @field_validator("overall_rating", mode="before")
     @classmethod

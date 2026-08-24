@@ -1,15 +1,91 @@
-import HospitalList from "./components/HospitalList";
+import React from "react";
 import AIQuery from "./components/AIQuery";
+import HospitalList from "./components/HospitalList";
+import { theme } from "./theme";
 
-function App() {
+function Header() {
   return (
-    <div>
-      <h1>DataPulse</h1>
-      <p>CMS Hospital Quality Data</p>
-      <AIQuery />
-      <HospitalList />
-    </div>
+    <header style={{ background: theme.surface, borderBottom: `1px solid #e3e7ea` }}>
+      <div
+        style={{
+          maxWidth: 1160,
+          margin: "0 auto",
+          padding: "22px 28px",
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "space-between",
+          gap: 20,
+          flexWrap: "wrap",
+        }}
+      >
+        <div style={{ display: "flex", alignItems: "center", gap: 14 }}>
+          <div
+            style={{
+              width: 40,
+              height: 40,
+              borderRadius: 11,
+              background: theme.accent,
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+              gap: 3,
+            }}
+          >
+            {[10, 18, 13].map((h, i) => (
+              <span
+                key={i}
+                style={{
+                  display: "block",
+                  width: 3,
+                  height: h,
+                  borderRadius: 2,
+                  background: "#fff",
+                  animation: `dp-pulse 1.4s ease-in-out ${i * 0.2}s infinite`,
+                }}
+              />
+            ))}
+          </div>
+          <div>
+            <div style={{ fontSize: 22, fontWeight: 700, letterSpacing: "-0.02em", lineHeight: 1.1 }}>DataPulse</div>
+            <div style={{ fontSize: 13, color: theme.muted, marginTop: 3 }}>CMS Hospital Quality Data</div>
+          </div>
+        </div>
+        <div
+          style={{
+            display: "flex",
+            alignItems: "center",
+            gap: 10,
+            fontFamily: theme.mono,
+            fontSize: 11,
+            letterSpacing: "0.06em",
+            textTransform: "uppercase",
+            color: theme.muted,
+          }}
+        >
+          <span style={{ width: 7, height: 7, borderRadius: "50%", background: "#2f9e6f" }} />
+          <span>5,419 facilities · release 2026.2</span>
+        </div>
+      </div>
+    </header>
   );
 }
 
-export default App;
+export default function App() {
+  return (
+    <div style={{ minHeight: "100vh", background: theme.bg, color: theme.ink, fontFamily: theme.sans, paddingBottom: 72 }}>
+      <style>{`
+        @import url('https://fonts.googleapis.com/css2?family=Instrument+Sans:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500&display=swap');
+        body { margin: 0; background: ${theme.bg}; }
+        a { color: ${theme.accent}; text-decoration: none; }
+        a:hover { color: #0b566c; text-decoration: underline; }
+        input, button { font-family: inherit; }
+        @keyframes dp-pulse { 0%,100% { opacity: .25; transform: scaleY(.5); } 50% { opacity: 1; transform: scaleY(1); } }
+      `}</style>
+      <Header />
+      <main style={{ maxWidth: 1160, margin: "0 auto", padding: 28 }}>
+        <AIQuery />
+        <HospitalList />
+      </main>
+    </div>
+  );
+}

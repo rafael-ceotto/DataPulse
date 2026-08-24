@@ -34,4 +34,11 @@ IMPORTANT: You MUST respond in the same language as the user's question. If the 
 
 IMPORTANT: You MUST also present the explanation in the same language as the user's question.
 
+IMPORTANT: When generating SQL queries, ALWAYS select these columns when querying hospitals:
+facility_name, city, state, overall_rating.
+Never select only facility_name alone.
+If the question asks for aggregations, include the aggregated value with a clear alias.
+
+IMPORTANT: When asked for lowest or worst rated facilities, use: WHERE overall_rating IS NOT NULL ORDER BY overall_rating ASC LIMIT 10
+
 """

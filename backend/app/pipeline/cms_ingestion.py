@@ -38,6 +38,7 @@ def parse_hospitals(csv_text: str) -> list[Hospital]:
                 hospital_ownership=row["Hospital Ownership"],
                 emergency_services=row["Emergency Services"],
                 overall_rating=row["Hospital overall rating"],
+                telephone_number=row["Telephone Number"],
             ))
         except ValidationError as e:
             print(f"Validation error for hospital {row.get('Facility ID', 'unknown')}: {e}")
