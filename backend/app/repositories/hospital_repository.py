@@ -1,6 +1,6 @@
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.exc import SQLAlchemyError
-from sqlalchemy import select
+from sqlalchemy import select, func
 from sqlalchemy.dialects.postgresql import insert
 
 from app.models.hospital import Hospital as HospitalModel
@@ -42,7 +42,11 @@ async def save_hospitals(session: AsyncSession,
 async def get_hospitals(session: AsyncSession, page: int = 1, limit: int = 20, state: str | None = None, search: str | None = None) -> list[HospitalModel]:
     query = select(HospitalModel)
     if state:
-        query = query.where(HospitalModel.state == state)
+        query = query.where(
+        func.similarity(HospitalModel.facility_name, search) > 0.1
+    ).order_by(
+        func.similarity(HospitalModel.facility_name, search).desc()
+    )
     if search:
         query = query.where(HospitalModel.facility_name.ilike(f"%{search}%"))
     query = query.offset((page - 1) * limit).limit(limit)
