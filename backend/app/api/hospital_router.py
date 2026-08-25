@@ -12,6 +12,7 @@ from app.repositories.hospital_repository import get_hospitals, get_hospitals_by
 from app.ai.hospital_ai_service import ask_hospital_ai
 from app.services.infection_service import ingest_infections
 from app.repositories.infection_repository import get_infections, get_infections_by_facility
+from app.services.physician_analysis_service import get_physician_hospital_correlation, search_physicians
 
 import hashlib
 
@@ -91,4 +92,23 @@ async def rating_distribution(session: AsyncSession = Depends(get_session)):
         return cached
     data = await get_rating_distribution(session)
     await set_cache(cache_key, data, ttl=3600)
+    return data
+
+@router.get("/api/v1/physicians")
+async def list_physicians(
+    state: str | None = None,
+    specialty: str | None = None,
+    name: str | None = None,
+    limit: int = 20
+):
+    return await search_physicians(state=state, specialty=specialty, name=name, limit=limit)
+
+@router.get("/api/v1/physicians/correlation")
+async def physician_hospital_correlation(session: AsyncSession = Depends(get_session)):
+    cache_key = "physician_hospital_correlation"
+    cached = await get_cache(get_session)
+    if cached:
+        return cached
+    data = await get_physician_hospital_correlation(session)
+    await set_cache(cache_key, data, ttl=86400)
     return data
