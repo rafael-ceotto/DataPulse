@@ -3,7 +3,9 @@ from slowapi import Limiter
 from slowapi.util import get_remote_address
 from pydantic import BaseModel
 from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy import select, func
 
+from app.models.hospital import Hospital as HospitalModel
 from app.core.database import AsyncSessionLocal
 from app.core.cache import get_cache, set_cache, invalidate_cache
 from app.core.auth import get_current_user
@@ -111,4 +113,37 @@ async def physician_hospital_correlation(session: AsyncSession = Depends(get_ses
         return cached
     data = await get_physician_hospital_correlation(session)
     await set_cache(cache_key, data, ttl=86400)
+    return data
+
+@router.get("/api/v1/physicians/state-analysis/{state}")
+async def physician_state_analysis(state: str, session: AsyncSession = Depends(get_session)):
+    cache_key = f"physician_state_analysis: {state}"
+    cached = await get_cache(cache_key)
+    if cached:
+        return cached
+    
+    # On-demand physician search per state
+    physician_data = await search_physicians(state=state, limit=1)
+    physician_count = physician_data.get("total", 0)
+    
+    # Hospital data search from DB
+    result = await session.execute(
+        select(
+            func.avg(HospitalModel.overall_rating).label("avg_rating"),
+            func.count(HospitalModel.facility_id).label("hospital_count"),
+        )
+        .where(HospitalModel.state == state)
+        .where(HospitalModel.overall_rating.isnot(None))
+    )
+    row = result.first()
+    
+    data = {
+        "state": state,
+        "physician_count": physician_count,
+        "hospital_count": row.hospital_count if row else 0,
+        "avg_hospital_rating": round(float(row.avg_rating), 2) if row and row.avg_rating else None,
+        "physicians_per_hospital": round(physician_count / row.hospital_count, 1) if row and row.hospital_count else None,
+     }
+    
+    await set_cache(cache_key, data, ttl=3600)
     return data
