@@ -17,7 +17,6 @@ jobs:
           POSTGRES_USER: datapulse
           POSTGRES_PASSWORD: datapulse
           POSTGRES_DB: datapulse
-          POSTGRES_DB_TEST: datapulse_test
         ports:
           - 5432:5432
         options: >-
@@ -64,9 +63,11 @@ jobs:
       - name: Run integration tests
         env:
           DB_URL: postgresql+asyncpg://datapulse:datapulse@localhost:5432/datapulse
+          TEST_DB_URL: postgresql+asyncpg://datapulse:datapulse@localhost:5432/datapulse_test
         run: poetry run pytest tests/integration -v
 
       - name: Run API tests
         env:
           DB_URL: postgresql+asyncpg://datapulse:datapulse@localhost:5432/datapulse
+          TEST_DB_URL: postgresql+asyncpg://datapulse:datapulse@localhost:5432/datapulse_test
         run: poetry run pytest tests/api -v
