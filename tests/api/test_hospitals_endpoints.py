@@ -49,3 +49,5 @@ async def test_get_hospital_by_id(client):
 async def test_get_hospital_not_found(client):
     response = await client.get("/api/v1/hospitals/999999")
     assert response.status_code == 404
+    
+    
