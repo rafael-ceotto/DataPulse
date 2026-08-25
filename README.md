@@ -34,6 +34,14 @@ Every pipeline execution is logged in `pipeline_runs`, tracking status, records 
 
 ## How to Run
 
+### Authentication
+The following endpoints require a Bearer token:
+- `POST /api/v1/pipeline/run`
+- `POST /api/v1/pipeline/run/infections`
+- `POST /api/v1/ai/query`
+
+Default credentials: `admin` / `datapulse2024`
+
 **Start PostgreSQL:**
 ```bash
 docker compose up -d
@@ -66,6 +74,11 @@ API docs available at `http://localhost:8000/docs`
 | GET | `/api/v1/hospitals` | Returns a paginated list of hospitals. Supports `page`, `limit`, and `state` filters |
 | GET | `/api/v1/hospitals/{facility_id}` | Returns a single hospital by facility ID |
 | POST | `/api/v1/ai/query` | Accepts a natural language question and returns a SQL query, results, and explanation |
+| GET | `/api/v1/physicians` | On-demand physician search. Supports `state`, `specialty`, `name`, `limit` filters |
+| GET | `/api/v1/physicians/state-analysis/{state}` | Physician-hospital correlation analysis by state |
+| GET | `/api/v1/infections` | Lists healthcare-associated infection records. Supports `state`, `compared_to_national`, `page`, `limit` |
+| GET | `/api/v1/infections/{facility_id}` | Returns all infection measures for a specific hospital |
+| POST | `/api/v1/pipeline/run/infections` | Triggers healthcare-associated infections data ingestion |
 
 **Example:**
 
@@ -91,6 +104,22 @@ pytest tests/api -v
 ## AI Layer
 
 DataPulse includes a natural language query interface powered by a local LLM via Ollama.
+
+## Physician & Hospital Analysis
+
+DataPulse integrates the CMS Doctors and Clinicians dataset (3.3M+ records) on-demand — without local storage — to analyze the relationship between physician density and hospital quality by state.
+
+**Why on-demand instead of ingestion?**
+The physician dataset contains 3.3M+ records with no direct foreign key relationship to hospitals. Storing it locally would require significant infrastructure (partitioned tables, specialized indexes) without proportional analytical benefit for the current scope. On-demand queries via the CMS API return results in milliseconds for filtered requests.
+
+**Why Pandas instead of Spark?**
+At 3.3M records, Pandas handles the analytical workload efficiently on a single machine. Spark would add infrastructure complexity (cluster setup, serialization overhead) without performance gains at this scale. The right tool for the right job — Spark becomes relevant at billions of records or distributed processing requirements.
+
+**Available analysis:**
+- Physician count per state (sourced live from CMS)
+- Average hospital rating per state (from local database)
+- Physicians per hospital ratio
+- Cached for 1 hour per state to minimize API calls
 
 **How it works:**
 
@@ -123,6 +152,24 @@ ollama pull llama3.1
 
 ## Technical Decisions
 
+**JWT Authentication**
+POST endpoints are protected with JWT Bearer tokens. Only authenticated users can trigger pipeline runs or query the AI layer. Authentication uses `python-jose` for token generation and `bcrypt` for password hashing.
+
+To authenticate via Swagger:
+1. Call `POST /api/v1/auth/token` with `username: admin` and `password: datapulse2024`
+2. Copy the `access_token` from the response
+3. Click "Authorize" in Swagger and paste the token
+
+**Redis Caching**
+Frequently accessed and computationally expensive endpoints are cached in Redis:
+- `GET /api/v1/hospitals/metrics/rating-distribution` — cached for 1 hour
+- `POST /api/v1/ai/query` — cached per question for 10 minutes (MD5 hash key)
+- `GET /api/v1/physicians/state-analysis/{state}` — cached per state for 1 hour
+- Cache is invalidated automatically when the pipeline runs
+
+**Rate Limiting**
+The AI query endpoint is limited to 5 requests per minute per IP using `slowapi`. This prevents abuse of the local LLM which is computationally expensive.
+
 **Async Python**
 All HTTP and database operations are async. This avoids blocking the API while waiting for external responses or I/O operations, keeping the server responsive under load.
 
@@ -148,3 +195,8 @@ Open source, OLTP-optimized, and well-supported by SQLAlchemy with async drivers
 - Schedule pipeline runs with Prefect or Dagster
 - Add data quality check with Great Expectations
 - Expand AI layer with RAG for document-based queries
+- Specialty scarcity analysis — identify underserved specialties by state
+- Spark pipeline for large-scale batch processing of physician data
+- Scheduled pipeline runs with Prefect or Dagster
+- Elasticsearch for advanced full-text search
+- pg_trgm index already implemented for fuzzy hospital name search
