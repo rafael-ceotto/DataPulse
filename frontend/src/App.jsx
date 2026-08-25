@@ -3,6 +3,7 @@ import AIQuery from "./components/AIQuery";
 import HospitalList from "./components/HospitalList";
 import RatingChart from "./components/RatingChart";
 import PhysicianAnalysis from "./components/PhysicianAnalysis";
+import ScarceSpecialties from "./components/ScarceSpecialties";
 import { theme } from "./theme";
 
 function Header() {
@@ -88,6 +89,7 @@ export default function App() {
         <AIQuery />
         <RatingChart />
         <PhysicianAnalysis />
+        <ScarceSpecialties />
         <HospitalList />
       </main>
     </div>

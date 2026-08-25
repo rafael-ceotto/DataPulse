@@ -167,3 +167,12 @@ async def warm_physician_cache():
         "message": "Cache warming started in background",
         "note": "Call /api/v1/physicians/scarce-specialties/{state} after cache is ready"
     }
+    
+@router.get("/api/v1/physicians/cache-status")
+async def physician_cache_status():
+    from app.services.physician_analysis_service import NATIONAL_SPECIALTY_CACHE_KEY
+    national = await get_cache(NATIONAL_SPECIALTY_CACHE_KEY)
+    return {
+        "national_specialty_cache": "ready" if national else "not_ready",
+        "specialties_cached": len(national) if national else 0,
+    }
