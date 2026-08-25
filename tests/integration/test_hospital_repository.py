@@ -16,6 +16,7 @@ def create_hospital(facility_id: str) -> Hospital:
         hospital_ownership="Voluntary non-profit - Private",
         emergency_services="Yes",
         overall_rating=4,
+        telephone_number="555-1234",
     )
     
 async def test_save_hospitals(test_session):
