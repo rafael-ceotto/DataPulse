@@ -1,12 +1,14 @@
 import json
-import httpx
+import re
 
+import httpx
 from sqlalchemy import text
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.ai.prompts import HOSPITAL_SYSTEM_PROMPT
 
 OLLAMA_URL = "http://localhost:11434/api/chat"
+
 
 async def ask_hospital_ai(session: AsyncSession, question: str):
     async with httpx.AsyncClient(timeout=60.0) as client:
@@ -30,6 +32,10 @@ async def ask_hospital_ai(session: AsyncSession, question: str):
     response.raise_for_status()
     data = response.json()
     content = data["message"]["content"]
+
+    # Remove control characters that break JSON parsing
+    content = re.sub(r'[\x00-\x1f\x7f]', ' ', content)
+
     try:
         parsed = json.loads(content)
     except json.JSONDecodeError:
@@ -48,5 +54,11 @@ async def ask_hospital_ai(session: AsyncSession, question: str):
         "question": question,
         "sql": sql,
         "explanation": explanation,
-        "results": [dict(row) for row in rows],
+        "results": [
+            dict({
+                k: float(v) if hasattr(v, '__float__') and not isinstance(v, (int, str, bool, type(None))) else v
+                for k, v in row.items()
+            })
+            for row in rows
+        ],
     }

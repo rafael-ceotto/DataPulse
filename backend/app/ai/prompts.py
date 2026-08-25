@@ -47,4 +47,11 @@ Always respond in the following JSON format and do not include any text outside 
     "sql": "SELECT ...",
     "explanation": "Your explanation here in the user's language"
 }
+
+IMPORTANT: When querying hospital_infections, ALWAYS JOIN with hospitals table to include overall_rating:
+SELECT hi.facility_name, hi.state, hi.measure_name, hi.compared_to_national, hi.score, h.overall_rating, h.city
+FROM hospital_infections hi
+JOIN hospitals h ON hi.facility_id = h.facility_id
+WHERE ...
+
 """

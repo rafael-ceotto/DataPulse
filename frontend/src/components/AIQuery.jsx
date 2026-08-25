@@ -220,7 +220,7 @@ export default function AIQuery() {
                   {r.city && r.state ? `${r.city}, ${r.state}` : r.state ? "Statewide" : "—"}
                 </span>
                 <span style={{ textAlign: "right", fontFamily: theme.mono, color: theme.mint }}>
-                  {r.overall_rating ?? (r.avg_rating ? parseFloat(r.avg_rating).toFixed(2) : null) ?? r.num_hospitals ?? "—"}
+                  {r.overall_rating ?? (r.avg_rating ? parseFloat(r.avg_rating).toFixed(2) : null) ?? (r.average_rating ? parseFloat(r.average_rating).toFixed(2) : null) ?? r.num_hospitals ?? "—"}
                 </span>
               </div>
             ))}
