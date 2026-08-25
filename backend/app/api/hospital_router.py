@@ -4,6 +4,7 @@ from slowapi.util import get_remote_address
 from pydantic import BaseModel
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select, func
+import asyncio
 
 from app.models.hospital import Hospital as HospitalModel
 from app.core.database import AsyncSessionLocal
@@ -14,7 +15,8 @@ from app.repositories.hospital_repository import get_hospitals, get_hospitals_by
 from app.ai.hospital_ai_service import ask_hospital_ai
 from app.services.infection_service import ingest_infections
 from app.repositories.infection_repository import get_infections, get_infections_by_facility
-from app.services.physician_analysis_service import get_physician_hospital_correlation, search_physicians
+from app.services.physician_analysis_service import get_physician_hospital_correlation, search_physicians, get_scarce_specialties
+
 
 import hashlib
 
@@ -147,3 +149,21 @@ async def physician_state_analysis(state: str, session: AsyncSession = Depends(g
     
     await set_cache(cache_key, data, ttl=3600)
     return data
+
+@router.get("/api/v1/physicians/scarce-specialties/{state}")
+async def scarce_specialties(state: str):
+    return await get_scarce_specialties(state)
+
+@router.post("/api/v1/physicians/warm-cache")
+async def warm_physician_cache():
+    """
+    Triggers background population of national specialty counts cache.
+    Returns immediately — cache builds in background.
+    Check Redis key 'national_specialty_counts' to verify completion.
+    """
+    from app.services.physician_analysis_service import get_national_specialty_counts
+    asyncio.create_task(get_national_specialty_counts())
+    return {
+        "message": "Cache warming started in background",
+        "note": "Call /api/v1/physicians/scarce-specialties/{state} after cache is ready"
+    }
