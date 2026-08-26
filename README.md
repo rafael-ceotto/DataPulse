@@ -70,15 +70,21 @@ API docs available at `http://localhost:8000/docs`
 
 | Method | Endpoint | Description |
 |--------|----------|-------------|
-| POST | `/api/v1/pipeline/run` | Triggers CMS data ingestion and logs execution results |
-| GET | `/api/v1/hospitals` | Returns a paginated list of hospitals. Supports `page`, `limit`, and `state` filters |
+| POST | `/api/v1/pipeline/run` | Triggers CMS hospital data ingestion and logs execution results |
+| POST | `/api/v1/pipeline/run/infections` | Triggers healthcare-associated infections data ingestion |
+| GET | `/api/v1/hospitals` | Returns a paginated list of hospitals. Supports `page`, `limit`, `state`, and `search` filters |
 | GET | `/api/v1/hospitals/{facility_id}` | Returns a single hospital by facility ID |
-| POST | `/api/v1/ai/query` | Accepts a natural language question and returns a SQL query, results, and explanation |
+| GET | `/api/v1/hospitals/metrics/rating-distribution` | Returns average hospital rating per state, ordered by rating |
+| GET | `/api/v1/infections` | Lists healthcare-associated infection records. Supports `state`, `compared_to_national`, `page`, `limit` filters |
+| GET | `/api/v1/infections/{facility_id}` | Returns all infection measures for a specific hospital |
 | GET | `/api/v1/physicians` | On-demand physician search. Supports `state`, `specialty`, `name`, `limit` filters |
 | GET | `/api/v1/physicians/state-analysis/{state}` | Physician-hospital correlation analysis by state |
-| GET | `/api/v1/infections` | Lists healthcare-associated infection records. Supports `state`, `compared_to_national`, `page`, `limit` |
-| GET | `/api/v1/infections/{facility_id}` | Returns all infection measures for a specific hospital |
-| POST | `/api/v1/pipeline/run/infections` | Triggers healthcare-associated infections data ingestion |
+| GET | `/api/v1/physicians/scarce-specialties/{state}` | Returns top 10 scarce medical specialties compared to national average |
+| GET | `/api/v1/physicians/cache-status` | Returns status of national specialty cache in Redis |
+| POST | `/api/v1/physicians/warm-cache` | Triggers background population of national specialty counts cache |
+| POST | `/api/v1/ai/query` | Accepts a natural language question and returns SQL, results, and explanation. Requires JWT. |
+| POST | `/api/v1/auth/token` | Returns a JWT access token. Credentials: `admin` / `datapulse2024` |
+
 
 **Example:**
 
@@ -150,7 +156,33 @@ POST /api/v1/ai/query
 ollama pull llama3.1
 ```
 
+## Scarce Specialty Analysis
+
+Identifies medical specialties with significantly fewer physicians than the national average for a given state. Uses statistical sampling (50,000 records) to estimate national counts, then compares each state's share against the expected 1/56 (~1.79%).
+
+**Scarcity ratio < 0.5** means the state has less than 50% of the expected share — a critical gap.
+
+**Fields returned:**
+- `specialty` — specialty name
+- `state_count` — physicians in the state
+- `national_count` — estimated national total
+- `state_share_pct` — state's actual share
+- `expected_share_pct` — expected share (1.79%)
+- `scarcity_ratio` — actual/expected ratio
+- `gap` — estimated additional physicians needed
+
+**Cache:** national specialty data is cached for 24 hours. Call `POST /api/v1/physicians/warm-cache` to populate. On server startup, cache warming starts automatically in background.
+
 ## Technical Decisions
+
+**Infection data in hospital cards**
+When a hospital card is expanded, the UI fetches and displays a summary of healthcare-associated infections (HAI) from the `hospital_infections` table — showing counts of measures rated worse, better, or average compared to the national benchmark.
+
+**AI multi-schema queries**
+The AI layer knows the schema of both `hospitals` and `hospital_infections` tables, enabling cross-table queries via JOIN. Example: "Which hospitals in Ohio have worse than national benchmark infections?" generates a JOIN query automatically.
+
+**Statistical sampling for specialty analysis**
+Instead of fetching all 3.3M physician records nationally, we sample 50,000 records and extrapolate using a scale factor. This reduces API calls from ~2,200 to ~33 while maintaining statistical significance.
 
 **JWT Authentication**
 POST endpoints are protected with JWT Bearer tokens. Only authenticated users can trigger pipeline runs or query the AI layer. Authentication uses `python-jose` for token generation and `bcrypt` for password hashing.
