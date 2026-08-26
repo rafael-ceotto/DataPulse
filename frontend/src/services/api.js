@@ -46,3 +46,9 @@ export async function askAI(question) {
   });
   return response.json();
 }
+
+export async function getHospitalInfections(facilityId) {
+  const response = await fetch(`${API_URL}/api/v1/infections/${facilityId}`);
+  if (!response.ok) return [];
+  return response.json();
+}

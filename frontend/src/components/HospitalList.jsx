@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from "react";
 import { theme } from "../theme";
-import { getHospitals } from "../services/api";
+import { getHospitals, getHospitalInfections } from "../services/api";
 
 function Stars({ rating }) {
   return (
@@ -15,6 +15,21 @@ function Stars({ rating }) {
 }
 
 function HospitalCard({ hospital, expanded, onExpand, onClose }) {
+  const [infections, setInfections] = useState([]);
+  const [loadingInfections, setLoadingInfections] = useState(false);
+
+  useEffect(() => {
+    if (!expanded) return;
+    setLoadingInfections(true);
+    getHospitalInfections(hospital.facility_id)
+      .then(setInfections)
+      .finally(() => setLoadingInfections(false));
+  }, [expanded, hospital.facility_id]);
+
+  const worse = infections.filter(i => i.compared_to_national === "Worse than the National Benchmark");
+  const better = infections.filter(i => i.compared_to_national === "Better than the National Benchmark");
+  const average = infections.length - worse.length - better.length;
+
   return (
     <article
       style={{
@@ -62,24 +77,59 @@ function HospitalCard({ hospital, expanded, onExpand, onClose }) {
       </div>
 
       {expanded && (
-        <div style={{ display: "flex", flexDirection: "column", gap: 10, borderTop: `1px solid ${theme.border}`, paddingTop: 14 }}>
-          {[
-            { label: "Facility ID", value: hospital.facility_id },
-            { label: "Address", value: hospital.address },
-            { label: "ZIP Code", value: hospital.zip_code },
-            { label: "Phone", value: hospital.telephone_number },
-            { label: "Type", value: hospital.hospital_type },
-            { label: "Ownership", value: hospital.hospital_ownership },
-            { label: "Emergency Services", value: hospital.emergency_services },
-          ].map(({ label, value }) => (
-            <div key={label} style={{ display: "flex", gap: 10, fontSize: 13.5 }}>
-              <span style={{ fontFamily: theme.mono, fontSize: 11, color: theme.faint, letterSpacing: "0.04em", minWidth: 130, paddingTop: 1 }}>
-                {label.toUpperCase()}
-              </span>
-              <span style={{ color: theme.ink, flex: 1 }}>{value ?? "—"}</span>
+        <>
+          <div style={{ display: "flex", flexDirection: "column", gap: 10, borderTop: `1px solid ${theme.border}`, paddingTop: 14 }}>
+            {[
+              { label: "Facility ID", value: hospital.facility_id },
+              { label: "Address", value: hospital.address },
+              { label: "ZIP Code", value: hospital.zip_code },
+              { label: "Phone", value: hospital.telephone_number },
+              { label: "Type", value: hospital.hospital_type },
+              { label: "Ownership", value: hospital.hospital_ownership },
+              { label: "Emergency Services", value: hospital.emergency_services },
+            ].map(({ label, value }) => (
+              <div key={label} style={{ display: "flex", gap: 10, fontSize: 13.5 }}>
+                <span style={{ fontFamily: theme.mono, fontSize: 11, color: theme.faint, letterSpacing: "0.04em", minWidth: 130, paddingTop: 1 }}>
+                  {label.toUpperCase()}
+                </span>
+                <span style={{ color: theme.ink, flex: 1 }}>{value ?? "—"}</span>
+              </div>
+            ))}
+          </div>
+
+          <div style={{ borderTop: `1px solid ${theme.border}`, paddingTop: 14 }}>
+            <div style={{ fontFamily: theme.mono, fontSize: 10.5, color: theme.faint, letterSpacing: "0.06em", textTransform: "uppercase", marginBottom: 10 }}>
+              Healthcare-Associated Infections
             </div>
-          ))}
-        </div>
+
+            {loadingInfections && (
+              <div style={{ fontSize: 13, color: theme.muted }}>Loading...</div>
+            )}
+
+            {!loadingInfections && infections.length === 0 && (
+              <div style={{ fontSize: 13, color: theme.muted }}>No infection data available.</div>
+            )}
+
+            {!loadingInfections && infections.length > 0 && (
+              <div style={{ display: "flex", gap: 20, flexWrap: "wrap" }}>
+                {[
+                  { label: "▲ Worse", count: worse.length, color: "#c0392b" },
+                  { label: "▼ Better", count: better.length, color: "#2f9e6f" },
+                  { label: "— Average", count: average, color: "#6f8a95" },
+                ].map(({ label, count, color }) => (
+                  <div key={label} style={{ display: "flex", alignItems: "center", gap: 6 }}>
+                    <span style={{ fontFamily: theme.mono, fontSize: 16, fontWeight: 700, color }}>
+                      {count}
+                    </span>
+                    <span style={{ fontFamily: theme.mono, fontSize: 10.5, color, letterSpacing: "0.04em" }}>
+                      {label}
+                    </span>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        </>
       )}
 
       <div style={{ marginTop: "auto", display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12, paddingTop: 14, borderTop: `1px solid #eef1f2` }}>
