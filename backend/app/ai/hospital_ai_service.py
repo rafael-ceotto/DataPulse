@@ -6,16 +6,22 @@ from sqlalchemy import text
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.ai.prompts import HOSPITAL_SYSTEM_PROMPT
+from app.core.config import settings
 
-OLLAMA_URL = "http://localhost:11434/api/chat"
+GROQ_URL = "https://api.groq.com/openai/v1/chat/completions"
+GROQ_MODEL = "openai/gpt-oss-120b"
 
 
 async def ask_hospital_ai(session: AsyncSession, question: str):
     async with httpx.AsyncClient(timeout=60.0) as client:
         response = await client.post(
-            OLLAMA_URL,
+            GROQ_URL,
+            headers={
+                "Authorization": f"Bearer {settings.GROQ_API_KEY}",
+                "Content-Type": "application/json",
+            },
             json={
-                "model": "llama3.1",
+                "model": GROQ_MODEL,
                 "messages": [
                     {
                         "role": "system",
@@ -26,14 +32,13 @@ async def ask_hospital_ai(session: AsyncSession, question: str):
                         "content": question,
                     },
                 ],
-                "stream": False,
+                "temperature": 0.1,
             }
         )
     response.raise_for_status()
     data = response.json()
-    content = data["message"]["content"]
+    content = data["choices"][0]["message"]["content"]
 
-    # Remove control characters that break JSON parsing
     content = re.sub(r'[\x00-\x1f\x7f]', ' ', content)
 
     try:

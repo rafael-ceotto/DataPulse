@@ -16,7 +16,7 @@ from app.ai.hospital_ai_service import ask_hospital_ai
 from app.services.infection_service import ingest_infections
 from app.repositories.infection_repository import get_infections, get_infections_by_facility
 from app.services.physician_analysis_service import get_physician_hospital_correlation, search_physicians, get_scarce_specialties
-
+from app.ai.hospital_agent_service import ask_agent
 
 import hashlib
 
@@ -59,7 +59,7 @@ async def ai_query(request: Request, body: AIQueryRequest, session: AsyncSession
     cached = await get_cache(cache_key)
     if cached:
         return cached
-    result = await ask_hospital_ai(session, body.question)
+    result = await ask_agent(session, body.question)
     await set_cache(cache_key, result, ttl=600)
     return result
 
@@ -176,3 +176,4 @@ async def physician_cache_status():
         "national_specialty_cache": "ready" if national else "not_ready",
         "specialties_cached": len(national) if national else 0,
     }
+    
