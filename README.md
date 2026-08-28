@@ -4,9 +4,11 @@ A data pipeline and REST API for CMS hospital quality data. Ingests, validates, 
 
 ## Stack
 - **Backend:** Python, FastAPI, SQLAlchemy, Alembic, PostgreSQL, Pydantic, httpx
+- **AI:** Groq API (openai/gpt-oss-120b) with multi-turn tool calling. Used Ollama for 1.0 version
+- **Caching:** Redis
 - **Testing:** pytest, pytest-asyncio
 - **Infrastructure:** Docker, Docker Compose, GitHub Actions
-- **Frontend:** React (in progress)
+- **Frontend:** React + Vite
 
 ## Architecture
 
@@ -84,6 +86,8 @@ API docs available at `http://localhost:8000/docs`
 | POST | `/api/v1/physicians/warm-cache` | Triggers background population of national specialty counts cache |
 | POST | `/api/v1/ai/query` | Accepts a natural language question and returns SQL, results, and explanation. Requires JWT. |
 | POST | `/api/v1/auth/token` | Returns a JWT access token. Credentials: `admin` / `datapulse2024` |
+| GET | `/` | Returns API status message |
+| GET | `/health` | Returns API health status |
 
 
 **Example:**
@@ -109,51 +113,58 @@ pytest tests/api -v
 
 ## AI Layer
 
-DataPulse includes a natural language query interface powered by a local LLM via Ollama.
+DataPulse includes a natural language query interface powered by the Groq API. The AI layer operates in two modes depending on question complexity:
 
-## Physician & Hospital Analysis
+**SQL mode** — simple, direct queries are translated into PostgreSQL SELECT statements and executed against the database.
 
-DataPulse integrates the CMS Doctors and Clinicians dataset (3.3M+ records) on-demand — without local storage — to analyze the relationship between physician density and hospital quality by state.
+**Agent mode** — complex analytical questions trigger a multi-turn tool calling loop. The agent selects and calls the appropriate tools, collects results, and synthesizes a structured response.
 
-**Why on-demand instead of ingestion?**
-The physician dataset contains 3.3M+ records with no direct foreign key relationship to hospitals. Storing it locally would require significant infrastructure (partitioned tables, specialized indexes) without proportional analytical benefit for the current scope. On-demand queries via the CMS API return results in milliseconds for filtered requests.
-
-**Why Pandas instead of Spark?**
-At 3.3M records, Pandas handles the analytical workload efficiently on a single machine. Spark would add infrastructure complexity (cluster setup, serialization overhead) without performance gains at this scale. The right tool for the right job — Spark becomes relevant at billions of records or distributed processing requirements.
-
-**Available analysis:**
-- Physician count per state (sourced live from CMS)
-- Average hospital rating per state (from local database)
-- Physicians per hospital ratio
-- Cached for 1 hour per state to minimize API calls
+**Available tools:**
+- `search_hospitals` — searches hospitals by state and rating
+- `get_rating_distribution` — returns average hospital rating per state
+- `get_physician_state_analysis` — returns physician and hospital metrics by state
+- `get_scarce_specialties` — returns top 10 scarce specialties for a state
 
 **How it works:**
 
-1. User submits a question in natural language
-2. LLM receives the question alongside the database schema as context
-3. LLM generates a valid PostgreSQL SELECT query
-4. Query is executed against the database
-5. LLM explains the results in the user's language
+1. User submits a natural language question
+2. If simple → LLM generates a PostgreSQL SELECT query, executes it, and explains the results
+3. If complex → Agent loop runs up to 3 iterations of tool calls, then synthesizes a final response
+4. Results and explanation are returned to the frontend
 
 **Features:**
-- Multilingual support — responds in the same language as the question
-- SELECT-only enforcement — only read queries are allowed, preventing any data modification
-- Local LLM — runs entirely on your machine via Ollama, no external API calls or costs
+- Multilingual — responds in the same language as the question
+- SELECT-only enforcement — no data modification is possible
+- Redis cache — responses cached for 10 minutes per question (MD5 hash key)
+- Rate limited — 5 requests per minute per IP
 
-**Model:** llama3.1 (via Ollama)
+**Model:** openai/gpt-oss-120b via Groq API
 
-**Example:**
+**Example — simple query:**
 ```json
 POST /api/v1/ai/query
 {
-    "question": "Which states have the most 5-star hospitals?"
+    "question": "Which hospitals in Ohio have a 5-star rating?"
 }
 ```
 
-**Setup:**
-```bash
-# Install Ollama from https://ollama.com/download
-ollama pull llama3.1
+**Example — agent query:**
+```json
+POST /api/v1/ai/query
+{
+    "question": "Compare Ohio's healthcare system with Kentucky's"
+}
+```
+
+**Response:**
+```json
+{
+    "question": "Compare Ohio's healthcare system with Kentucky's",
+    "mode": "agent",
+    "tools_used": ["get_physician_state_analysis", "get_physician_state_analysis", "get_scarce_specialties"],
+    "explanation": "Ohio has significantly more physicians (122,247 vs 47,265)...",
+    "results": []
+}
 ```
 
 ## Scarce Specialty Analysis
@@ -200,7 +211,7 @@ Frequently accessed and computationally expensive endpoints are cached in Redis:
 - Cache is invalidated automatically when the pipeline runs
 
 **Rate Limiting**
-The AI query endpoint is limited to 5 requests per minute per IP using `slowapi`. This prevents abuse of the local LLM which is computationally expensive.
+The AI query endpoint is limited to 5 requests per minute per IP using `slowapi`. This prevents abuse of the Groq API and controls external API costs.
 
 **Async Python**
 All HTTP and database operations are async. This avoids blocking the API while waiting for external responses or I/O operations, keeping the server responsive under load.
@@ -231,3 +242,6 @@ Open source, OLTP-optimized, and well-supported by SQLAlchemy with async drivers
 - Spark pipeline for large-scale batch processing of physician data
 - Elasticsearch for advanced full-text search
 - pg_trgm index already implemented for fuzzy hospital name search
+- Add `get_hospital_infections` as an agent tool for cross-domain queries
+- Expand agent tools with aggregation and trend analysis
+- RAG layer for document-based queries (CMS policy documents)
