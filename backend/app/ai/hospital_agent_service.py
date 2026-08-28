@@ -1,3 +1,4 @@
+import asyncio
 import json
 import re
 
@@ -10,7 +11,6 @@ from app.ai.hospital_ai_service import ask_hospital_ai
 
 GROQ_URL = "https://api.groq.com/openai/v1/chat/completions"
 GROQ_MODEL = "openai/gpt-oss-120b"
-GROQ_SYNTHESIS_MODEL = "qwen/qwen3.6-27b"
 
 TOOLS = [
     {
@@ -128,6 +128,7 @@ async def execute_tool(tool_name: str, tool_args: dict, session: AsyncSession) -
 
 def clean_content(content: str) -> str:
     content = re.sub(r'<think>.*?</think>', '', content, flags=re.DOTALL)
+    content = re.sub(r'<think>.*', '', content, flags=re.DOTALL)
     content = re.sub(r'<tool_call>.*?</tool_call>', '', content, flags=re.DOTALL)
     content = re.sub(r'<function.*?</function>', '', content, flags=re.DOTALL)
     return content.strip()
@@ -142,7 +143,7 @@ async def ask_agent(session: AsyncSession, question: str) -> dict:
         {"role": "user", "content": question},
     ]
 
-    MAX_ITERATIONS = 5
+    MAX_ITERATIONS = 3
     all_tools_used = []
 
     for iteration in range(MAX_ITERATIONS):
@@ -186,7 +187,6 @@ async def ask_agent(session: AsyncSession, question: str) -> dict:
         if finish_reason == "stop" or not message.get("tool_calls"):
             final_content = clean_content(content)
             if not final_content:
-                # Fallback to SQL if agent returned nothing
                 return await ask_hospital_ai(session, question)
             return {
                 "question": question,
@@ -213,25 +213,43 @@ async def ask_agent(session: AsyncSession, question: str) -> dict:
                 "content": result,
             })
 
-    # Max iterations reached — force synthesis with different model
-    async with httpx.AsyncClient(timeout=60.0) as client:
-        final_response = await client.post(
-            GROQ_URL,
-            headers={
-                "Authorization": f"Bearer {settings.GROQ_API_KEY}",
-                "Content-Type": "application/json",
-            },
-            json={
-                "model": GROQ_SYNTHESIS_MODEL,
-                "messages": messages,
-                "temperature": 0.1,
-            }
-        )
-    if final_response.status_code != 200:
-        print(f"GROQ FINAL ERROR: {final_response.json()}")
-    final_response.raise_for_status()
+    # Max iterations reached — force final answer without tools
+    messages.append({
+        "role": "user",
+        "content": "Based on the data you retrieved above, write a clear and concise response. Do not call any tools.",
+    })
+
+    final_response = None
+    for attempt in range(3):
+        async with httpx.AsyncClient(timeout=60.0) as client:
+            final_response = await client.post(
+                GROQ_URL,
+                headers={
+                    "Authorization": f"Bearer {settings.GROQ_API_KEY}",
+                    "Content-Type": "application/json",
+                },
+                json={
+                    "model": GROQ_MODEL,
+                    "messages": messages,
+                    "temperature": 0.1,
+                    "max_tokens": 1024,
+                }
+            )
+        if final_response.status_code == 429:
+            print(f"Rate limit hit on synthesis, waiting 3s (attempt {attempt + 1})")
+            await asyncio.sleep(3)
+            continue
+        break
+
+    if final_response is None or final_response.status_code != 200:
+        print(f"GROQ FINAL ERROR: {final_response.json() if final_response else 'no response'}")
+        return await ask_hospital_ai(session, question)
+
     final_data = final_response.json()
     final_content = clean_content(final_data["choices"][0]["message"]["content"])
+
+    if not final_content:
+        return await ask_hospital_ai(session, question)
 
     return {
         "question": question,
