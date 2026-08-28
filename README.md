@@ -229,6 +229,5 @@ Open source, OLTP-optimized, and well-supported by SQLAlchemy with async drivers
 - Expand AI layer with RAG for document-based queries
 - Specialty scarcity analysis — identify underserved specialties by state
 - Spark pipeline for large-scale batch processing of physician data
-- Scheduled pipeline runs with Prefect or Dagster
 - Elasticsearch for advanced full-text search
 - pg_trgm index already implemented for fuzzy hospital name search
