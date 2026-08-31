@@ -1,7 +1,7 @@
 import uuid
 from datetime import datetime
 
-from sqlalchemy import DateTime, String
+from sqlalchemy import DateTime, String, Float
 from sqlalchemy.orm import Mapped, mapped_column
 
 from app.core.database import Base
@@ -16,3 +16,4 @@ class PipelineRun(Base):
     records_processed: Mapped[int] = mapped_column()
     records_failed: Mapped[int] =  mapped_column()
     error_message: Mapped[str | None] = mapped_column(String, nullable=True,)
+    avg_rating: Mapped[float | None] = mapped_column(Float, nullable=True)

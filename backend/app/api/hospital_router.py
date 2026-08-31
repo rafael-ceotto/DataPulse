@@ -191,7 +191,9 @@ async def list_pipeline_runs(limit: int=20, session: AsyncSession = Depends(get_
             "records_processed": r.records_processed,
             "records_failed": r.records_failed,
             "error_message": r.error_message,
+            "avg_rating": r.avg_rating,
             "duration_seconds": round((r.finished_at - r.started_at).total_seconds(), 1) if r.finished_at and r.started_at else None,
+            
         }
         for r in runs
     ]

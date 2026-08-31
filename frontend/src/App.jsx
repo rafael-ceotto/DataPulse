@@ -5,6 +5,7 @@ import RatingChart from "./components/RatingChart";
 import PhysicianAnalysis from "./components/PhysicianAnalysis";
 import ScarceSpecialties from "./components/ScarceSpecialties";
 import PipelineRuns from "./components/PipelineRuns";
+import RatingTrend from "./components/RatingTrend";
 import { theme } from "./theme";
 
 function Header() {
@@ -89,6 +90,7 @@ export default function App() {
       <main style={{ maxWidth: 1160, margin: "0 auto", padding: 28 }}>
         <AIQuery />
         <RatingChart />
+        <RatingTrend />
         <PhysicianAnalysis />
         <ScarceSpecialties />
         <PipelineRuns />
