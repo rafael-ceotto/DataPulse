@@ -15,5 +15,6 @@ class PipelineRun(Base):
     records_received: Mapped[int] = mapped_column()
     records_processed: Mapped[int] = mapped_column()
     records_failed: Mapped[int] =  mapped_column()
-    error_message: Mapped[str | None] = mapped_column(String, nullable=True,)
+    error_message: Mapped[str | None] = mapped_column(String, nullable=True)
     avg_rating: Mapped[float | None] = mapped_column(Float, nullable=True)
+    insight: Mapped[str | None] = mapped_column(String, nullable=True)
