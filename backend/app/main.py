@@ -47,11 +47,11 @@ async def lifespan(app: FastAPI):
     scheduler.add_job(
         run_scheduled_pipeline,
         "interval",
-        hours=6,
+        hours=1,
         
     )
     scheduler.start()
-    print("=== Scheduler started — pipeline runs every 6 hours ===")
+    print("=== Scheduler started — pipeline runs every 1 hour ===")
 
     yield
 
