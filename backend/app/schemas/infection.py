@@ -11,9 +11,13 @@ class HospitalInfection(BaseModel):
     start_date: str | None = None
     end_date: str | None = None
     
-    @field_validator("score", mode="before")
-    @classmethod
-    def empty_to_none(cls, v):
-        if v == "" or v == "N/A":
-            return None
-        return v
+@field_validator("score", mode="before")
+@classmethod
+def empty_to_none(cls, v):
+    if v in ("", "N/A", "Not available", "Not Available"):
+        return None
+    try:
+        return float(v)
+    except (ValueError, TypeError):
+        print(f"=== SCORE PARSE ERROR: repr={repr(v)} ===")
+        return None
