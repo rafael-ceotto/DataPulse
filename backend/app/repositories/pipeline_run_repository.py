@@ -34,3 +34,10 @@ async def update_pipeline_run(
     pipeline_run.error_message = error_message
     
     await session.commit()
+    
+async def get_pipeline_runs(session: AsyncSession, limit: int=20) -> list[PipelineRun]:
+    from sqlalchemy import select
+    result = await session.execute(
+        select(PipelineRun).order_by(PipelineRun.started_at.desc()).limit(limit)
+    )
+    return result.scalars().all()

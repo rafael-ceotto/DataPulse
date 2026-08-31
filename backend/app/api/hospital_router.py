@@ -17,6 +17,7 @@ from app.services.infection_service import ingest_infections
 from app.repositories.infection_repository import get_infections, get_infections_by_facility
 from app.services.physician_analysis_service import get_physician_hospital_correlation, search_physicians, get_scarce_specialties
 from app.ai.hospital_agent_service import ask_agent
+from app.repositories.pipeline_run_repository import get_pipeline_runs
 
 import hashlib
 
@@ -177,3 +178,20 @@ async def physician_cache_status():
         "specialties_cached": len(national) if national else 0,
     }
     
+@router.get("/api/v1/pipeline/runs")
+async def list_pipeline_runs(limit: int=20, session: AsyncSession = Depends(get_session)):
+    runs = await get_pipeline_runs(session, limit)
+    return [
+        {
+          "id": str(r.id),
+            "started_at": r.started_at.isoformat() if r.started_at else None,
+            "finished_at": r.finished_at.isoformat() if r.finished_at else None,
+            "status": r.status,
+            "records_received": r.records_received,
+            "records_processed": r.records_processed,
+            "records_failed": r.records_failed,
+            "error_message": r.error_message,
+            "duration_seconds": round((r.finished_at - r.started_at).total_seconds(), 1) if r.finished_at and r.started_at else None,
+        }
+        for r in runs
+    ]

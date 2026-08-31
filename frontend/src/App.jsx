@@ -4,6 +4,7 @@ import HospitalList from "./components/HospitalList";
 import RatingChart from "./components/RatingChart";
 import PhysicianAnalysis from "./components/PhysicianAnalysis";
 import ScarceSpecialties from "./components/ScarceSpecialties";
+import PipelineRuns from "./components/PipelineRuns";
 import { theme } from "./theme";
 
 function Header() {
@@ -90,6 +91,7 @@ export default function App() {
         <RatingChart />
         <PhysicianAnalysis />
         <ScarceSpecialties />
+        <PipelineRuns />
         <HospitalList />
       </main>
     </div>
