@@ -32,7 +32,7 @@ The pipeline follows **Medallion Architecture** principles:
 - **Silver:** validated and typed data via Pydantic
 - **Gold:** cleaned records stored in PostgreSQL, ready for API consumption and visualization
 
-Every pipeline execution is logged in `pipeline_runs`, tracking status, records received, records processed, records failed, and error details if applicable.
+Every pipeline execution is logged in `pipeline_runs`, tracking status, records received, records processed, records failed, average rating, AI-generated insight, and error details if applicable.
 
 ## How to Run
 
@@ -44,7 +44,7 @@ The following endpoints require a Bearer token:
 
 Default credentials: `admin` / `datapulse2024`
 
-**Start PostgreSQL:**
+**Start PostgreSQL and Redis:**
 ```bash
 docker compose up -d
 ```
@@ -72,8 +72,11 @@ API docs available at `http://localhost:8000/docs`
 
 | Method | Endpoint | Description |
 |--------|----------|-------------|
+| GET | `/` | Returns API status message |
+| GET | `/health` | Returns API health status |
 | POST | `/api/v1/pipeline/run` | Triggers CMS hospital data ingestion and logs execution results |
 | POST | `/api/v1/pipeline/run/infections` | Triggers healthcare-associated infections data ingestion |
+| GET | `/api/v1/pipeline/runs` | Returns pipeline execution history with status, records, duration, and AI-generated insights |
 | GET | `/api/v1/hospitals` | Returns a paginated list of hospitals. Supports `page`, `limit`, `state`, and `search` filters |
 | GET | `/api/v1/hospitals/{facility_id}` | Returns a single hospital by facility ID |
 | GET | `/api/v1/hospitals/metrics/rating-distribution` | Returns average hospital rating per state, ordered by rating |
@@ -86,9 +89,6 @@ API docs available at `http://localhost:8000/docs`
 | POST | `/api/v1/physicians/warm-cache` | Triggers background population of national specialty counts cache |
 | POST | `/api/v1/ai/query` | Accepts a natural language question and returns SQL, results, and explanation. Requires JWT. |
 | POST | `/api/v1/auth/token` | Returns a JWT access token. Credentials: `admin` / `datapulse2024` |
-| GET | `/` | Returns API status message |
-| GET | `/health` | Returns API health status |
-
 
 **Example:**
 
@@ -167,6 +167,40 @@ POST /api/v1/ai/query
 }
 ```
 
+## Automated Insight Generation
+
+After each pipeline run, DataPulse automatically generates a natural language insight about the data using the Groq API. The insight is context-aware — it considers the last 5 historical insights to reason about trends over time.
+
+**How it works:**
+
+1. Pipeline completes and saves `avg_rating`
+2. System fetches the previous `avg_rating` and last 5 historical insights
+3. Groq receives current data + historical context
+4. Groq generates a 2-3 sentence insight about trends and quality shifts
+5. Insight is saved to `pipeline_runs` and displayed in the dashboard
+
+**Example insight:**
+> "The average hospital rating held steady at 3.21 for this run, matching the previous cycle and indicating no measurable shift in overall quality performance. Since the metric has remained flat across consecutive periods, there is no immediate signal to adjust quality initiatives, but continued monitoring is advisable to catch any emerging trends."
+
+**Why this matters:** The system acts proactively — it doesn't wait for a user to ask a question. Each insight influences the next, creating a reasoning chain over time. This is context-aware AI applied to a real monitoring problem, not a chatbot.
+
+**Model:** openai/gpt-oss-120b via Groq API
+
+## Scheduled Pipeline
+
+DataPulse runs the data pipeline automatically using APScheduler, without requiring external infrastructure like Celery or Kubernetes CronJobs. The scheduler runs inside the FastAPI process and starts automatically when the server boots.
+
+**Default interval:** every 6 hours (configurable)
+
+**What runs automatically:**
+- CMS hospital data ingestion (5,419 facilities)
+- Healthcare-associated infections ingestion (96,055 records)
+- avg_rating calculation and persistence
+- AI insight generation
+
+**Why APScheduler instead of Celery/Prefect:**
+At this scale, an in-process scheduler is simpler, cheaper, and requires no additional infrastructure. Celery would add a broker (Redis/RabbitMQ) and worker processes. Prefect would add a cloud dependency. APScheduler runs in the same process as FastAPI with zero overhead — the right tool for the right scale.
+
 ## Scarce Specialty Analysis
 
 Identifies medical specialties with significantly fewer physicians than the national average for a given state. Uses statistical sampling (50,000 records) to estimate national counts, then compares each state's share against the expected 1/56 (~1.79%).
@@ -228,20 +262,17 @@ This separation makes the codebase easier to test and allows implementation chan
 CMS data is re-ingested periodically. Using `INSERT ... ON CONFLICT DO UPDATE` prevents duplicate records when the same `facility_id` is encountered, keeping the dataset current without manual cleanup.
 
 **Pipeline run logging**
-Every execution is recorded from start to finish. Each run tracks status (`running`, `success`, `failed`), record counts, and error messages if applicable — making it easy to monitor data freshness and diagnose failures.
+Every execution is recorded from start to finish. Each run tracks status (`running`, `success`, `failed`), record counts, average rating, AI-generated insight, and error messages if applicable — making it easy to monitor data freshness and diagnose failures.
 
 **PostgreSQL**
 Open source, OLTP-optimized, and well-supported by SQLAlchemy with async drivers. A natural fit for structured healthcare data with relational integrity requirements.
 
 ## Future Improvements
 
-- Schedule pipeline runs with Prefect or Dagster
 - Add data quality check with Great Expectations
-- Expand AI layer with RAG for document-based queries
-- Specialty scarcity analysis — identify underserved specialties by state
 - Spark pipeline for large-scale batch processing of physician data
 - Elasticsearch for advanced full-text search
-- pg_trgm index already implemented for fuzzy hospital name search
 - Add `get_hospital_infections` as an agent tool for cross-domain queries
 - Expand agent tools with aggregation and trend analysis
 - RAG layer for document-based queries (CMS policy documents)
+- Export query results as CSV
