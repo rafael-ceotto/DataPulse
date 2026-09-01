@@ -12,13 +12,19 @@ function CIBadge() {
   const [status, setStatus] = useState(null);
 
   useEffect(() => {
-    fetch("https://api.github.com/repos/rafael-ceotto/DataPulse/actions/runs?per_page=1")
-      .then((r) => r.json())
-      .then((data) => {
-        const run = data.workflow_runs?.[0];
-        if (run) setStatus(run.conclusion);
-      })
-      .catch(() => setStatus(null));
+    function fetchStatus() {
+      fetch("https://api.github.com/repos/rafael-ceotto/DataPulse/actions/runs?per_page=1")
+        .then((r) => r.json())
+        .then((data) => {
+          const run = data.workflow_runs?.[0];
+          if (run) setStatus(run.conclusion);
+        })
+        .catch(() => setStatus(null));
+    }
+
+    fetchStatus();
+    const interval = setInterval(fetchStatus, 60000);
+    return () => clearInterval(interval);
   }, []);
 
   const color = status === "success" ? "#2f9e6f" : status === "failure" ? "#c0392b" : "#6f8a95";
