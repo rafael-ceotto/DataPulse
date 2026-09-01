@@ -18,6 +18,7 @@ from app.repositories.infection_repository import get_infections, get_infections
 from app.services.physician_analysis_service import get_physician_hospital_correlation, search_physicians, get_scarce_specialties
 from app.ai.hospital_agent_service import ask_agent
 from app.repositories.pipeline_run_repository import get_pipeline_runs
+from app.core.notion import save_to_notion
 
 import hashlib
 
@@ -31,6 +32,11 @@ async def get_session():
 
 class AIQueryRequest(BaseModel):
     question: str
+
+class NotionSaveRequest(BaseModel):
+    question: str
+    explanation: str
+    tools_used: list[str] = []
 
 @router.post("/api/v1/pipeline/run")
 async def run_pipeline(session: AsyncSession = Depends(get_session), current_user: dict = Depends(get_current_user)):
@@ -71,7 +77,7 @@ async def run_infections_pipeline(session: AsyncSession = Depends(get_session), 
         "message": "Infections pipeline executed successfully",
         "processed": counter,
     }
-    
+
 @router.get("/api/v1/infections")
 async def list_infections(
     state: str | None = None,
@@ -124,12 +130,10 @@ async def physician_state_analysis(state: str, session: AsyncSession = Depends(g
     cached = await get_cache(cache_key)
     if cached:
         return cached
-    
-    # On-demand physician search per state
+
     physician_data = await search_physicians(state=state, limit=1)
     physician_count = physician_data.get("total", 0)
-    
-    # Hospital data search from DB
+
     result = await session.execute(
         select(
             func.avg(HospitalModel.overall_rating).label("avg_rating"),
@@ -139,15 +143,15 @@ async def physician_state_analysis(state: str, session: AsyncSession = Depends(g
         .where(HospitalModel.overall_rating.isnot(None))
     )
     row = result.first()
-    
+
     data = {
         "state": state,
         "physician_count": physician_count,
         "hospital_count": row.hospital_count if row else 0,
         "avg_hospital_rating": round(float(row.avg_rating), 2) if row and row.avg_rating else None,
         "physicians_per_hospital": round(physician_count / row.hospital_count, 1) if row and row.hospital_count else None,
-     }
-    
+    }
+
     await set_cache(cache_key, data, ttl=3600)
     return data
 
@@ -157,18 +161,13 @@ async def scarce_specialties(state: str):
 
 @router.post("/api/v1/physicians/warm-cache")
 async def warm_physician_cache():
-    """
-    Triggers background population of national specialty counts cache.
-    Returns immediately — cache builds in background.
-    Check Redis key 'national_specialty_counts' to verify completion.
-    """
     from app.services.physician_analysis_service import get_national_specialty_counts
     asyncio.create_task(get_national_specialty_counts())
     return {
         "message": "Cache warming started in background",
         "note": "Call /api/v1/physicians/scarce-specialties/{state} after cache is ready"
     }
-    
+
 @router.get("/api/v1/physicians/cache-status")
 async def physician_cache_status():
     from app.services.physician_analysis_service import NATIONAL_SPECIALTY_CACHE_KEY
@@ -177,13 +176,13 @@ async def physician_cache_status():
         "national_specialty_cache": "ready" if national else "not_ready",
         "specialties_cached": len(national) if national else 0,
     }
-    
+
 @router.get("/api/v1/pipeline/runs")
-async def list_pipeline_runs(limit: int=20, session: AsyncSession = Depends(get_session)):
+async def list_pipeline_runs(limit: int = 20, session: AsyncSession = Depends(get_session)):
     runs = await get_pipeline_runs(session, limit)
     return [
         {
-          "id": str(r.id),
+            "id": str(r.id),
             "started_at": r.started_at.isoformat() if r.started_at else None,
             "finished_at": r.finished_at.isoformat() if r.finished_at else None,
             "status": r.status,
@@ -194,7 +193,15 @@ async def list_pipeline_runs(limit: int=20, session: AsyncSession = Depends(get_
             "avg_rating": r.avg_rating,
             "insight": r.insight,
             "duration_seconds": round((r.finished_at - r.started_at).total_seconds(), 1) if r.finished_at and r.started_at else None,
-            
         }
         for r in runs
     ]
+
+@router.post("/api/v1/notion/save")
+async def save_insight_to_notion(body: NotionSaveRequest, current_user: dict = Depends(get_current_user)):
+    print(f"=== NOTION: saving question={body.question[:50]} ===")
+    success = await save_to_notion(body.question, body.explanation, body.tools_used)
+    print(f"=== NOTION: success={success} ===")
+    if not success:
+        raise HTTPException(status_code=500, detail="Failed to save to Notion")
+    return {"message": "Saved to Notion successfully"}

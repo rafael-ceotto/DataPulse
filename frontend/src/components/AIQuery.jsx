@@ -1,6 +1,6 @@
 import React, { useState } from "react";
 import { theme } from "../theme";
-import { askAI } from "../services/api";
+import { askAI, saveToNotion } from "../services/api";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 
@@ -27,11 +27,14 @@ export default function AIQuery() {
   const [answer, setAnswer] = useState(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
+  const [saving, setSaving] = useState(false);
+  const [saved, setSaved] = useState(false);
 
   function clear() {
     setAnswer(null);
     setQuery("");
     setError(null);
+    setSaved(false);
   }
 
   async function ask(text = query) {
@@ -41,6 +44,7 @@ export default function AIQuery() {
     setLoading(true);
     setError(null);
     setAnswer(null);
+    setSaved(false);
     try {
       const data = await askAI(q);
       setAnswer(data);
@@ -48,6 +52,19 @@ export default function AIQuery() {
       setError("Something went wrong. Try again.");
     } finally {
       setLoading(false);
+    }
+  }
+
+  async function handleSaveToNotion() {
+    setSaving(true);
+    try {
+      await saveToNotion(answer.question, answer.explanation, answer.tools_used ?? []);
+      setSaved(true);
+      setTimeout(() => setSaved(false), 3000);
+    } catch (err) {
+      console.error("Failed to save to Notion", err);
+    } finally {
+      setSaving(false);
     }
   }
 
@@ -194,64 +211,86 @@ export default function AIQuery() {
             </div>
           )}
 
+          {/* Save to Notion button */}
+          {answer.explanation && (
+            <button
+              onClick={handleSaveToNotion}
+              disabled={saving || saved}
+              style={{
+                background: "transparent",
+                border: `1px solid ${saved ? "#2f9e6f" : "#2c3b44"}`,
+                color: saved ? "#2f9e6f" : "#6f8a95",
+                borderRadius: 999,
+                padding: "5px 14px",
+                fontSize: 12,
+                fontFamily: theme.mono,
+                cursor: saving ? "wait" : "pointer",
+                letterSpacing: "0.06em",
+                marginBottom: 18,
+              }}
+            >
+              {saved ? "✓ Saved to Notion" : saving ? "Saving..." : "↗ Save to Notion"}
+            </button>
+          )}
+
           <div style={{ ...label, textAlign: "center" }}>Explanation</div>
-          
+
           <div
-  style={{
-    margin: "0 auto 22px",
-    fontSize: 15.5,
-    lineHeight: 1.6,
-    color: "#dce5e9",
-    maxWidth: "74ch",
-    textAlign: "center",
-  }}
->
-  <style>{`
-    .ai-explanation table {
-      border-collapse: collapse;
-      margin: 16px auto;
-      font-size: 14px;
-    }
-    .ai-explanation th,
-    .ai-explanation td {
-      border: 1px solid #2c3b44;
-      padding: 8px 16px;
-      text-align: center;
-    }
-    .ai-explanation th {
-      background: #1a2a32;
-      color: #6f8a95;
-      font-family: monospace;
-      font-size: 11px;
-      letter-spacing: 0.07em;
-      text-transform: uppercase;
-    }
-    .ai-explanation td {
-      color: #dce5e9;
-    }
-    .ai-explanation tr:nth-child(even) td {
-      background: #111e24;
-    }
-    .ai-explanation h2,
-    .ai-explanation h3 {
-      margin-top: 24px;
-      margin-bottom: 8px;
-      color: #fff;
-      font-size: 15px;
-    }
-    .ai-explanation ul {
-      text-align: left;
-      display: inline-block;
-      padding-left: 20px;
-    }
-    .ai-explanation p {
-      margin: 8px 0;
-    }
-  `}</style>
-  <div className="ai-explanation">
-    <ReactMarkdown remarkPlugins={[remarkGfm]}>{answer.explanation}</ReactMarkdown>
-  </div>
-</div>
+            style={{
+              margin: "0 auto 22px",
+              fontSize: 15.5,
+              lineHeight: 1.6,
+              color: "#dce5e9",
+              maxWidth: "74ch",
+              textAlign: "center",
+            }}
+          >
+            <style>{`
+              .ai-explanation table {
+                border-collapse: collapse;
+                margin: 16px auto;
+                font-size: 14px;
+              }
+              .ai-explanation th,
+              .ai-explanation td {
+                border: 1px solid #2c3b44;
+                padding: 8px 16px;
+                text-align: center;
+              }
+              .ai-explanation th {
+                background: #1a2a32;
+                color: #6f8a95;
+                font-family: monospace;
+                font-size: 11px;
+                letter-spacing: 0.07em;
+                text-transform: uppercase;
+              }
+              .ai-explanation td {
+                color: #dce5e9;
+              }
+              .ai-explanation tr:nth-child(even) td {
+                background: #111e24;
+              }
+              .ai-explanation h2,
+              .ai-explanation h3 {
+                margin-top: 24px;
+                margin-bottom: 8px;
+                color: #fff;
+                font-size: 15px;
+              }
+              .ai-explanation ul {
+                text-align: left;
+                display: inline-block;
+                padding-left: 20px;
+              }
+              .ai-explanation p {
+                margin: 8px 0;
+              }
+            `}</style>
+            <div className="ai-explanation">
+              <ReactMarkdown remarkPlugins={[remarkGfm]}>{answer.explanation}</ReactMarkdown>
+            </div>
+          </div>
 
           {answer.results?.length > 0 && (
             <>

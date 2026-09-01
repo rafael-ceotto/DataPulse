@@ -52,3 +52,20 @@ export async function getHospitalInfections(facilityId) {
   if (!response.ok) return [];
   return response.json();
 }
+
+export async function saveToNotion(question, explanation, toolsUsed){
+  const token = await getToken();
+  const response = await fetch("/api/v1/notion/save", {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      "Authorization": `Bearer ${token}`,
+    },
+    body: JSON.stringify({
+      question,
+      explanation,
+      tools_used: toolsUsed,
+    }),
+  });
+  return response.json();
+}
