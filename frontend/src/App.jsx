@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useEffect, useState } from "react";
 import AIQuery from "./components/AIQuery";
 import HospitalList from "./components/HospitalList";
 import RatingChart from "./components/RatingChart";
@@ -7,6 +7,30 @@ import ScarceSpecialties from "./components/ScarceSpecialties";
 import PipelineRuns from "./components/PipelineRuns";
 import RatingTrend from "./components/RatingTrend";
 import { theme } from "./theme";
+
+function CIBadge() {
+  const [status, setStatus] = useState(null);
+
+  useEffect(() => {
+    fetch("https://api.github.com/repos/rafael-ceotto/DataPulse/actions/runs?per_page=1")
+      .then((r) => r.json())
+      .then((data) => {
+        const run = data.workflow_runs?.[0];
+        if (run) setStatus(run.conclusion);
+      })
+      .catch(() => setStatus(null));
+  }, []);
+
+  const color = status === "success" ? "#2f9e6f" : status === "failure" ? "#c0392b" : "#6f8a95";
+  const label = status === "success" ? "CI passing" : status === "failure" ? "CI failing" : "CI unknown";
+
+  return (
+    <>
+      <span style={{ width: 7, height: 7, borderRadius: "50%", background: color }} />
+      <span>5,419 facilities · {label}</span>
+    </>
+  );
+}
 
 function Header() {
   return (
@@ -67,8 +91,7 @@ function Header() {
             color: theme.muted,
           }}
         >
-          <span style={{ width: 7, height: 7, borderRadius: "50%", background: "#2f9e6f" }} />
-          <span>5,419 facilities · release 2026.2</span>
+          <CIBadge />
         </div>
       </div>
     </header>
