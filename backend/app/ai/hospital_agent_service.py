@@ -81,6 +81,20 @@ TOOLS = [
             }
         }
     },
+    {
+    "type": "function",
+    "function": {
+        "name": "get_hospital_infections",
+        "description": "Get healthcare-associated infection (HAI) summary for a state. Returns counts of measures rated worse, better, or average compared to national benchmark. Use when asked about infection rates, HAI data, or hospital safety by state.",
+        "parameters": {
+            "type": "object",
+            "properties": {
+                "state": {"type": "string", "description": "2-letter US state code e.g. OH, CA, TX"}
+            },
+            "required": ["state"]
+        }
+    }
+    },
 ]
 
 AGENT_SYSTEM_PROMPT = """You are a healthcare data analyst assistant with access to a PostgreSQL database containing real CMS hospital quality data, including 5,419 US hospitals with ratings, locations, and healthcare-associated infection records.
@@ -98,6 +112,7 @@ ALWAYS use tools when the question asks for:
 - Any analysis that goes beyond simple hospital listing
 - A list of hospitals with a specific rating (e.g. "Which hospitals have 5 stars?")
 - The lowest or highest rated facilities
+- Infection rates, HAI data, or hospital safety by state
 
 For simple, direct queries:
 - "Which hospitals have a 5-star rating?" → immediately call get_top_rated_hospitals with min_rating=5, limit=10. Do not ask for clarification.
@@ -162,6 +177,12 @@ async def execute_tool(tool_name: str, tool_args: dict, session: AsyncSession) -
         async with httpx.AsyncClient(timeout=120.0) as client:
             r = await client.get(f"{base_url}/api/v1/physicians/state-analysis/{state}")
             return json.dumps(r.json())
+        
+    elif tool_name == "get_hospital_infections":
+        from app.repositories.infection_repository import get_infection_summary_by_state
+        state = tool_args.get("state", "")
+        data = await get_infection_summary_by_state(session, state)
+        return json.dumps(data)
 
     return json.dumps({"error": f"Unknown tool: {tool_name}"})
 

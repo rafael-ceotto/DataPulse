@@ -41,3 +41,31 @@ async def get_infections(session: AsyncSession, state: str | None = None, compar
     query = query.offset((page - 1) * limit).limit(limit)
     result = await session.execute(query)
     return result.scalars().all()
+
+async def get_infection_summary_by_state(session: AsyncSession, state: str) -> dict:
+    from sqlalchemy import func, case
+    
+    result = await session.execute(
+        select(
+            func.count(InfectionModel.id).label("total_measures"),
+            func.sum(
+                case((InfectionModel.compared_to_national == "Worse than the National Benchmark", 1), else_=0)
+            ).label("worse"),
+            func.sum(
+                case((InfectionModel.compared_to_national == "Better than the National Benchmark", 1), else_=0)
+            ).label("better"),
+            func.sum(
+                case((InfectionModel.compared_to_national == "No Different than the National Benchmark", 1), else_=0)
+            ).label("average"),
+        )
+        .where(InfectionModel.state == state)
+    )
+    row = result.first()
+    return {
+        "state": state,
+        "total_measures": row.total_measures or 0,
+        "worse_than_national": row.worse or 0,
+        "better_than_national": row.better or 0,
+        "average": row.average or 0,
+        
+    }
