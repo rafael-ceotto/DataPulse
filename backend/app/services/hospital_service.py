@@ -30,6 +30,19 @@ async def ingest_hospitals(session: AsyncSession):
                 print(f"=== INSIGHT: history={len(history)} items ===")
                 insight = await generate_insight(avg_rating, previous_avg, history)
                 print(f"=== INSIGHT: generated={insight[:50]} ===")
+                
+                # Slack alert
+                from app.core.slack import send_slack_alert
+                variation = round(avg_rating - previous_avg, 3) if previous_avg else None
+                emoji = "🟡" if variation is None else ("🔴" if variation < -0.01 else ("🟢" if variation > 0.01 else "⚪"))
+                slack_message = (
+                    f"{emoji} *DataPulse Pipeline Alert*\n"
+                    f"*Avg Rating:* {avg_rating} "
+                    f"{'(' + ('+' if variation > 0 else '') + str(variation) + ' vs previous)' if variation is not None else '(first run)'}\n"
+                    f"*Insight:* {insight}"
+                )
+                await send_slack_alert(slack_message)                
+                
             except Exception as e:
                 print(f"Insight heneration failed: {e}")
 
