@@ -14,6 +14,31 @@ function Stars({ rating }) {
   );
 }
 
+function exportCSV(hospitals) {
+  const headers = ["Facility ID", "Facility Name", "Address", "City", "State", "ZIP Code", "Type", "Ownership", "Emergency Services", "Overall Rating", "Phone"];
+  const rows = hospitals.map((h) => [
+    h.facility_id,
+    h.facility_name,
+    h.address,
+    h.city,
+    h.state,
+    h.zip_code,
+    h.hospital_type,
+    h.hospital_ownership,
+    h.emergency_services,
+    h.overall_rating ?? "",
+    h.telephone_number ?? "",
+  ]);
+  const csv = [headers, ...rows].map((r) => r.map((v) => `"${String(v).replace(/"/g, '""')}"`).join(",")).join("\n");
+  const blob = new Blob([csv], { type: "text/csv" });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = `hospitals_${hospitals[0]?.state || "all"}_page.csv`;
+  a.click();
+  URL.revokeObjectURL(url);
+}
+
 function HospitalCard({ hospital, expanded, onExpand, onClose }) {
   const [infections, setInfections] = useState([]);
   const [loadingInfections, setLoadingInfections] = useState(false);
@@ -237,6 +262,14 @@ export default function HospitalList() {
             >
               Clear
             </button>
+            {hospitals.length > 0 && (
+              <button
+                onClick={(e) => { e.stopPropagation(); exportCSV(hospitals); }}
+                style={{ ...control, cursor: "pointer", color: theme.mint, borderColor: theme.mint }}
+              >
+                ↓ Export CSV
+              </button>
+            )}
           </div>
 
           <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(288px, 1fr))", gap: 16, alignItems: "start" }}>
