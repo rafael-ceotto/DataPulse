@@ -3,6 +3,7 @@ import json
 import re
 
 import httpx
+from langdetect import detect
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.cache import get_cache
@@ -25,6 +26,22 @@ TOOLS = [
                     "limit": {"type": "integer", "description": "Number of results to return. Default 10.", "default": 10}
                 },
                 "required": ["state"]
+            }
+        }
+    },
+    {
+        "type": "function",
+        "function": {
+            "name": "get_top_rated_hospitals",
+            "description": "Get top rated or lowest rated hospitals nationwide or by state. Use when asked about 5-star hospitals, highest rated facilities, or lowest rated facilities.",
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "min_rating": {"type": "integer", "description": "Minimum rating filter. Use 5 for 5-star hospitals, 1 for lowest rated.", "default": 5},
+                    "limit": {"type": "integer", "description": "Number of results to return. Default 10.", "default": 10},
+                    "state": {"type": "string", "description": "Optional 2-letter US state code to filter by state."}
+                },
+                "required": []
             }
         }
     },
@@ -66,7 +83,11 @@ TOOLS = [
     },
 ]
 
-AGENT_SYSTEM_PROMPT = """You are a healthcare data analyst assistant with access to specialized tools.
+AGENT_SYSTEM_PROMPT = """You are a healthcare data analyst assistant with access to a PostgreSQL database containing real CMS hospital quality data, including 5,419 US hospitals with ratings, locations, and healthcare-associated infection records.
+
+You have two ways to answer questions:
+1. Use the available tools for complex analysis
+2. For simple direct queries, use tools to return actual data — never respond with generic descriptions
 
 ALWAYS use tools when the question asks for:
 - A comprehensive or complete analysis of a state
@@ -75,17 +96,25 @@ ALWAYS use tools when the question asks for:
 - Combining hospital quality with physician data
 - Comparing healthcare systems across states
 - Any analysis that goes beyond simple hospital listing
+- A list of hospitals with a specific rating (e.g. "Which hospitals have 5 stars?")
+- The lowest or highest rated facilities
 
-Only respond with {"use_sql": true} when the question is a simple, direct query like:
-- "Which hospitals have 5 stars?"
-- "Show me hospitals in Texas"
-- "What is the average rating?"
+For simple, direct queries:
+- "Which hospitals have a 5-star rating?" → immediately call get_top_rated_hospitals with min_rating=5, limit=10. Do not ask for clarification.
+- "Show me the lowest-rated facilities" → immediately call get_top_rated_hospitals with min_rating=1, limit=10. Do not ask for clarification.
+- "Average rating by state" → immediately call get_rating_distribution. Do not ask for clarification.
+- "What states have the highest concentration of 5-star hospitals?" → immediately call get_rating_distribution. Do not ask for clarification.
+- "Show me hospitals in Texas" → use search_hospitals tool with state=TX.
 
-For EVERYTHING else, use the available tools.
+NEVER ask for clarification when you have enough tools to answer the question.
+NEVER call tools that are not in your tools list.
+NEVER respond with JSON objects — always respond with plain text.
+NEVER say you cannot access the data — you have access to real hospital data.
+NEVER give generic descriptions when actual data can be retrieved via tools.
 
 State codes: OH=Ohio, CA=California, TX=Texas, FL=Florida, NY=New York, MA=Massachusetts, etc.
 
-Always respond in the same language as the user's question.
+Always respond in the language specified in the [LANGUAGE] tag at the end of the user's message.
 After calling tools, synthesize results into a clear, insightful narrative response.
 DO NOT call tools in your final synthesis — just write the response based on the data you already have.
 """
@@ -99,6 +128,17 @@ async def execute_tool(tool_name: str, tool_args: dict, session: AsyncSession) -
         limit = tool_args.get("limit", 10)
         async with httpx.AsyncClient() as client:
             r = await client.get(f"{base_url}/api/v1/hospitals?state={state}&limit={limit}")
+            return json.dumps(r.json())
+
+    elif tool_name == "get_top_rated_hospitals":
+        min_rating = tool_args.get("min_rating", 5)
+        limit = min(tool_args.get("limit", 10), 20)
+        state = tool_args.get("state", "")
+        params = f"?limit={limit}&min_rating={min_rating}"
+        if state:
+            params += f"&state={state}"
+        async with httpx.AsyncClient() as client:
+            r = await client.get(f"{base_url}/api/v1/hospitals{params}")
             return json.dumps(r.json())
 
     elif tool_name == "get_rating_distribution":
@@ -138,9 +178,28 @@ async def ask_agent(session: AsyncSession, question: str) -> dict:
     """
     Smart agent with multi-turn tool calling loop.
     """
+    try:
+        lang = detect(question)
+    except Exception:
+        lang = "en"
+
+    question_with_lang = f"{question}\n\n[LANGUAGE: {lang}]"
+
+    # Force tool choice for known simple queries
+    forced_tool = None
+    question_lower = question.lower()
+    if "highest concentration" in question_lower or "concentration of 5-star" in question_lower:
+        forced_tool = {"type": "function", "function": {"name": "get_rating_distribution"}}
+    elif "5-star" in question_lower or "5 star" in question_lower or "five star" in question_lower:
+        forced_tool = {"type": "function", "function": {"name": "get_top_rated_hospitals"}}
+    elif "lowest-rated" in question_lower or "lowest rated" in question_lower or "worst" in question_lower:
+        forced_tool = {"type": "function", "function": {"name": "get_top_rated_hospitals"}}
+    elif "average rating by state" in question_lower or "rating distribution" in question_lower:
+        forced_tool = {"type": "function", "function": {"name": "get_rating_distribution"}}
+
     messages = [
         {"role": "system", "content": AGENT_SYSTEM_PROMPT},
-        {"role": "user", "content": question},
+        {"role": "user", "content": question_with_lang},
     ]
 
     MAX_ITERATIONS = 3
@@ -158,13 +217,19 @@ async def ask_agent(session: AsyncSession, question: str) -> dict:
                     "model": GROQ_MODEL,
                     "messages": messages,
                     "tools": TOOLS,
-                    "tool_choice": "auto",
+                    "tool_choice": forced_tool if (iteration == 0 and forced_tool) else "auto",
                     "parallel_tool_calls": False,
                     "temperature": 0.1,
                 }
             )
+
+        if response.status_code == 400:
+            print(f"GROQ 400 ERROR: {response.json()}")
+            return await ask_hospital_ai(session, question)
+
         if response.status_code != 200:
             print(f"GROQ ERROR: {response.json()}")
+
         response.raise_for_status()
         data = response.json()
         message = data["choices"][0]["message"]
@@ -173,15 +238,7 @@ async def ask_agent(session: AsyncSession, question: str) -> dict:
         print(f"DEBUG iteration={iteration+1} finish_reason={finish_reason}")
         print(f"DEBUG tool_calls={message.get('tool_calls')}")
 
-        # Check if model wants SQL
         content = message.get("content", "") or ""
-        if "use_sql" in content:
-            try:
-                parsed = json.loads(content)
-                if parsed.get("use_sql"):
-                    return await ask_hospital_ai(session, question)
-            except json.JSONDecodeError:
-                pass
 
         # No tool calls — model has finished
         if finish_reason == "stop" or not message.get("tool_calls"):
@@ -216,7 +273,7 @@ async def ask_agent(session: AsyncSession, question: str) -> dict:
     # Max iterations reached — force final answer without tools
     messages.append({
         "role": "user",
-        "content": "Based on the data you retrieved above, write a clear and concise response. Do not call any tools.",
+        "content": f"Based on the data you retrieved above, write a clear and concise response in the language specified by [LANGUAGE: {lang}]. Do not call any tools.",
     })
 
     final_response = None

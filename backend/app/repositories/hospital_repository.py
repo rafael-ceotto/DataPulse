@@ -39,10 +39,12 @@ async def save_hospitals(session: AsyncSession,
         raise e
 
 
-async def get_hospitals(session: AsyncSession, page: int = 1, limit: int = 20, state: str | None = None, search: str | None = None) -> list[HospitalModel]:
+async def get_hospitals(session: AsyncSession, page: int = 1, limit: int = 20, state: str | None = None, search: str | None = None, min_rating: int | None = None) -> list[HospitalModel]:
     query = select(HospitalModel)
     if state:
         query = query.where(HospitalModel.state == state)
+    if min_rating is not None:
+        query = query.where(HospitalModel.overall_rating >= min_rating)
     if search:
         query = query.where(
             func.similarity(HospitalModel.facility_name, search) > 0.1
@@ -52,7 +54,6 @@ async def get_hospitals(session: AsyncSession, page: int = 1, limit: int = 20, s
     query = query.offset((page - 1) * limit).limit(limit)
     result = await session.execute(query)
     return result.scalars().all()
-
 
 async def get_hospitals_by_id(session: AsyncSession, facility_id: str) -> HospitalModel | None:
     result = await session.execute(select(HospitalModel).where(HospitalModel.facility_id == facility_id))
