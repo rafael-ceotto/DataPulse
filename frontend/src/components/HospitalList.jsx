@@ -14,8 +14,8 @@ function Stars({ rating }) {
   );
 }
 
-function exportCSV(hospitals) {
-  const headers = ["Facility ID", "Facility Name", "Address", "City", "State", "ZIP Code", "Type", "Ownership", "Emergency Services", "Overall Rating", "Phone"];
+function exportCSV(hospitals, filename = "hospitals_selected.csv") {
+  const headers = ["Facility ID", "Facility Name", "Address", "City", "State", "ZIP Code", "Type", "Ownership", "Emergency Services", "Overall Rating", "Phone", "HAI Worse", "HAI Better", "HAI Average"];
   const rows = hospitals.map((h) => [
     h.facility_id,
     h.facility_name,
@@ -28,18 +28,21 @@ function exportCSV(hospitals) {
     h.emergency_services,
     h.overall_rating ?? "",
     h.telephone_number ?? "",
+    h._infections?.worse ?? "",
+    h._infections?.better ?? "",
+    h._infections?.average ?? "",
   ]);
   const csv = [headers, ...rows].map((r) => r.map((v) => `"${String(v).replace(/"/g, '""')}"`).join(",")).join("\n");
   const blob = new Blob([csv], { type: "text/csv" });
   const url = URL.createObjectURL(blob);
   const a = document.createElement("a");
   a.href = url;
-  a.download = `hospitals_${hospitals[0]?.state || "all"}_page.csv`;
+  a.download = filename;
   a.click();
   URL.revokeObjectURL(url);
 }
 
-function HospitalCard({ hospital, expanded, onExpand, onClose }) {
+function HospitalCard({ hospital, expanded, onExpand, onClose, onInfectionsLoaded }) {
   const [infections, setInfections] = useState([]);
   const [loadingInfections, setLoadingInfections] = useState(false);
 
@@ -47,7 +50,13 @@ function HospitalCard({ hospital, expanded, onExpand, onClose }) {
     if (!expanded) return;
     setLoadingInfections(true);
     getHospitalInfections(hospital.facility_id)
-      .then(setInfections)
+      .then((data) => {
+        setInfections(data);
+        const worse = data.filter(i => i.compared_to_national === "Worse than the National Benchmark").length;
+        const better = data.filter(i => i.compared_to_national === "Better than the National Benchmark").length;
+        const average = data.length - worse - better;
+        onInfectionsLoaded({ worse, better, average });
+      })
       .finally(() => setLoadingInfections(false));
   }, [expanded, hospital.facility_id]);
 
@@ -195,12 +204,47 @@ export default function HospitalList() {
   const [search, setSearch] = useState("");
   const [page, setPage] = useState(1);
   const [expandedId, setExpandedId] = useState(null);
+  const [selected, setSelected] = useState({});
   const limit = 6;
 
   useEffect(() => {
     if (!open) return;
     getHospitals(page, limit, stateFilter, search).then(setHospitals);
   }, [page, stateFilter, search, open]);
+
+  function handleExpand(hospital) {
+    setExpandedId(hospital.facility_id);
+    setSelected((prev) => ({
+      ...prev,
+      [hospital.facility_id]: { ...hospital },
+    }));
+  }
+
+  function handleClose(facilityId) {
+    setExpandedId(null);
+    setSelected((prev) => {
+      const next = { ...prev };
+      delete next[facilityId];
+      return next;
+    });
+  }
+
+  function handleInfectionsLoaded(facilityId, infections) {
+    setSelected((prev) => ({
+      ...prev,
+      [facilityId]: { ...prev[facilityId], _infections: infections },
+    }));
+  }
+
+  function handleClear() {
+    setStateFilter("");
+    setSearch("");
+    setPage(1);
+    setSelected({});
+    setExpandedId(null);
+  }
+
+  const selectedList = Object.values(selected);
 
   return (
     <section style={{ marginTop: 24 }}>
@@ -257,17 +301,25 @@ export default function HospitalList() {
               style={{ ...control, width: 180 }}
             />
             <button
-              onClick={(e) => { e.stopPropagation(); setStateFilter(""); setSearch(""); setPage(1); }}
+              onClick={(e) => { e.stopPropagation(); handleClear(); }}
               style={{ ...control, cursor: "pointer", color: "#a7b6bf" }}
             >
               Clear
             </button>
             {hospitals.length > 0 && (
               <button
-                onClick={(e) => { e.stopPropagation(); exportCSV(hospitals); }}
+                onClick={(e) => { e.stopPropagation(); exportCSV(hospitals, `hospitals_${hospitals[0]?.state || "all"}_page.csv`); }}
                 style={{ ...control, cursor: "pointer", color: theme.mint, borderColor: theme.mint }}
               >
                 ↓ Export CSV
+              </button>
+            )}
+            {selectedList.length > 0 && (
+              <button
+                onClick={(e) => { e.stopPropagation(); exportCSV(selectedList, "hospitals_selected.csv"); }}
+                style={{ ...control, cursor: "pointer", color: "#f0a500", borderColor: "#f0a500" }}
+              >
+                ★ Export Selected ({selectedList.length})
               </button>
             )}
           </div>
@@ -278,8 +330,9 @@ export default function HospitalList() {
                 key={h.facility_id}
                 hospital={h}
                 expanded={expandedId === h.facility_id}
-                onExpand={() => setExpandedId(h.facility_id)}
-                onClose={() => setExpandedId(null)}
+                onExpand={() => handleExpand(h)}
+                onClose={() => handleClose(h.facility_id)}
+                onInfectionsLoaded={(inf) => handleInfectionsLoaded(h.facility_id, inf)}
               />
             ))}
           </div>
