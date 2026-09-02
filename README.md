@@ -13,8 +13,6 @@ A data pipeline and REST API for CMS hospital quality data. Ingests, validates, 
 
 ## Architecture
 
-## Architecture
-
 ```mermaid
 graph TB
     subgraph Frontend["Frontend (React + Vite)"]
