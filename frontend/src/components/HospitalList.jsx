@@ -205,6 +205,7 @@ export default function HospitalList() {
   const [page, setPage] = useState(1);
   const [expandedId, setExpandedId] = useState(null);
   const [selected, setSelected] = useState({});
+  const [exportingState, setExportingState] = useState(false);
   const limit = 6;
 
   useEffect(() => {
@@ -213,6 +214,7 @@ export default function HospitalList() {
   }, [page, stateFilter, search, open]);
 
   function handleExpand(hospital) {
+    console.log("handleExpand called", hospital.facility_id);
     setExpandedId(hospital.facility_id);
     setSelected((prev) => ({
       ...prev,
@@ -242,6 +244,18 @@ export default function HospitalList() {
     setPage(1);
     setSelected({});
     setExpandedId(null);
+  }
+
+  async function exportStateCSV() {
+    if (!stateFilter) return;
+    setExportingState(true);
+    try {
+      const response = await fetch(`/api/v1/hospitals/export?state=${stateFilter}`);
+      const data = await response.json();
+      exportCSV(data, `hospitals_${stateFilter}_all.csv`);
+    } finally {
+      setExportingState(false);
+    }
   }
 
   const selectedList = Object.values(selected);
@@ -312,6 +326,15 @@ export default function HospitalList() {
                 style={{ ...control, cursor: "pointer", color: theme.mint, borderColor: theme.mint }}
               >
                 ↓ Export CSV
+              </button>
+            )}
+            {stateFilter && hospitals.length > 0 && (
+              <button
+                onClick={(e) => { e.stopPropagation(); exportStateCSV(); }}
+                disabled={exportingState}
+                style={{ ...control, cursor: exportingState ? "wait" : "pointer", color: "#a78bfa", borderColor: "#a78bfa", opacity: exportingState ? 0.7 : 1 }}
+              >
+                {exportingState ? "Exporting..." : `↓ Export All ${stateFilter}`}
               </button>
             )}
             {selectedList.length > 0 && (

@@ -71,3 +71,9 @@ async def get_rating_distribution(session: AsyncSession) -> list[dict]:
         .order_by(func.avg(HospitalModel.overall_rating).desc())
     )
     return [{"state": r.state, "avg_rating": round(float(r.avg_rating), 2), "total": r.total} for r in result]
+
+async def get_all_hospitals_by_state(session: AsyncSession, state: str) -> list[HospitalModel]:
+    result = await session.execute(
+        select(HospitalModel).where(HospitalModel.state == state).order_by(HospitalModel.facility_name)
+    )
+    return result.scalars().all()

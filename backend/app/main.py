@@ -47,7 +47,7 @@ async def lifespan(app: FastAPI):
     scheduler.add_job(
         run_scheduled_pipeline,
         "interval",
-        minutes=15,
+        hours=6,
         
     )
     scheduler.start()
