@@ -1,16 +1,16 @@
 # DataPulse
 
-A colleague of mine lost her father and mother in the same week — both went to hospitals that didn't have what they needed. That happened in Brazil, and I had been living in the United States for 8 years. I couldn't stop thinking about it.
+A colleague of mine lost her parents in the same week. Both went to hospitals that didn't have what they needed.
 
-My grandmother went through something similar. When she broke her leg, the ambulance just took her to the nearest hospital — not the most appropriate one, not the one that accepted her insurance. Nobody knew where to go.
+My grandmother went through something similar. When she broke her leg, the public ambulance was about to take her to the nearest hospital. Not the most appropriate one, and definitely not the she needed due to her other condition. By that time, we were lucky enough to have means to transport her with a private ambulance instead of the public one and send her to the chosen hospital.
+
+It's been a while and trust me when I say that stills haunts me.
 
 That's why I built DataPulse.
 
 The idea is straightforward: CMS (Centers for Medicare & Medicaid Services) data is public, and it has everything you need to make an informed decision about where to get treated. DataPulse takes that data, processes it, validates it, and exposes it in a way anyone can use — whether you're a patient looking for the best hospital for a rare cancer, or a health administrator analyzing the quality of an entire network.
 
-Think about it this way: if you have a rare cancer and there's a specialized oncology hospital in Arizona, why would you insist on going to a generic one in Texas? With DataPulse, you have that information before you need it.
-
----
+Think about it this way: if you have a rare cancer and there's a specialized oncology hospital in Arizona, why would you settle for a generic one closer to home? With DataPulse, you have that information before you need it.
 
 ## What it does
 
