@@ -1,6 +1,7 @@
 import asyncio
 import json
 import re
+import os
 
 import httpx
 from langdetect import detect
@@ -152,7 +153,7 @@ DO NOT call tools in your final synthesis — just write the response based on t
 
 
 async def execute_tool(tool_name: str, tool_args: dict, session: AsyncSession) -> str:
-    base_url = "http://127.0.0.1:8000"
+    base_url = os.getenv("API_BASE_URL", "http://127.0.0.1:8000")
 
     if tool_name == "search_hospitals":
         state = tool_args.get("state", "")
