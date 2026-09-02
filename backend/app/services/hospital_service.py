@@ -4,6 +4,8 @@ from app.pipeline.cms_ingestion import fetch_data_cms, parse_hospitals
 from app.repositories.hospital_repository import save_hospitals
 from app.repositories.pipeline_run_repository import create_pipeline_run, update_pipeline_run, get_previous_avg_rating, get_recent_insights
 from app.ai.insight_service import generate_insight
+from app.core.slack import send_slack_alert
+from app.core.github import commit_insight
 
 
 async def ingest_hospitals(session: AsyncSession):
@@ -18,7 +20,7 @@ async def ingest_hospitals(session: AsyncSession):
 
         rated = [h.overall_rating for h in hospitals if h.overall_rating is not None]
         avg_rating = round(sum(rated) / len(rated), 2) if rated else None
-        
+
         # Generate Insight
         insight = None
         if avg_rating is not None:
@@ -30,9 +32,8 @@ async def ingest_hospitals(session: AsyncSession):
                 print(f"=== INSIGHT: history={len(history)} items ===")
                 insight = await generate_insight(avg_rating, previous_avg, history)
                 print(f"=== INSIGHT: generated={insight[:50]} ===")
-                
+
                 # Slack alert
-                from app.core.slack import send_slack_alert
                 variation = round(avg_rating - previous_avg, 3) if previous_avg else None
                 emoji = "🟡" if variation is None else ("🔴" if variation < -0.01 else ("🟢" if variation > 0.01 else "⚪"))
                 slack_message = (
@@ -41,10 +42,13 @@ async def ingest_hospitals(session: AsyncSession):
                     f"{'(' + ('+' if variation > 0 else '') + str(variation) + ' vs previous)' if variation is not None else '(first run)'}\n"
                     f"*Insight:* {insight}"
                 )
-                await send_slack_alert(slack_message)                
-                
+                await send_slack_alert(slack_message)
+
+                # Commit insight to GitHub
+                await commit_insight(avg_rating, insight)
+
             except Exception as e:
-                print(f"Insight heneration failed: {e}")
+                print(f"Insight generation failed: {e}")
 
         await update_pipeline_run(
             session,
@@ -55,7 +59,6 @@ async def ingest_hospitals(session: AsyncSession):
             records_failed=0,
             avg_rating=avg_rating,
             insight=insight,
-            
         )
         return len(hospitals)
 

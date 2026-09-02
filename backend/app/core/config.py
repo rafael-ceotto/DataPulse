@@ -6,7 +6,9 @@ class Settings(BaseSettings):
     SLACK_WEBHOOK_URL: str = ""
     TAVILY_API_KEY: str = ""
     NOTION_TOKEN: str = ""
-    NOTION_PAGE_ID: str = ""    
+    NOTION_PAGE_ID: str = ""
+    GITHUB_TOKEN: str = ""
+    GITHUB_REPO: str = ""    
     
     class Config:
         env_file = ".env"
