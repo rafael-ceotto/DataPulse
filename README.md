@@ -1,12 +1,12 @@
 A colleague of mine lost her parents in the same week. Both went to hospitals that didn't have what they needed.
 
-My grandmother went through something similar. When she broke her leg, the public ambulance was about to take her to the nearest hospital. Not the most appropriate one, and definitely not the one she needed due to her other condition. By that time, we were lucky enough to have means to transport her with a private ambulance instead of the public one and send her to the chosen hospital.
+My grandmother went through something similar. When she broke her leg, the public ambulance was about to take her to the nearest hospital. Not the most appropriate one, and definitely, not the one she needed due to her other condition. By that time, we were lucky enough to have means to transport her with a private ambulance instead of the public one and send her to the chosen hospital.
 
 It's been a while and trust me when I say that stills haunts me.
 
 That's why I built DataPulse.
 
-The idea is straightforward: CMS (Centers for Medicare & Medicaid Services) data is public, and it has everything you need to make an informed decision about where to get treated. DataPulse takes that data, processes it, validates it, and exposes it in a way anyone can use — whether you're a patient looking for the best hospital for a rare cancer, or a health administrator analyzing the quality of an entire network.
+The idea is straightforward: CMS (Centers for Medicare & Medicaid Services) data is public, and it has everything you need to make an informed decision about where to get treated. DataPulse takes that data, processes it, validates it, and exposes it in a way anyone can use, whether you're a patient looking for the best hospital for a rare cancer, or a health administrator analyzing the quality of an entire network.
 
 Think about it this way: if you have a rare cancer and there's a specialized oncology hospital in Arizona, why would you settle for a generic one closer to home? With DataPulse, you have that information before you need it.
 
@@ -14,7 +14,7 @@ Think about it this way: if you have a rare cancer and there's a specialized onc
 
 DataPulse ingests, validates, and transforms data from 5,419 hospitals and 96,055 hospital infection records from CMS. All of that feeds an API that exposes quality metrics, physician analysis by state, scarce specialties, and a search interface that works both with direct SQL queries and an AI agent that knows when to go beyond internal data.
 
-The part I'm most proud of isn't the most obvious one. It's not the pipeline, and it's not the agent. It's the scarce specialty analysis — knowing that a state has less than 50% of the specialists it should have is the kind of information that can save a life. If someone opens DataPulse and uses that before choosing where to get treated, the project was worth it.
+The part I'm most proud of isn't the most obvious one. It's not the pipeline, and it's not the agent. It's the scarce specialty analysis! Knowing that a state has less than 50% of the specialists it should have is the kind of information that can save a life. If someone opens DataPulse and uses that before choosing where to get treated, the project was worth it.
 
 ---
 
@@ -232,7 +232,7 @@ pytest tests/api -v          # API tests
 
 ## The AI layer
 
-This is the part that evolved the most during development. The agent isn't a chatbot — it's an analyst with access to real data that knows when it needs to look beyond the database.
+This is the part that evolved the most during development. The agent isn't a chatbot. It's an analyst with access to real data that knows when it needs to look beyond the database.
 
 It operates in two modes:
 
@@ -240,7 +240,7 @@ It operates in two modes:
 
 **Agent mode** — for complex analysis. "Why do hospitals in Utah have higher ratings than the national average?" triggers a tool calling loop: it pulls the rating distribution from the database, then goes to the web for external context, and synthesizes everything into a coherent response.
 
-What I find most interesting is that the agent decides on its own which mode to use — and when it needs web search, it uses it. It's not a static RAG; it's a system that knows when internal data isn't enough.
+What I find most interesting is that the agent decides on its own which mode to use, and when it needs web search, it uses it. It's not a static RAG; it's a system that knows when internal data isn't enough.
 
 **Available tools:**
 - `search_hospitals` — hospitals by state
@@ -257,7 +257,7 @@ Any response can be saved to Notion with one click.
 
 ## Automatic insights
 
-After every pipeline run, the system automatically generates an insight about the data using Groq. What makes this different from a simple summary is that the agent considers the last 5 previous insights before generating the next one — so it reasons about trends, not just the current moment.
+After every pipeline run, the system automatically generates an insight about the data using Groq. What makes this different from a simple summary is that the agent considers the last 5 previous insights before generating the next one so it reasons about trends, not just the current moment.
 
 After generating, the insight goes to three places: the database (shows up in the Pipeline Runs dashboard), Slack (as an alert), and the repository (as a commit to `insights.md`).
 
