@@ -13,20 +13,76 @@ A data pipeline and REST API for CMS hospital quality data. Ingests, validates, 
 
 ## Architecture
 
-CMS (External API)
-↓
-Pipeline ← fetches and parses raw CSV data
-↓
-Pydantic Schema ← validates and types incoming data
-↓
-Service ← orchestrates ingestion flow
-↓
-Repository ← handles all database access
-↓
-PostgreSQL ← persists cleaned records
-↓
-FastAPI Router ← exposes HTTP endpoints
+## Architecture
 
+```mermaid
+graph TB
+    subgraph Frontend["Frontend (React + Vite)"]
+        UI[Dashboard]
+        AIQ[AI Query]
+        CSV[Export CSV]
+        NOTION_BTN[Save to Notion]
+    end
+
+    subgraph Backend["Backend (FastAPI)"]
+        Router[API Router]
+        Agent[AI Agent]
+        Pipeline[Pipeline Service]
+        Scheduler[APScheduler]
+        Auth[JWT Auth]
+    end
+
+    subgraph Storage["Storage"]
+        PG[(PostgreSQL)]
+        Redis[(Redis Cache)]
+    end
+
+    subgraph ExternalData["External Data Sources"]
+        CMS[CMS API]
+        Physicians[CMS Physicians API]
+    end
+
+    subgraph AI["AI & Search"]
+        Groq[Groq API\nopenai/gpt-oss-120b]
+        Tavily[Tavily\nWeb Search]
+    end
+
+    subgraph Integrations["Integrations"]
+        Slack[Slack\nAlerts]
+        NotionAPI[Notion\nInsights Page]
+        GitHub[GitHub\ninsights.md]
+        GHActions[GitHub Actions\nCI/CD]
+    end
+
+    UI -->|HTTP| Router
+    AIQ -->|HTTP + JWT| Router
+    NOTION_BTN -->|HTTP + JWT| Router
+    CSV -->|direct| UI
+
+    Router --> Agent
+    Router --> Pipeline
+    Router --> Auth
+
+    Agent --> Groq
+    Agent --> Tavily
+    Agent --> PG
+    Agent --> Redis
+
+    Pipeline --> CMS
+    Pipeline --> Physicians
+    Pipeline --> PG
+    Pipeline --> Groq
+    Pipeline --> Slack
+    Pipeline --> NotionAPI
+    Pipeline --> GitHub
+
+    Scheduler -->|every 6h| Pipeline
+
+    Router --> PG
+    Router --> Redis
+
+    UI -->|polling 60s| GHActions
+```
 
 The pipeline follows **Medallion Architecture** principles:
 - **Bronze:** raw CSV data fetched from CMS
