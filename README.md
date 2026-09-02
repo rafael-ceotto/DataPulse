@@ -1,6 +1,6 @@
 A colleague of mine lost her parents in the same week. Both went to hospitals that didn't have what they needed.
 
-My grandmother went through something similar. When she broke her leg, the public ambulance was about to take her to the nearest hospital. Not the most appropriate one, and definitely not the she needed due to her other condition. By that time, we were lucky enough to have means to transport her with a private ambulance instead of the public one and send her to the chosen hospital.
+My grandmother went through something similar. When she broke her leg, the public ambulance was about to take her to the nearest hospital. Not the most appropriate one, and definitely not the one she needed due to her other condition. By that time, we were lucky enough to have means to transport her with a private ambulance instead of the public one and send her to the chosen hospital.
 
 It's been a while and trust me when I say that stills haunts me.
 
