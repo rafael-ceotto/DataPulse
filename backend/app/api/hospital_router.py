@@ -11,7 +11,7 @@ from app.core.database import AsyncSessionLocal
 from app.core.cache import get_cache, set_cache, invalidate_cache
 from app.core.auth import get_current_user
 from app.services.hospital_service import ingest_hospitals
-from app.repositories.hospital_repository import get_hospitals, get_hospitals_by_id, save_hospitals, get_rating_distribution, get_all_hospitals_by_state
+from app.repositories.hospital_repository import get_hospitals, get_hospitals_by_id, save_hospitals, get_rating_distribution, get_all_hospitals_by_state, get_data_quality_metrics
 from app.ai.hospital_ai_service import ask_hospital_ai
 from app.services.infection_service import ingest_infections
 from app.repositories.infection_repository import get_infections, get_infections_by_facility
@@ -38,6 +38,7 @@ class NotionSaveRequest(BaseModel):
     explanation: str
     tools_used: list[str] = []
 
+
 @router.post("/api/v1/pipeline/run")
 async def run_pipeline(session: AsyncSession = Depends(get_session), current_user: dict = Depends(get_current_user)):
     counter = await ingest_hospitals(session)
@@ -47,6 +48,34 @@ async def run_pipeline(session: AsyncSession = Depends(get_session), current_use
         "message": "Pipeline executed successfully",
         "processed": counter,
     }
+
+@router.post("/api/v1/pipeline/run/infections")
+async def run_infections_pipeline(session: AsyncSession = Depends(get_session), current_user: dict = Depends(get_current_user)):
+    counter = await ingest_infections(session)
+    return {
+        "message": "Infections pipeline executed successfully",
+        "processed": counter,
+    }
+
+@router.get("/api/v1/pipeline/runs")
+async def list_pipeline_runs(limit: int = 20, session: AsyncSession = Depends(get_session)):
+    runs = await get_pipeline_runs(session, limit)
+    return [
+        {
+            "id": str(r.id),
+            "started_at": r.started_at.isoformat() if r.started_at else None,
+            "finished_at": r.finished_at.isoformat() if r.finished_at else None,
+            "status": r.status,
+            "records_received": r.records_received,
+            "records_processed": r.records_processed,
+            "records_failed": r.records_failed,
+            "error_message": r.error_message,
+            "avg_rating": r.avg_rating,
+            "insight": r.insight,
+            "duration_seconds": round((r.finished_at - r.started_at).total_seconds(), 1) if r.finished_at and r.started_at else None,
+        }
+        for r in runs
+    ]
 
 @router.get("/api/v1/hospitals")
 async def list_hospitals(page: int = 1, limit: int = 20, state: str | None = None, search: str | None = None, min_rating: int | None = None, session: AsyncSession = Depends(get_session)):
@@ -58,6 +87,26 @@ async def export_hospitals_by_state(state: str, session: AsyncSession = Depends(
         raise HTTPException(status_code=400, detail="State parameter is required")
     hospitals = await get_all_hospitals_by_state(session, state)
     return hospitals
+
+@router.get("/api/v1/hospitals/data-quality")
+async def data_quality(session: AsyncSession = Depends(get_session)):
+    cache_key = "data_quality"
+    cached = await get_cache(cache_key)
+    if cached:
+        return cached
+    data = await get_data_quality_metrics(session)
+    await set_cache(cache_key, data, ttl=3600)
+    return data
+
+@router.get("/api/v1/hospitals/metrics/rating-distribution")
+async def rating_distribution(session: AsyncSession = Depends(get_session)):
+    cache_key = "rating_distribution"
+    cached = await get_cache(cache_key)
+    if cached:
+        return cached
+    data = await get_rating_distribution(session)
+    await set_cache(cache_key, data, ttl=3600)
+    return data
 
 @router.get("/api/v1/hospitals/{facility_id}")
 async def get_hospitals_facility_id(facility_id: str, session: AsyncSession = Depends(get_session)):
@@ -77,14 +126,6 @@ async def ai_query(request: Request, body: AIQueryRequest, session: AsyncSession
     await set_cache(cache_key, result, ttl=600)
     return result
 
-@router.post("/api/v1/pipeline/run/infections")
-async def run_infections_pipeline(session: AsyncSession = Depends(get_session), current_user: dict = Depends(get_current_user)):
-    counter = await ingest_infections(session)
-    return {
-        "message": "Infections pipeline executed successfully",
-        "processed": counter,
-    }
-
 @router.get("/api/v1/infections")
 async def list_infections(
     state: str | None = None,
@@ -102,16 +143,6 @@ async def get_facility_infections(facility_id: str, session: AsyncSession = Depe
         raise HTTPException(status_code=404, detail="No infection data found for this facility")
     return infections
 
-@router.get("/api/v1/hospitals/metrics/rating-distribution")
-async def rating_distribution(session: AsyncSession = Depends(get_session)):
-    cache_key = "rating_distribution"
-    cached = await get_cache(cache_key)
-    if cached:
-        return cached
-    data = await get_rating_distribution(session)
-    await set_cache(cache_key, data, ttl=3600)
-    return data
-
 @router.get("/api/v1/physicians")
 async def list_physicians(
     state: str | None = None,
@@ -124,7 +155,7 @@ async def list_physicians(
 @router.get("/api/v1/physicians/correlation")
 async def physician_hospital_correlation(session: AsyncSession = Depends(get_session)):
     cache_key = "physician_hospital_correlation"
-    cached = await get_cache(get_session)
+    cached = await get_cache(cache_key)
     if cached:
         return cached
     data = await get_physician_hospital_correlation(session)
@@ -184,32 +215,9 @@ async def physician_cache_status():
         "specialties_cached": len(national) if national else 0,
     }
 
-@router.get("/api/v1/pipeline/runs")
-async def list_pipeline_runs(limit: int = 20, session: AsyncSession = Depends(get_session)):
-    runs = await get_pipeline_runs(session, limit)
-    return [
-        {
-            "id": str(r.id),
-            "started_at": r.started_at.isoformat() if r.started_at else None,
-            "finished_at": r.finished_at.isoformat() if r.finished_at else None,
-            "status": r.status,
-            "records_received": r.records_received,
-            "records_processed": r.records_processed,
-            "records_failed": r.records_failed,
-            "error_message": r.error_message,
-            "avg_rating": r.avg_rating,
-            "insight": r.insight,
-            "duration_seconds": round((r.finished_at - r.started_at).total_seconds(), 1) if r.finished_at and r.started_at else None,
-        }
-        for r in runs
-    ]
-
 @router.post("/api/v1/notion/save")
 async def save_insight_to_notion(body: NotionSaveRequest, current_user: dict = Depends(get_current_user)):
-    print(f"=== NOTION: saving question={body.question[:50]} ===")
     success = await save_to_notion(body.question, body.explanation, body.tools_used)
-    print(f"=== NOTION: success={success} ===")
     if not success:
         raise HTTPException(status_code=500, detail="Failed to save to Notion")
     return {"message": "Saved to Notion successfully"}
-

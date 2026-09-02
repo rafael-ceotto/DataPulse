@@ -77,3 +77,33 @@ async def get_all_hospitals_by_state(session: AsyncSession, state: str) -> list[
         select(HospitalModel).where(HospitalModel.state == state).order_by(HospitalModel.facility_name)
     )
     return result.scalars().all()
+
+async def get_data_quality_metrics(session: AsyncSession) -> dict:
+    total_result =  await session.execute(
+        select(func.count(HospitalModel.facility_id))
+    )
+    total = total_result.scalar()
+    
+    rated_result = await session.execute(
+        select(func.count(HospitalModel.facility_id)).where(HospitalModel.overall_rating.isnot(None))
+    )
+    rated = rated_result.scalar()
+    
+    low_result = await session.execute(
+        select(func.count(HospitalModel.facility_id)).where(HospitalModel.overall_rating <=2).where(HospitalModel.overall_rating.isnot(None))
+    )
+    low_rated = low_result.scalar()
+    
+    no_phone_result = await session.execute(
+        select(HospitalModel.facility_id).where(HospitalModel.telephone_number.is_(None))
+    )
+    no_phone = no_phone_result.scalar()
+    
+    return {
+       "total_hospitals": total,
+        "rated_hospitals": rated,
+        "unrated_hospitals": total - rated,
+        "completeness_pct": round((rated / total) * 100, 1) if total else 0,
+        "low_rated_hospitals": low_rated,
+        "missing_phone": no_phone, 
+    }
