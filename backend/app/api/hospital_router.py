@@ -19,6 +19,7 @@ from app.services.physician_analysis_service import get_physician_hospital_corre
 from app.ai.hospital_agent_service import ask_agent
 from app.repositories.pipeline_run_repository import get_pipeline_runs
 from app.core.notion import save_to_notion
+from app.core.config import settings
 
 import hashlib
 
@@ -116,7 +117,7 @@ async def get_hospitals_facility_id(facility_id: str, session: AsyncSession = De
     return hospital
 
 @router.post("/api/v1/ai/query")
-@limiter.limit("5/minute")
+@limiter.limit(f"{settings.AI_RATE_LIMIT_PER_MINUTE}/minute")
 async def ai_query(request: Request, body: AIQueryRequest, session: AsyncSession = Depends(get_session), current_user: dict = Depends(get_current_user)):
     cache_key = f"ai_query:{hashlib.md5(body.question.lower().encode()).hexdigest()}"
     cached = await get_cache(cache_key)

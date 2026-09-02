@@ -8,7 +8,7 @@ That's why I built DataPulse.
 
 The idea is straightforward: CMS (Centers for Medicare & Medicaid Services) data is public, and it has everything you need to make an informed decision about where to get treated. DataPulse takes that data, processes it, validates it, and exposes it in a way anyone can use, whether you're a patient looking for the best hospital for a rare cancer, or a health administrator analyzing the quality of an entire network.
 
-Think about it this way: if you have a rare cancer and there's a specialized oncology hospital in Arizona, why would you settle for a generic one closer to home? With DataPulse, you have that information before you need it.
+Think about it this way: if you have a rare cancer and there's a specialized oncology hospital in Arizona, why would you settle for a generic one closer to home if you live in the same state and have conditions to go to the specialized one? With DataPulse, you have that information before you need it.
 
 ## What it does
 

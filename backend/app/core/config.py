@@ -8,7 +8,9 @@ class Settings(BaseSettings):
     NOTION_TOKEN: str = ""
     NOTION_PAGE_ID: str = ""
     GITHUB_TOKEN: str = ""
-    GITHUB_REPO: str = ""    
+    GITHUB_REPO: str = "" 
+    PIPELINE_INTERVAL_HOURS: int = 6
+    AI_RATE_LIMIT_PER_MINUTE: int = 5  
     
     class Config:
         env_file = ".env"

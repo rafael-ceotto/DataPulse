@@ -15,6 +15,7 @@ from app.api.hospital_router import router
 from app.core.database import AsyncSessionLocal
 from app.services.hospital_service import ingest_hospitals
 from app.services.infection_service import ingest_infections
+from app.core.config import settings
 
 logging.getLogger("sqlalchemy.engine").setLevel(logging.WARNING)
 logger = logging.getLogger(__name__)
@@ -47,7 +48,7 @@ async def lifespan(app: FastAPI):
     scheduler.add_job(
         run_scheduled_pipeline,
         "interval",
-        hours=6,
+        hours=settings.PIPELINE_INTERVAL_HOURS,
         
     )
     scheduler.start()
