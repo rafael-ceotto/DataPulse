@@ -34,6 +34,11 @@ services:
     depends_on:
       - db
       - redis
+    logging:
+      driver: loki
+      options:
+        loki-url: "http://localhost:3100/loki/api/v1/push"
+        loki-external-labels: "job=datapulse_api"
 
   frontend:
     build:
@@ -55,6 +60,13 @@ services:
     depends_on:
       - api
 
+  loki:
+    image: grafana/loki:latest
+    container_name: datapulse_loki
+    ports:
+      - "3100:3100"
+    command: -config.file=/etc/loki/local-config.yaml
+
   grafana:
     image: grafana/grafana:latest
     container_name: datapulse_grafana
@@ -67,6 +79,7 @@ services:
       - ./grafana/dashboards:/var/lib/grafana/dashboards
     depends_on:
       - prometheus
+      - loki
 
 volumes:
   postgres_data:
