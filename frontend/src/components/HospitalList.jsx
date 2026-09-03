@@ -214,7 +214,6 @@ export default function HospitalList() {
   }, [page, stateFilter, search, open]);
 
   function handleExpand(hospital) {
-    console.log("handleExpand called", hospital.facility_id);
     setExpandedId(hospital.facility_id);
     setSelected((prev) => ({
       ...prev,

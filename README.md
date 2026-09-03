@@ -1,20 +1,24 @@
+# DataPulse
+
 A colleague of mine lost her parents in the same week. Both went to hospitals that didn't have what they needed.
 
-My grandmother went through something similar. When she broke her leg, the public ambulance was about to take her to the nearest hospital. Not the most appropriate one, and definitely, not the one she needed due to her other condition. By that time, we were lucky enough to have means to transport her with a private ambulance instead of the public one and send her to the chosen hospital.
+My grandmother went through something similar. When she broke her leg, the ambulance was about to take her to the nearest hospital. Not the most appropriate one, and definitely not the one that accepted her insurance. By that time, we were lucky enough to have means to transport her with a private ambulance instead of the public one and send her to the chosen hospital.
 
-It's been a while and trust me when I say that stills haunts me.
+It's been a while and trust me when I say that still haunts me.
 
 That's why I built DataPulse.
 
-The idea is straightforward: CMS (Centers for Medicare & Medicaid Services) data is public, and it has everything you need to make an informed decision about where to get treated. DataPulse takes that data, processes it, validates it, and exposes it in a way anyone can use, whether you're a patient looking for the best hospital for a rare cancer, or a health administrator analyzing the quality of an entire network.
+The idea is straightforward: CMS (Centers for Medicare & Medicaid Services) data is public, and it has everything you need to make an informed decision about where to get treated. DataPulse takes that data, processes it, validates it, and exposes it in a way anyone can use — whether you're a patient looking for the best hospital for a rare cancer, or a health administrator analyzing the quality of an entire network.
 
-Think about it this way: if you have a rare cancer and there's a specialized oncology hospital in Arizona, why would you settle for a generic one closer to home if you live in the same state and have conditions to go to the specialized one? With DataPulse, you have that information before you need it.
+Think about it this way: if you have a rare cancer and there's a specialized oncology hospital in Arizona, why would you settle for a generic one closer to home? With DataPulse, you have that information before you need it.
+
+---
 
 ## What it does
 
 DataPulse ingests, validates, and transforms data from 5,419 hospitals and 96,055 hospital infection records from CMS. All of that feeds an API that exposes quality metrics, physician analysis by state, scarce specialties, and a search interface that works both with direct SQL queries and an AI agent that knows when to go beyond internal data.
 
-The part I'm most proud of isn't the most obvious one. It's not the pipeline, and it's not the agent. It's the scarce specialty analysis! Knowing that a state has less than 50% of the specialists it should have is the kind of information that can save a life. If someone opens DataPulse and uses that before choosing where to get treated, the project was worth it.
+The part I'm most proud of isn't the most obvious one. It's not the pipeline, and it's not the agent. It's the scarce specialty analysis. Knowing that a state has less than 50% of the specialists it should have is the kind of information that can save a life. If someone opens DataPulse and uses that before choosing where to get treated, the project was worth it.
 
 ---
 
@@ -134,6 +138,12 @@ NOTION_PAGE_ID=your-page-id-with-hyphens
 # GitHub — optional, auto-commits insights to the repository
 GITHUB_TOKEN=ghp_...
 GITHUB_REPO=your-username/DataPulse
+
+# Scheduler interval in hours (default: 6)
+PIPELINE_INTERVAL_HOURS=6
+
+# AI rate limit per minute (default: 5)
+AI_RATE_LIMIT_PER_MINUTE=5
 ```
 
 All integrations are optional. The pipeline and AI work without them.
@@ -183,12 +193,21 @@ API docs at `http://localhost:8000/docs`.
 
 ### Authentication
 
-Protected POST endpoints require a Bearer token:
+The following endpoints require a Bearer token:
 
 POST /api/v1/auth/token
 username: admin
 password: datapulse2024
 
+
+Protected endpoints:
+- `POST /api/v1/pipeline/run`
+- `POST /api/v1/pipeline/run/infections`
+- `GET /api/v1/pipeline/runs`
+- `GET /api/v1/hospitals/export`
+- `GET /api/v1/hospitals/data-quality`
+- `POST /api/v1/ai/query`
+- `POST /api/v1/notion/save`
 
 ---
 
@@ -198,12 +217,12 @@ password: datapulse2024
 |--------|----------|-------------|
 | GET | `/` | API status |
 | GET | `/health` | Health check |
-| POST | `/api/v1/pipeline/run` | Triggers hospital data ingestion |
-| POST | `/api/v1/pipeline/run/infections` | Triggers infection data ingestion |
-| GET | `/api/v1/pipeline/runs` | Execution history with AI-generated insights |
+| POST | `🔒 /api/v1/pipeline/run` | Triggers hospital data ingestion |
+| POST | `🔒 /api/v1/pipeline/run/infections` | Triggers infection data ingestion |
+| GET | `🔒 /api/v1/pipeline/runs` | Execution history with AI-generated insights |
 | GET | `/api/v1/hospitals` | Paginated hospital list. Supports `page`, `limit`, `state`, `search`, `min_rating` |
-| GET | `/api/v1/hospitals/export` | All hospitals in a state without pagination. Requires `state` |
-| GET | `/api/v1/hospitals/data-quality` | Data quality metrics: completeness, unrated, low-rated |
+| GET | `🔒 /api/v1/hospitals/export` | All hospitals in a state without pagination. Requires `state` |
+| GET | `🔒 /api/v1/hospitals/data-quality` | Data quality metrics: completeness, unrated, low-rated |
 | GET | `/api/v1/hospitals/{facility_id}` | Hospital by facility ID |
 | GET | `/api/v1/hospitals/metrics/rating-distribution` | Average rating by state |
 | GET | `/api/v1/infections` | Infection records. Supports `state`, `compared_to_national`, `page`, `limit` |
@@ -212,10 +231,16 @@ password: datapulse2024
 | GET | `/api/v1/physicians/state-analysis/{state}` | Physician-hospital correlation by state |
 | GET | `/api/v1/physicians/scarce-specialties/{state}` | Top 10 scarce specialties vs national average |
 | GET | `/api/v1/physicians/cache-status` | Specialty cache status |
-| POST | `/api/v1/physicians/warm-cache` | Populates specialty cache in background |
-| POST | `/api/v1/ai/query` | Natural language query. Requires JWT |
-| POST | `/api/v1/notion/save` | Saves an insight to Notion. Requires JWT |
+| POST | `🔒 /api/v1/physicians/warm-cache` | Populates specialty cache in background |
+| POST | `🔒 /api/v1/ai/query` | Natural language query. Requires JWT |
+| POST | `🔒 /api/v1/notion/save` | Saves an insight to Notion. Requires JWT |
 | POST | `/api/v1/auth/token` | Returns a JWT |
+
+**Example:**
+
+GET /api/v1/hospitals?page=1&limit=20&state=MA&min_rating=4
+GET /api/v1/hospitals/export?state=TX (requires auth)
+
 
 ---
 
@@ -240,7 +265,7 @@ It operates in two modes:
 
 **Agent mode** — for complex analysis. "Why do hospitals in Utah have higher ratings than the national average?" triggers a tool calling loop: it pulls the rating distribution from the database, then goes to the web for external context, and synthesizes everything into a coherent response.
 
-What I find most interesting is that the agent decides on its own which mode to use, and when it needs web search, it uses it. It's not a static RAG; it's a system that knows when internal data isn't enough.
+What I find most interesting is that the agent decides on its own which mode to use and, when it needs web search, it uses it. It's not a static RAG; it's a system that knows when internal data isn't enough.
 
 **Available tools:**
 - `search_hospitals` — hospitals by state
@@ -257,7 +282,7 @@ Any response can be saved to Notion with one click.
 
 ## Automatic insights
 
-After every pipeline run, the system automatically generates an insight about the data using Groq. What makes this different from a simple summary is that the agent considers the last 5 previous insights before generating the next one so it reasons about trends, not just the current moment.
+After every pipeline run, the system automatically generates an insight about the data using Groq. What makes this different from a simple summary is that the agent considers the last 5 previous insights before generating the next one — so it reasons about trends, not just the current moment.
 
 After generating, the insight goes to three places: the database (shows up in the Pipeline Runs dashboard), Slack (as an alert), and the repository (as a commit to `insights.md`).
 
@@ -266,6 +291,8 @@ After generating, the insight goes to three places: the database (shows up in th
 ## Scheduled pipeline
 
 The scheduler runs the full pipeline every 6 hours without any manual intervention. I chose APScheduler over Celery or Prefect because at this scale an in-process scheduler is simpler, cheaper, and doesn't add unnecessary infrastructure.
+
+The interval is configurable via `PIPELINE_INTERVAL_HOURS` in `.env`.
 
 ---
 
@@ -284,6 +311,14 @@ The scheduler runs the full pipeline every 6 hours without any manual interventi
 ## Data quality
 
 The current CMS dataset has ~58.6% completeness — 41.4% of hospitals don't have an overall rating. That's not a bug, it's a known limitation of the public data. DataPulse surfaces this transparently in the Data Quality dashboard, alongside alerts for low-rated hospitals and missing fields.
+
+---
+
+## Scarce specialty analysis
+
+Identifies medical specialties with significantly fewer physicians than the national average for a given state. Uses statistical sampling (50,000 records) to estimate national counts, then compares each state's share against the expected 1/56 (~1.79%).
+
+A scarcity ratio below 0.5 means the state has less than half the specialists it should. A critical gap!
 
 ---
 
