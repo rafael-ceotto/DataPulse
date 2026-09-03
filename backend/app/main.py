@@ -16,31 +16,31 @@ from app.core.database import AsyncSessionLocal
 from app.services.hospital_service import ingest_hospitals
 from app.services.infection_service import ingest_infections
 from app.core.config import settings
+from app.core.logging import setup_logging, logger
 
 logging.getLogger("sqlalchemy.engine").setLevel(logging.WARNING)
-logger = logging.getLogger(__name__)
+setup_logging()
 
 
 async def run_scheduled_pipeline():
-    print("=== SCHEDULED PIPELINE STARTING ===")
+    logger.info("scheduled_pipeline_starting")
     async with AsyncSessionLocal() as session:
         try:
             hospitals = await ingest_hospitals(session)
-            print(f"=== Scheduled pipeline: {hospitals} hospitals ingested ===")
+            logger.info("scheduled_pipeline_hospitals_done", count=hospitals)
         except Exception as e:
-            print(f"=== Scheduled hospital pipeline failed: {e} ===")
+            logger.error("scheduled_pipeline_hospitals_failed", error=str(e))
 
     async with AsyncSessionLocal() as session:
         try:
             infections = await ingest_infections(session)
-            print(f"=== Scheduled pipeline: {infections} infections ingested ===")
+            logger.info("scheduled_pipeline_infections_done", count=infections)
         except Exception as e:
-            print(f"=== Scheduled infection pipeline failed: {e} ===")
+            logger.error("scheduled_pipeline_infections_failed", error=str(e))
 
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    # Startup
     from app.services.physician_analysis_service import get_national_specialty_counts
     asyncio.create_task(get_national_specialty_counts())
 
@@ -51,20 +51,18 @@ async def lifespan(app: FastAPI):
         hours=settings.PIPELINE_INTERVAL_HOURS,
     )
     scheduler.start()
-    print(f"=== Scheduler started — pipeline runs every {settings.PIPELINE_INTERVAL_HOURS} hours ===")
+    logger.info("scheduler_started", interval_hours=settings.PIPELINE_INTERVAL_HOURS)
 
     yield
 
-    # Shutdown
     scheduler.shutdown()
-    print("=== Scheduler stopped ===")
+    logger.info("scheduler_stopped")
 
 
 limiter = Limiter(key_func=get_remote_address)
 
 app = FastAPI(lifespan=lifespan)
 
-# Prometheus metrics
 Instrumentator().instrument(app).expose(app)
 
 app.state.limiter = limiter

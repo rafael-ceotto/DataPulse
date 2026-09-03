@@ -31,7 +31,7 @@ The part I'm most proud of isn't the most obvious one. It's not the pipeline, an
 - **Infrastructure:** Docker, Docker Compose, GitHub Actions
 - **Frontend:** React + Vite
 - **Integrations:** Slack, Notion, GitHub
-- **Observability:** Prometheus, Grafana
+- **Observability:** Prometheus, Grafana, structlog
 
 ---
 
@@ -253,6 +253,14 @@ pytest tests/unit -v         # unit tests
 pytest tests/integration -v  # integration tests
 pytest tests/api -v          # API tests
 ```
+
+**Coverage includes:**
+- Pipeline ingestion (hospital and infection)
+- Repository layer (hospital, infection, pipeline runs)
+- Service layer (hospital_service, infection_service, insight_service)
+- Integration layer (slack, notion, github)
+- AI utilities (clean_content)
+- All API endpoints with authentication
 
 ---
 
