@@ -3,7 +3,7 @@ const API_URL = "";
 let cachedToken = null;
 let tokenExpiry = null;
 
-async function getToken() {
+export async function getToken() {
   if (cachedToken && tokenExpiry && Date.now() < tokenExpiry) {
     return cachedToken;
   }

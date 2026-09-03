@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from "react";
 import { theme } from "../theme";
+import { getToken } from "../services/api";
 
 export default function DataQuality() {
   const [open, setOpen] = useState(false);
@@ -9,9 +10,13 @@ export default function DataQuality() {
   useEffect(() => {
     if (!open) return;
     setLoading(true);
-    fetch("/api/v1/hospitals/data-quality")
-      .then((r) => r.json())
-      .then((data) => { setMetrics(data); setLoading(false); });
+    getToken().then((token) => {
+      fetch("/api/v1/hospitals/data-quality", {
+        headers: { "Authorization": `Bearer ${token}` },
+      })
+        .then((r) => r.json())
+        .then((data) => { setMetrics(data); setLoading(false); });
+    });
   }, [open]);
 
   function MetricCard({ label, value, sub, color = "#dce5e9", alert = false }) {

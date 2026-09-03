@@ -12,6 +12,7 @@ import {
 } from "chart.js";
 import { Line } from "react-chartjs-2";
 import { theme } from "../theme";
+import { getToken } from "../services/api";
 
 ChartJS.register(CategoryScale, LinearScale, PointElement, LineElement, Title, Tooltip, Legend, Filler);
 
@@ -21,14 +22,18 @@ export default function RatingTrend() {
 
   useEffect(() => {
     if (!open) return;
-    fetch("/api/v1/pipeline/runs?limit=50")
-      .then((r) => r.json())
-      .then((data) => {
-        const filtered = data
-          .filter((r) => r.avg_rating != null && r.status === "success")
-          .reverse();
-        setRuns(filtered);
-      });
+    getToken().then((token) => {
+      fetch("/api/v1/pipeline/runs?limit=50", {
+        headers: { "Authorization": `Bearer ${token}` },
+      })
+        .then((r) => r.json())
+        .then((data) => {
+          const filtered = data
+            .filter((r) => r.avg_rating != null && r.status === "success")
+            .reverse();
+          setRuns(filtered);
+        });
+    });
   }, [open]);
 
   const chartData = {

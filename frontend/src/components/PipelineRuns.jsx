@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from "react";
 import { theme } from "../theme";
+import { getToken } from "../services/api";
 
 const STATUS_COLOR = {
   success: "#2f9e6f",
@@ -16,9 +17,13 @@ export default function PipelineRuns() {
   useEffect(() => {
     if (!open) return;
     setLoading(true);
-    fetch("/api/v1/pipeline/runs?limit=20")
-      .then((r) => r.json())
-      .then((data) => { setRuns(data); setLoading(false); });
+    getToken().then((token) => {
+      fetch("/api/v1/pipeline/runs?limit=20", {
+        headers: { "Authorization": `Bearer ${token}` },
+      })
+        .then((r) => r.json())
+        .then((data) => { setRuns(data); setLoading(false); });
+    });
   }, [open]);
 
   function toggleInsight(id) {
