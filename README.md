@@ -31,7 +31,7 @@ The part I'm most proud of isn't the most obvious one. It's not the pipeline, an
 - **Infrastructure:** Docker, Docker Compose, GitHub Actions
 - **Frontend:** React + Vite
 - **Integrations:** Slack, Notion, GitHub
-- **Observability:** Prometheus, Grafana, structlog
+- **Observability:** Prometheus, Grafana, Loki, structlog
 
 ---
 
@@ -242,7 +242,6 @@ Protected endpoints:
 GET /api/v1/hospitals?page=1&limit=20&state=MA&min_rating=4
 GET /api/v1/hospitals/export?state=TX (requires auth)
 
-
 ---
 
 ## Testing
@@ -319,10 +318,11 @@ The interval is configurable via `PIPELINE_INTERVAL_HOURS` in `.env`.
 
 ## Observability
 
-DataPulse ships with Prometheus and Grafana out of the box. When you run `docker compose up`, both are started automatically alongside the API.
+DataPulse ships with a full observability stack out of the box. When you run `docker compose up`, everything starts automatically.
 
 - **Prometheus** — scrapes metrics from the API every 15 seconds via `/metrics`. Available at `http://localhost:9090`.
 - **Grafana** — pre-provisioned dashboard with four panels. Available at `http://localhost:3000`.
+- **Loki** — collects structured logs from all containers via the Loki Docker driver. Available at `http://localhost:3100`.
 
 Grafana credentials: `admin` / `datapulse2024`
 
@@ -332,7 +332,9 @@ Grafana credentials: `admin` / `datapulse2024`
 - **P95 Latency** — 95th percentile response time per endpoint
 - **Error Rate** — rate of 4xx and 5xx responses (empty means zero errors)
 
-The dashboard is provisioned automatically from `grafana/dashboards/datapulse-dashboard.json` .
+To explore logs in Grafana, go to **Explore** → select **loki** as data source → query `{job="datapulse_api"}`.
+
+The dashboard is provisioned automatically from `grafana/dashboards/datapulse-dashboard.json`.
 
 ---
 
