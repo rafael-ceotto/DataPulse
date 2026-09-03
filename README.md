@@ -31,6 +31,7 @@ The part I'm most proud of isn't the most obvious one. It's not the pipeline, an
 - **Infrastructure:** Docker, Docker Compose, GitHub Actions
 - **Frontend:** React + Vite
 - **Integrations:** Slack, Notion, GitHub
+- **Observability:** Prometheus, Grafana
 
 ---
 
@@ -305,6 +306,25 @@ The interval is configurable via `PIPELINE_INTERVAL_HOURS` in `.env`.
 **GitHub** — insights are automatically committed to `insights.md`, creating a living record of data quality trends over time.
 
 **CI badge** — the frontend header shows the latest CI status in real time, polling every 60 seconds via the public GitHub API.
+
+---
+
+## Observability
+
+DataPulse ships with Prometheus and Grafana out of the box. When you run `docker compose up`, both are started automatically alongside the API.
+
+- **Prometheus** — scrapes metrics from the API every 15 seconds via `/metrics`. Available at `http://localhost:9090`.
+- **Grafana** — pre-provisioned dashboard with four panels. Available at `http://localhost:3000`.
+
+Grafana credentials: `admin` / `datapulse2024`
+
+**Dashboard panels:**
+- **Request Rate** — requests per second across all endpoints
+- **Requests by Status Code** — breakdown of 2xx, 4xx, 5xx responses
+- **P95 Latency** — 95th percentile response time per endpoint
+- **Error Rate** — rate of 4xx and 5xx responses (empty means zero errors)
+
+The dashboard is provisioned automatically from `grafana/dashboards/datapulse-dashboard.json` .
 
 ---
 
