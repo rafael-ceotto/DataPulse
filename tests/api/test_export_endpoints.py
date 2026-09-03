@@ -1,0 +1,33 @@
+import pytest
+from httpx import AsyncClient, ASGITransport
+
+from app.main import app
+
+@pytest.fixture(scope="session")
+async def client():
+    async with AsyncClient(transport=ASGITransport(app=app), base_url="https://test") as ac:
+        yield ac
+        
+async def test_export_hospitals_by_state(client):
+    response = await client.get("/api/v1/hospitals/export?state=AL")
+    assert response.status_code == 200
+    data = response.json()
+    assert isinstance(data, list)
+    if data:
+        assert all(h["state"] == "AL" for h in data)
+        
+async def test_export_hospitals_missing_state(client):
+    response = await client.get("/api/v1/hospitals/export")
+    assert response.status_code == 422
+    
+async def test_data_quality(client):
+    response = await client.get("/api/v1/hospitals/data-quality")
+    data = response.json()
+    assert "total_hospitals" in data
+    assert "rated_hospitals" in data
+    assert "unrated_hospitals" in data
+    assert "completeness_pct" in data
+    assert "low_rated_hospitals" in data
+    assert data["total_hospitals"] > 0
+    assert data["completeness_pct"] >= 0
+    
