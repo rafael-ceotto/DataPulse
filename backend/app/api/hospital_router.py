@@ -10,6 +10,7 @@ from app.models.hospital import Hospital as HospitalModel
 from app.core.database import AsyncSessionLocal
 from app.core.cache import get_cache, set_cache, invalidate_cache
 from app.core.auth import get_current_user
+from app.core.config import settings
 from app.services.hospital_service import ingest_hospitals
 from app.repositories.hospital_repository import get_hospitals, get_hospitals_by_id, save_hospitals, get_rating_distribution, get_all_hospitals_by_state, get_data_quality_metrics
 from app.ai.hospital_ai_service import ask_hospital_ai
@@ -19,7 +20,6 @@ from app.services.physician_analysis_service import get_physician_hospital_corre
 from app.ai.hospital_agent_service import ask_agent
 from app.repositories.pipeline_run_repository import get_pipeline_runs
 from app.core.notion import save_to_notion
-from app.core.config import settings
 
 import hashlib
 
@@ -59,7 +59,7 @@ async def run_infections_pipeline(session: AsyncSession = Depends(get_session), 
     }
 
 @router.get("/api/v1/pipeline/runs")
-async def list_pipeline_runs(limit: int = 20, session: AsyncSession = Depends(get_session)):
+async def list_pipeline_runs(limit: int = 20, session: AsyncSession = Depends(get_session), current_user: dict = Depends(get_current_user)):
     runs = await get_pipeline_runs(session, limit)
     return [
         {
@@ -83,14 +83,14 @@ async def list_hospitals(page: int = 1, limit: int = 20, state: str | None = Non
     return await get_hospitals(session, page, limit, state, search, min_rating)
 
 @router.get("/api/v1/hospitals/export")
-async def export_hospitals_by_state(state: str, session: AsyncSession = Depends(get_session)):
+async def export_hospitals_by_state(state: str, session: AsyncSession = Depends(get_session), current_user: dict = Depends(get_current_user)):
     if not state:
         raise HTTPException(status_code=400, detail="State parameter is required")
     hospitals = await get_all_hospitals_by_state(session, state)
     return hospitals
 
 @router.get("/api/v1/hospitals/data-quality")
-async def data_quality(session: AsyncSession = Depends(get_session)):
+async def data_quality(session: AsyncSession = Depends(get_session), current_user: dict = Depends(get_current_user)):
     cache_key = "data_quality"
     cached = await get_cache(cache_key)
     if cached:
@@ -117,7 +117,7 @@ async def get_hospitals_facility_id(facility_id: str, session: AsyncSession = De
     return hospital
 
 @router.post("/api/v1/ai/query")
-@limiter.limit(f"{settings.AI_RATE_LIMIT_PER_MINUTE}/minute")
+@limiter.limit("5/minute")
 async def ai_query(request: Request, body: AIQueryRequest, session: AsyncSession = Depends(get_session), current_user: dict = Depends(get_current_user)):
     cache_key = f"ai_query:{hashlib.md5(body.question.lower().encode()).hexdigest()}"
     cached = await get_cache(cache_key)
