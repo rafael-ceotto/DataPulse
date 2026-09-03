@@ -3,9 +3,9 @@ import logging
 from contextlib import asynccontextmanager
 
 from apscheduler.schedulers.asyncio import AsyncIOScheduler
-from datetime import datetime, timezone
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
+from prometheus_fastapi_instrumentator import Instrumentator
 from slowapi import Limiter, _rate_limit_exceeded_handler
 from slowapi.errors import RateLimitExceeded
 from slowapi.util import get_remote_address
@@ -49,10 +49,9 @@ async def lifespan(app: FastAPI):
         run_scheduled_pipeline,
         "interval",
         hours=settings.PIPELINE_INTERVAL_HOURS,
-        
     )
     scheduler.start()
-    print("=== Scheduler started — pipeline runs every 15 minutes for testing ===")
+    print(f"=== Scheduler started — pipeline runs every {settings.PIPELINE_INTERVAL_HOURS} hours ===")
 
     yield
 
@@ -64,6 +63,9 @@ async def lifespan(app: FastAPI):
 limiter = Limiter(key_func=get_remote_address)
 
 app = FastAPI(lifespan=lifespan)
+
+# Prometheus metrics
+Instrumentator().instrument(app).expose(app)
 
 app.state.limiter = limiter
 app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)

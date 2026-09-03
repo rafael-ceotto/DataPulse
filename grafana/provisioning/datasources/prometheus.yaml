@@ -1,0 +1,9 @@
+apiVersion: 1
+
+datasources:
+  - name: prometheus
+    type: prometheus
+    uid: prometheus
+    url: http://datapulse_prometheus:9090
+    isDefault: true
+    access: proxy
