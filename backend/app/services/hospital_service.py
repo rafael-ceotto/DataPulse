@@ -1,11 +1,13 @@
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.pipeline.cms_ingestion import fetch_data_cms, parse_hospitals
-from app.repositories.hospital_repository import save_hospitals
+from app.repositories.hospital_repository import save_hospitals, get_data_quality_metrics
 from app.repositories.pipeline_run_repository import create_pipeline_run, update_pipeline_run, get_previous_avg_rating, get_recent_insights
 from app.ai.insight_service import generate_insight
 from app.core.slack import send_slack_alert
 from app.core.github import commit_insight
+
+COMPLETENESS_THRESHOLD = 55.0
 
 
 async def ingest_hospitals(session: AsyncSession):
@@ -33,7 +35,7 @@ async def ingest_hospitals(session: AsyncSession):
                 insight = await generate_insight(avg_rating, previous_avg, history)
                 print(f"=== INSIGHT: generated={insight[:50]} ===")
 
-                # Slack alert
+                # Slack alert — pipeline insight
                 variation = round(avg_rating - previous_avg, 3) if previous_avg else None
                 emoji = "🟡" if variation is None else ("🔴" if variation < -0.01 else ("🟢" if variation > 0.01 else "⚪"))
                 slack_message = (
@@ -49,6 +51,20 @@ async def ingest_hospitals(session: AsyncSession):
 
             except Exception as e:
                 print(f"Insight generation failed: {e}")
+
+        # Data quality alert
+        try:
+            quality = await get_data_quality_metrics(session)
+            completeness = quality.get("completeness_pct", 100)
+            if completeness < COMPLETENESS_THRESHOLD:
+                await send_slack_alert(
+                    f"⚠️ *DataPulse Data Quality Alert*\n"
+                    f"*Completeness dropped to {completeness}%* — below the {COMPLETENESS_THRESHOLD}% threshold.\n"
+                    f"*Unrated hospitals:* {quality.get('unrated_hospitals', 0):,}\n"
+                    f"*Low rated (≤2★):* {quality.get('low_rated_hospitals', 0):,}"
+                )
+        except Exception as e:
+            print(f"Data quality alert failed: {e}")
 
         await update_pipeline_run(
             session,
