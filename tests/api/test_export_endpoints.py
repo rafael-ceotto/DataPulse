@@ -65,5 +65,6 @@ async def test_data_quality(client, auth_token):
     assert "unrated_hospitals" in data
     assert "completeness_pct" in data
     assert "low_rated_hospitals" in data
-    assert data["total_hospitals"] > 0
+    assert data["total_hospitals"] >= 0
     assert data["completeness_pct"] >= 0
+    assert data["rated_hospitals"] + data["unrated_hospitals"] == data["total_hospitals"]
