@@ -1,0 +1,40 @@
+[2026-09-04T19:13:11.588+0000] {local_task_job_runner.py:120} INFO - ::group::Pre task execution logs
+[2026-09-04T19:13:11.626+0000] {taskinstance.py:2076} INFO - Dependencies all met for dep_context=non-requeueable deps ti=<TaskInstance: datapulse_pipeline.dbt_run manual__2026-09-04T19:10:44.727890+00:00 [queued]>
+[2026-09-04T19:13:11.635+0000] {taskinstance.py:2076} INFO - Dependencies all met for dep_context=requeueable deps ti=<TaskInstance: datapulse_pipeline.dbt_run manual__2026-09-04T19:10:44.727890+00:00 [queued]>
+[2026-09-04T19:13:11.637+0000] {taskinstance.py:2306} INFO - Starting attempt 1 of 2
+[2026-09-04T19:13:11.655+0000] {taskinstance.py:2330} INFO - Executing <Task(BashOperator): dbt_run> on 2026-09-04 19:10:44.727890+00:00
+[2026-09-04T19:13:11.667+0000] {logging_mixin.py:188} WARNING - /home/***/.local/lib/python3.12/site-packages/***/task/task_runner/standard_task_runner.py:62 DeprecationWarning: This process (pid=217) is multi-threaded, use of fork() may lead to deadlocks in the child.
+[2026-09-04T19:13:11.665+0000] {standard_task_runner.py:90} INFO - Running: ['***', 'tasks', 'run', 'datapulse_pipeline', 'dbt_run', 'manual__2026-09-04T19:10:44.727890+00:00', '--job-id', '13', '--raw', '--subdir', 'DAGS_FOLDER/datapulse_pipeline.py', '--cfg-path', '/tmp/tmp_c4q0a77']
+[2026-09-04T19:13:11.668+0000] {standard_task_runner.py:64} INFO - Started process 218 to run task
+[2026-09-04T19:13:11.669+0000] {standard_task_runner.py:91} INFO - Job 13: Subtask dbt_run
+[2026-09-04T19:13:11.753+0000] {task_command.py:426} INFO - Running <TaskInstance: datapulse_pipeline.dbt_run manual__2026-09-04T19:10:44.727890+00:00 [running]> on host f6aad1c309ce
+[2026-09-04T19:13:11.856+0000] {taskinstance.py:2648} INFO - Exporting env vars: AIRFLOW_CTX_DAG_OWNER='datapulse' AIRFLOW_CTX_DAG_ID='datapulse_pipeline' AIRFLOW_CTX_TASK_ID='dbt_run' AIRFLOW_CTX_EXECUTION_DATE='2026-09-04T19:10:44.727890+00:00' AIRFLOW_CTX_TRY_NUMBER='1' AIRFLOW_CTX_DAG_RUN_ID='manual__2026-09-04T19:10:44.727890+00:00'
+[2026-09-04T19:13:11.857+0000] {taskinstance.py:430} INFO - ::endgroup::
+[2026-09-04T19:13:11.873+0000] {subprocess.py:63} INFO - Tmp dir root location: /tmp
+[2026-09-04T19:13:11.875+0000] {subprocess.py:75} INFO - Running command: ['/usr/bin/bash', '-c', 'dbt run --profiles-dir /opt/***/dags/datapulse --project-dir /opt/***/dags/datapulse']
+[2026-09-04T19:13:11.887+0000] {subprocess.py:86} INFO - Output:
+[2026-09-04T19:13:14.181+0000] {subprocess.py:93} INFO - Usage: dbt run [OPTIONS]
+[2026-09-04T19:13:14.182+0000] {subprocess.py:93} INFO - Try 'dbt run --help' for help.
+[2026-09-04T19:13:14.184+0000] {subprocess.py:93} INFO - 
+[2026-09-04T19:13:14.186+0000] {subprocess.py:93} INFO - Error: Invalid value for '--profiles-dir': Path '/opt/***/dags/datapulse' does not exist.
+[2026-09-04T19:13:14.477+0000] {subprocess.py:97} INFO - Command exited with return code 2
+[2026-09-04T19:13:14.478+0000] {taskinstance.py:441} INFO - ::group::Post task execution logs
+[2026-09-04T19:13:14.495+0000] {taskinstance.py:2905} ERROR - Task failed with exception
+Traceback (most recent call last):
+  File "/home/airflow/.local/lib/python3.12/site-packages/airflow/models/taskinstance.py", line 465, in _execute_task
+    result = _execute_callable(context=context, **execute_callable_kwargs)
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/airflow/.local/lib/python3.12/site-packages/airflow/models/taskinstance.py", line 432, in _execute_callable
+    return execute_callable(context=context, **execute_callable_kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/airflow/.local/lib/python3.12/site-packages/airflow/models/baseoperator.py", line 401, in wrapper
+    return func(self, *args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/airflow/.local/lib/python3.12/site-packages/airflow/operators/bash.py", line 243, in execute
+    raise AirflowException(
+airflow.exceptions.AirflowException: Bash command failed. The command returned a non-zero exit code 2.
+[2026-09-04T19:13:14.500+0000] {taskinstance.py:1206} INFO - Marking task as UP_FOR_RETRY. dag_id=datapulse_pipeline, task_id=dbt_run, run_id=manual__2026-09-04T19:10:44.727890+00:00, execution_date=20260904T191044, start_date=20260904T191311, end_date=20260904T191314
+[2026-09-04T19:13:14.519+0000] {standard_task_runner.py:110} ERROR - Failed to execute job 13 for task dbt_run (Bash command failed. The command returned a non-zero exit code 2.; 218)
+[2026-09-04T19:13:14.538+0000] {local_task_job_runner.py:243} INFO - Task exited with return code 1
+[2026-09-04T19:13:14.562+0000] {taskinstance.py:3503} INFO - 0 downstream tasks scheduled from follow-on schedule check
+[2026-09-04T19:13:14.567+0000] {local_task_job_runner.py:222} INFO - ::endgroup::
