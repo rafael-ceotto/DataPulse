@@ -8,7 +8,7 @@ It's been a while and trust me when I say that still haunts me.
 
 That's why I built DataPulse.
 
-The idea is straightforward: CMS (Centers for Medicare & Medicaid Services) data is public, and it has everything you need to make an informed decision about where to get treated. DataPulse takes that data, processes it, validates it, and exposes it in a way anyone can use — whether you're a patient looking for the best hospital for a rare cancer, or a health administrator analyzing the quality of an entire network.
+The idea is straightforward: CMS (Centers for Medicare & Medicaid Services) data is public, and it has everything you need to make an informed decision about where to get treated. DataPulse takes that data, processes it, validates it, and exposes it in a way anyone can use: whether you're a patient looking for the best hospital for a rare cancer, or a health administrator analyzing the quality of an entire network.
 
 Think about it this way: if you have a rare cancer and there's a specialized oncology hospital in Arizona, why would you settle for a generic one closer to home? With DataPulse, you have that information before you need it.
 
@@ -26,6 +26,8 @@ The part I'm most proud of isn't the most obvious one. It's not the pipeline, an
 
 - **Backend:** Python, FastAPI, SQLAlchemy, Alembic, PostgreSQL, Pydantic, httpx
 - **AI:** Groq API (openai/gpt-oss-120b) with tool calling and web search via Tavily
+- **Data Transformation:** dbt (staging, intermediate, marts)
+- **Orchestration:** Apache Airflow
 - **Caching:** Redis
 - **Testing:** pytest, pytest-asyncio
 - **Infrastructure:** Docker, Docker Compose, GitHub Actions
@@ -52,6 +54,19 @@ graph TB
         Pipeline[Pipeline Service]
         Scheduler[APScheduler]
         Auth[JWT Auth]
+    end
+
+    subgraph Orchestration["Orchestration (Airflow)"]
+        DAG[datapulse_pipeline DAG]
+        T1[ingest_hospitals]
+        T2[ingest_infections]
+        T3[dbt_run]
+    end
+
+    subgraph Transform["Transformation (dbt)"]
+        STG[Staging Models]
+        INT[Intermediate Models]
+        MRT[Mart Models]
     end
 
     subgraph Storage["Storage"]
@@ -90,6 +105,11 @@ graph TB
     Agent --> PG
     Agent --> Redis
 
+    DAG --> T1 --> T2 --> T3
+    T1 -->|triggers| Pipeline
+    T2 -->|triggers| Pipeline
+    T3 -->|runs| STG --> INT --> MRT
+
     Pipeline --> CMS
     Pipeline --> Physicians
     Pipeline --> PG
@@ -99,6 +119,7 @@ graph TB
     Pipeline --> GitHub
 
     Scheduler -->|every 6h| Pipeline
+    MRT --> PG
 
     Router --> PG
     Router --> Redis
@@ -109,7 +130,7 @@ graph TB
 The pipeline follows **Medallion Architecture** principles:
 - **Bronze:** raw CSV data fetched directly from CMS
 - **Silver:** validated and typed via Pydantic
-- **Gold:** clean records in PostgreSQL, ready for consumption
+- **Gold:** clean records in PostgreSQL, ready for consumption and dbt transformation
 
 ---
 
@@ -166,6 +187,37 @@ To rebuild only what changed:
 ```bash
 docker compose up --build frontend -d  # frontend changes
 docker compose up --build api -d       # backend changes
+```
+
+### With Airflow
+
+To start the full orchestration stack:
+
+```bash
+# Initialize Airflow (first time only)
+docker compose --profile airflow up airflow_init
+
+# Start Airflow webserver and scheduler
+docker compose --profile airflow up airflow_webserver airflow_scheduler -d
+```
+
+Airflow UI available at `http://localhost:8080`. Credentials: `admin` / `datapulse2024`.
+
+### With dbt only
+
+To run dbt models manually:
+
+```bash
+docker compose --profile dbt run --rm dbt
+```
+
+Or locally:
+
+```bash
+cd backend/datapulse
+dbt run
+dbt test
+dbt docs serve  # documentation at http://localhost:8080
 ```
 
 ### Locally
@@ -237,11 +289,6 @@ Protected endpoints:
 | POST | `🔒 /api/v1/notion/save` | Saves an insight to Notion. Requires JWT |
 | POST | `/api/v1/auth/token` | Returns a JWT |
 
-**Example:**
-
-GET /api/v1/hospitals?page=1&limit=20&state=MA&min_rating=4
-GET /api/v1/hospitals/export?state=TX (requires auth)
-
 ---
 
 ## Testing
@@ -290,23 +337,70 @@ Any response can be saved to Notion with one click.
 
 ## Automatic insights
 
-After every pipeline run, the system automatically generates an insight about the data using Groq. What makes this different from a simple summary is that the agent considers the last 5 previous insights before generating the next one — so it reasons about trends, not just the current moment.
+After every pipeline run, the system automatically generates an insight about the data using Groq. What makes this different from a simple summary is that the agent considers the last 5 previous insights before generating the next one so it reasons about trends, not just the current moment.
 
 After generating, the insight goes to three places: the database (shows up in the Pipeline Runs dashboard), Slack (as an alert), and the repository (as a commit to `insights.md`).
 
 ---
 
+## dbt transformation layer
+
+After ingestion, dbt transforms the raw data into analytical models organized in three layers:
+
+**Staging** — 1:1 with source tables, light cleaning only:
+- `stg_hospitals` — cleaned hospital records
+- `stg_infections` — infections with benchmark category derived
+- `stg_pipeline_runs` — successful pipeline runs with duration
+
+**Intermediate** — joins and business logic:
+- `int_hospital_quality` — hospitals joined with their infection summary
+- `int_state_metrics` — state-level aggregations including completeness
+
+**Marts** — final models ready for consumption:
+- `mart_hospital_quality` — hospitals with rating categories and infection percentages
+- `mart_state_health_summary` — state health overview with latest pipeline context
+- `mart_data_quality` — data quality metrics for monitoring
+
+dbt runs automatically after each pipeline ingestion. To run manually:
+
+```bash
+cd backend/datapulse
+dbt run    # build all models
+dbt test   # run data tests
+dbt docs serve  # browse documentation and lineage graph
+```
+
+---
+
+## Airflow orchestration
+
+The full pipeline is orchestrated by Apache Airflow with a DAG that runs every 6 hours:
+
+ingest_hospitals → ingest_infections → dbt_run
+PythonOperator PythonOperator BashOperator
+
+
+Each task calls the DataPulse API endpoints with JWT authentication, maintaining a clear separation between the orchestrator and the application. The DAG includes retry logic (1 retry with 5-minute delay) and is pausable from the Airflow UI.
+
+Start the Airflow stack:
+
+```bash
+docker compose --profile airflow up airflow_webserver airflow_scheduler -d
+```
+
+UI at `http://localhost:8080` — credentials: `admin` / `datapulse2024`.
+
+---
+
 ## Scheduled pipeline
 
-The scheduler runs the full pipeline every 6 hours without any manual intervention. I chose APScheduler over Celery or Prefect because at this scale an in-process scheduler is simpler, cheaper, and doesn't add unnecessary infrastructure.
-
-The interval is configurable via `PIPELINE_INTERVAL_HOURS` in `.env`.
+The scheduler runs the full pipeline every 6 hours without any manual intervention. The interval is configurable via `PIPELINE_INTERVAL_HOURS` in `.env`.
 
 ---
 
 ## Integrations
 
-**Slack** — alert after each pipeline run with the average rating, variation from the previous run, and the generated insight.
+**Slack** — alert after each pipeline run with the average rating, variation from the previous run, and the generated insight. Also sends a data quality alert when completeness drops below 55%.
 
 **Notion** — any AI Query response can be saved to a Notion page with one click. It saves the question, tools used, and full explanation as structured blocks.
 
@@ -340,7 +434,7 @@ The dashboard is provisioned automatically from `grafana/dashboards/datapulse-da
 
 ## Data quality
 
-The current CMS dataset has ~58.6% completeness — 41.4% of hospitals don't have an overall rating. That's not a bug, it's a known limitation of the public data. DataPulse surfaces this transparently in the Data Quality dashboard, alongside alerts for low-rated hospitals and missing fields.
+The current CMS dataset has ~58.6% completeness (41.4% of hospitals don't have an overall rating). That's not a bug, it's a known limitation of the public data. DataPulse surfaces this transparently in the Data Quality dashboard, alongside alerts for low-rated hospitals and missing fields. A Slack alert fires automatically when completeness drops below 55%.
 
 ---
 
@@ -348,13 +442,15 @@ The current CMS dataset has ~58.6% completeness — 41.4% of hospitals don't hav
 
 Identifies medical specialties with significantly fewer physicians than the national average for a given state. Uses statistical sampling (50,000 records) to estimate national counts, then compares each state's share against the expected 1/56 (~1.79%).
 
-A scarcity ratio below 0.5 means the state has less than half the specialists it should. A critical gap!
+A scarcity ratio below 0.5 means the state has less than half the specialists it should. A critical gap.
 
 ---
 
 ## Technical decisions
 
 **Why APScheduler and not Celery?** At this scale, adding a broker and separate workers would be over-engineering. The scheduler runs in the same process as the API with zero overhead.
+
+**Why Airflow for orchestration?** Airflow adds visibility where you can see the DAG graph, retry failed tasks, and monitor run history from a UI. It also decouples orchestration from application code: the DAG calls the API endpoints rather than importing Python functions directly, which means the orchestrator and the application can evolve independently.
 
 **Why not classic RAG?** The agent with web search is more honest about what it knows and what it doesn't. A static RAG would answer with what it has; the agent goes looking when it needs to.
 
@@ -368,6 +464,5 @@ A scarcity ratio below 0.5 means the state has less than half the specialists it
 
 ## What's next
 
-- Slack alerts when data completeness drops below a threshold
 - RAG over CMS policy documents
 - Elasticsearch for advanced full-text search
