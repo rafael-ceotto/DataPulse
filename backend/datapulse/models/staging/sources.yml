@@ -1,0 +1,13 @@
+version: 2
+
+sources:
+  - name: datapulse
+    database: datapulse
+    schema: public
+    tables:
+      - name: hospitals
+        description: CMS hospital quality data
+      - name: hospital_infections
+        description: Healthcare-associated infection records
+      - name: pipeline_runs
+        description: Pipeline execution history

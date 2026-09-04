@@ -81,5 +81,17 @@ services:
       - prometheus
       - loki
 
+  dbt:
+    build:
+      context: ./backend/datapulse
+      dockerfile: Dockerfile
+    container_name: datapulse_dbt
+    environment:
+      DBT_HOST: db
+    depends_on:
+      - db
+    profiles:
+      - dbt
+
 volumes:
   postgres_data:

@@ -1,4 +1,5 @@
 from sqlalchemy.ext.asyncio import AsyncSession
+import subprocess
 
 from app.pipeline.cms_ingestion import fetch_data_cms, parse_hospitals
 from app.repositories.hospital_repository import save_hospitals, get_data_quality_metrics
@@ -65,6 +66,21 @@ async def ingest_hospitals(session: AsyncSession):
                 )
         except Exception as e:
             print(f"Data quality alert failed: {e}")
+
+        # Run dbt models
+        try:
+            result = subprocess.run(
+                ["dbt", "run", "--profiles-dir", "/app/datapulse", "--project-dir", "/app/datapulse"],
+                capture_output=True,
+                text=True,
+                timeout=120,
+            )
+            if result.returncode == 0:
+                print("=== DBT: models refreshed successfully ===")
+            else:
+                print(f"=== DBT: failed — {result.stderr[:200]} ===")
+        except Exception as e:
+            print(f"=== DBT: error — {e} ===")
 
         await update_pipeline_run(
             session,

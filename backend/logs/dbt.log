@@ -1,0 +1,101 @@
+[0m15:59:44.031413 [debug] [MainThread]: Sending event: {'category': 'dbt', 'action': 'invocation', 'label': 'start', 'context': [<snowplow_tracker.self_describing_json.SelfDescribingJson object at 0x0000016673C806E0>, <snowplow_tracker.self_describing_json.SelfDescribingJson object at 0x00000166774CBED0>, <snowplow_tracker.self_describing_json.SelfDescribingJson object at 0x00000166774CBB10>]}
+
+
+============================== 15:59:44.164960 | 1d41a292-397b-4995-a2a8-95316cb7a127 ==============================
+[0m15:59:44.164960 [info ] [MainThread]: Running with dbt=1.12.3
+[0m15:59:44.166049 [debug] [MainThread]: running dbt with arguments {'version_check': 'True', 'no_print': 'None', 'maximum_seed_size_mib': '1', 'warn_error_options': 'WarnErrorOptionsV2(error=[], warn=[], silence=[])', 'target_path': 'None', 'static_parser': 'True', 'printer_width': '80', 'write_json': 'True', 'empty': 'None', 'log_cache_events': 'False', 'introspect': 'True', 'cache_selected_only': 'False', 'fail_fast': 'False', 'debug': 'False', 'log_format': 'default', 'profiles_dir': 'C:\\Users\\ceott\\.dbt', 'send_anonymous_usage_stats': 'True', 'quiet': 'False', 'warn_error': 'None', 'partial_parse': 'True', 'use_colors': 'True', 'hints_enabled': 'True', 'indirect_selection': 'eager', 'use_experimental_parser': 'False', 'invocation_command': 'dbt init datapulse', 'log_path': 'logs'}
+[0m15:59:44.661485 [info ] [MainThread]: Creating dbt configuration folder at C:\Users\ceott\.dbt
+[0m15:59:44.676261 [debug] [MainThread]: Starter project path: C:\Users\ceott\OneDrive\Desktop\Development\DataPulse\.venv\Lib\site-packages\dbt\include\starter_project
+[0m15:59:44.707783 [info ] [MainThread]: Setting up your profile.
+[0m16:03:18.590004 [info ] [MainThread]: Profile datapulse written to C:\Users\ceott\.dbt\profiles.yml using target's profile_template.yml and your supplied values.
+[0m16:03:18.645053 [info ] [MainThread]: Running dbt debug to validate the project...
+[0m16:03:18.645813 [info ] [MainThread]: dbt version: 1.12.3
+[0m16:03:18.646289 [info ] [MainThread]: python version: 3.13.7
+[0m16:03:18.646746 [info ] [MainThread]: python path: C:\Users\ceott\OneDrive\Desktop\Development\DataPulse\.venv\Scripts\python.exe
+[0m16:03:18.647240 [info ] [MainThread]: os info: Windows-11-10.0.26200-SP0
+[0m16:03:18.698641 [info ] [MainThread]: Using profiles dir at C:\Users\ceott\.dbt
+[0m16:03:18.699305 [info ] [MainThread]: Using profiles.yml file at C:\Users\ceott\.dbt\profiles.yml
+[0m16:03:18.700024 [info ] [MainThread]: Using dbt_project.yml file at C:\Users\ceott\OneDrive\Desktop\Development\DataPulse\backend\datapulse\dbt_project.yml
+[0m16:03:18.715899 [info ] [MainThread]: adapter type: postgres
+[0m16:03:18.716564 [info ] [MainThread]: adapter version: 1.11.0
+[0m16:03:18.802826 [info ] [MainThread]: Configuration:
+[0m16:03:18.803523 [info ] [MainThread]:   profiles.yml file [[32mOK found and valid[0m]
+[0m16:03:18.804116 [info ] [MainThread]:   dbt_project.yml file [[32mOK found and valid[0m]
+[0m16:03:18.804379 [info ] [MainThread]: Required dependencies:
+[0m16:03:18.804634 [debug] [MainThread]: Executing "git --help"
+[0m16:03:18.861318 [debug] [MainThread]: STDOUT: "b"usage: git [-v | --version] [-h | --help] [-C <path>] [-c <name>=<value>]\n           [--exec-path[=<path>]] [--html-path] [--man-path] [--info-path]\n           [-p | --paginate | -P | --no-pager] [--no-replace-objects] [--no-lazy-fetch]\n           [--no-optional-locks] [--no-advice] [--bare] [--git-dir=<path>]\n           [--work-tree=<path>] [--namespace=<name>] [--config-env=<name>=<envvar>]\n           <command> [<args>]\n\nThese are common Git commands used in various situations:\n\nstart a working area (see also: git help tutorial)\n   clone      Clone a repository into a new directory\n   init       Create an empty Git repository or reinitialize an existing one\n\nwork on the current change (see also: git help everyday)\n   add        Add file contents to the index\n   mv         Move or rename a file, a directory, or a symlink\n   restore    Restore working tree files\n   rm         Remove files from the working tree and from the index\n\nexamine the history and state (see also: git help revisions)\n   bisect     Use binary search to find the commit that introduced a bug\n   diff       Show changes between commits, commit and working tree, etc\n   grep       Print lines matching a pattern\n   log        Show commit logs\n   show       Show various types of objects\n   status     Show the working tree status\n\ngrow, mark and tweak your common history\n   backfill   Download missing objects in a partial clone\n   branch     List, create, or delete branches\n   commit     Record changes to the repository\n   merge      Join two or more development histories together\n   rebase     Reapply commits on top of another base tip\n   reset      Reset current HEAD to the specified state\n   switch     Switch branches\n   tag        Create, list, delete or verify a tag object signed with GPG\n\ncollaborate (see also: git help workflows)\n   fetch      Download objects and refs from another repository\n   pull       Fetch from and integrate with another repository or a local branch\n   push       Update remote refs along with associated objects\n\n'git help -a' and 'git help -g' list available subcommands and some\nconcept guides. See 'git help <command>' or 'git help <concept>'\nto read about a specific subcommand or concept.\nSee 'git help git' for an overview of the system.\n""
+[0m16:03:18.861998 [debug] [MainThread]: STDERR: "b''"
+[0m16:03:18.862342 [info ] [MainThread]:  - git [[32mOK found[0m]
+
+[0m16:03:18.863069 [info ] [MainThread]: Connection:
+[0m16:03:18.863380 [info ] [MainThread]:   host: localhost
+[0m16:03:18.863683 [info ] [MainThread]:   port: 5433
+[0m16:03:18.863986 [info ] [MainThread]:   user: datapulse
+[0m16:03:18.864228 [info ] [MainThread]:   database: datapulse
+[0m16:03:18.864445 [info ] [MainThread]:   schema: public
+[0m16:03:18.864724 [info ] [MainThread]:   connect_timeout: 10
+[0m16:03:18.864998 [info ] [MainThread]:   role: None
+[0m16:03:18.865248 [info ] [MainThread]:   search_path: None
+[0m16:03:18.865519 [info ] [MainThread]:   keepalives_idle: 0
+[0m16:03:18.865785 [info ] [MainThread]:   sslmode: None
+[0m16:03:18.866053 [info ] [MainThread]:   sslcert: None
+[0m16:03:18.866327 [info ] [MainThread]:   sslkey: None
+[0m16:03:18.866564 [info ] [MainThread]:   sslrootcert: None
+[0m16:03:18.866806 [info ] [MainThread]:   application_name: dbt
+[0m16:03:18.867085 [info ] [MainThread]:   autocommit: False
+[0m16:03:18.867353 [info ] [MainThread]:   retries: 1
+[0m16:03:18.867848 [info ] [MainThread]: Registered adapter: postgres=1.11.0
+[0m16:03:19.088651 [debug] [MainThread]: Acquiring new postgres connection 'debug'
+[0m16:03:23.143110 [debug] [MainThread]: Using postgres connection "debug"
+[0m16:03:23.143779 [debug] [MainThread]: On debug: select 1 as id
+[0m16:03:23.144259 [debug] [MainThread]: Opening a new connection, currently in state init
+[0m16:03:27.215495 [debug] [MainThread]: Postgres adapter: Got a retryable error when attempting to open a postgres connection.
+1 attempts remaining. Retrying in 0 seconds.
+Error:
+connection to server at "localhost" (::1), port 5433 failed: Connection refused (0x0000274D/10061)
+	Is the server running on that host and accepting TCP/IP connections?
+connection to server at "localhost" (127.0.0.1), port 5433 failed: Connection refused (0x0000274D/10061)
+	Is the server running on that host and accepting TCP/IP connections?
+
+[0m16:03:31.269227 [debug] [MainThread]: Postgres adapter: Error running SQL: select 1 as id
+[0m16:03:31.269998 [debug] [MainThread]: Postgres adapter: Rolling back transaction.
+[0m16:03:31.270650 [debug] [MainThread]: On debug: No close available on handle
+[0m16:03:31.271200 [info ] [MainThread]:   Connection test: [[31mERROR[0m]
+
+[0m16:03:31.272010 [info ] [MainThread]: [31m1 check failed:[0m
+[0m16:03:31.272759 [info ] [MainThread]: dbt was unable to connect to the specified database.
+The database returned the following error:
+
+  >Database Error
+  connection to server at "localhost" (::1), port 5433 failed: Connection refused (0x0000274D/10061)
+  	Is the server running on that host and accepting TCP/IP connections?
+  connection to server at "localhost" (127.0.0.1), port 5433 failed: Connection refused (0x0000274D/10061)
+  	Is the server running on that host and accepting TCP/IP connections?
+  
+
+Check your database credentials and try again. For more information, visit:
+https://docs.getdbt.com/docs/configure-your-profile
+
+
+[0m16:03:31.273586 [info ] [MainThread]: Your new dbt project "datapulse" was created!
+Initialized new project in C:\Users\ceott\OneDrive\Desktop\Development\DataPulse\backend\datapulse\datapulse
+
+For more information on how to configure the profiles.yml file,
+please consult the dbt documentation here:
+
+  https://docs.getdbt.com/docs/configure-your-profile
+
+One more thing:
+
+Need help? Don't hesitate to reach out to us via GitHub issues or on Slack:
+
+  https://community.getdbt.com/
+
+Happy modeling!
+
+[0m16:03:31.275181 [info ] [MainThread]: [31mYour profile may need adjustments. You can find the logs of `dbt debug` above[0m
+[0m16:03:31.276578 [debug] [MainThread]: Command `dbt init` succeeded at 16:03:31.276366 after 227.49 seconds
+[0m16:03:31.277106 [debug] [MainThread]: Connection 'debug' was properly closed.
+[0m16:03:31.277934 [debug] [MainThread]: Sending event: {'category': 'dbt', 'action': 'invocation', 'label': 'end', 'context': [<snowplow_tracker.self_describing_json.SelfDescribingJson object at 0x000001667744BBB0>, <snowplow_tracker.self_describing_json.SelfDescribingJson object at 0x000001667745C170>, <snowplow_tracker.self_describing_json.SelfDescribingJson object at 0x000001667716C8D0>]}
+[0m16:03:31.278663 [debug] [MainThread]: Flushing usage events
+[0m16:03:31.981732 [debug] [MainThread]: An error was encountered while trying to flush usage events

@@ -1,0 +1,37 @@
+version: 2
+
+models:
+  - name: mart_hospital_quality
+    description: Final hospital quality model with infection data and rating categories
+    columns:
+      - name: facility_id
+        description: Unique hospital identifier
+        tests:
+          - unique
+          - not_null
+      - name: overall_rating
+        description: CMS star rating (1-5)
+        tests:
+          - accepted_values:
+              arguments:
+                values: [1, 2, 3, 4, 5]
+      - name: state
+        tests:
+          - not_null
+
+  - name: mart_state_health_summary
+    description: State-level health metrics aggregated from hospital and infection data
+    columns:
+      - name: state
+        tests:
+          - unique
+          - not_null
+      - name: avg_rating
+        description: Average hospital star rating for the state
+
+  - name: mart_data_quality
+    description: Data quality metrics for monitoring pipeline completeness
+    columns:
+      - name: total_hospitals
+        tests:
+          - not_null
