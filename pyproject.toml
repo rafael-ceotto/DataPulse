@@ -28,7 +28,10 @@ dependencies = [
     "notion-client (>=3.1.0) ; python_version >= \"3.13\" and python_version < \"4\"",
     "prometheus-fastapi-instrumentator (==7.0.0) ; python_version >= \"3.13\" and python_full_version < \"4.0.0\"",
     "structlog (>=26.1.0,<27.0.0)",
-    "dbt-postgres (>=1.11.0,<2.0.0)"
+    "dbt-postgres (>=1.11.0,<2.0.0)",
+    "sentence-transformers (>=6.0.1,<7.0.0)",
+    "pypdf (>=6.17.0,<7.0.0)",
+    "pgvector (>=0.5.0,<0.6.0)"
 ]
 
 

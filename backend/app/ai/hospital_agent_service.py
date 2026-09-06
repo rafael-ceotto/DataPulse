@@ -110,9 +110,23 @@ TOOLS = [
             }
         }
     },
+    {
+        "type": "function",
+        "function": {
+            "name": "search_cms_documents",
+            "description": "Search official CMS policy documents, methodology guides, and star rating technical notes. Use when asked about CMS criteria, rating methodology, how star ratings are calculated, regulatory requirements, or any question about the rules and policies behind hospital quality ratings.",
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "query": {"type": "string", "description": "The question or topic to search for in CMS documents."}
+                },
+                "required": ["query"]
+            }
+        }
+    },
 ]
 
-AGENT_SYSTEM_PROMPT = """You are a healthcare data analyst assistant with access to a PostgreSQL database containing real CMS hospital quality data, including 5,419 US hospitals with ratings, locations, and healthcare-associated infection records.
+AGENT_SYSTEM_PROMPT = """You are a healthcare data analyst assistant with access to a PostgreSQL database containing real CMS hospital quality data, including 5,419 US hospitals with ratings, locations, and healthcare-associated infection records. You also have access to official CMS policy documents and methodology guides via the search_cms_documents tool.
 
 You have two ways to answer questions:
 1. Use the available tools for complex analysis
@@ -130,6 +144,7 @@ ALWAYS use tools when the question asks for:
 - Infection rates, HAI data, or hospital safety by state
 - Questions asking "why", "reason", "explain", or requiring context beyond the database
 - Current healthcare news or policy changes
+- CMS criteria, rating methodology, star rating rules, or regulatory requirements → use search_cms_documents
 
 For simple, direct queries:
 - "Which hospitals have a 5-star rating?" → immediately call get_top_rated_hospitals with min_rating=5, limit=10. Do not ask for clarification.
@@ -137,11 +152,15 @@ For simple, direct queries:
 - "Average rating by state" → immediately call get_rating_distribution. Do not ask for clarification.
 - "What states have the highest concentration of 5-star hospitals?" → immediately call get_rating_distribution. Do not ask for clarification.
 - "Show me hospitals in Texas" → use search_hospitals tool with state=TX.
+- "What are the CMS criteria for 5-star hospitals?" → immediately call search_cms_documents. Do not ask for clarification.
+- "How is the star rating calculated?" → immediately call search_cms_documents. Do not ask for clarification.
+
+When using search_cms_documents results, always mention the source document and page number in your response so the user knows exactly where the information comes from.
 
 NEVER ask for clarification when you have enough tools to answer the question.
 NEVER call tools that are not in your tools list.
 NEVER respond with JSON objects — always respond with plain text.
-NEVER say you cannot access the data — you have access to real hospital data.
+NEVER say you cannot access the data — you have access to real hospital data and CMS documents.
 NEVER give generic descriptions when actual data can be retrieved via tools.
 
 State codes: OH=Ohio, CA=California, TX=Texas, FL=Florida, NY=New York, MA=Massachusetts, etc.
@@ -212,6 +231,18 @@ async def execute_tool(tool_name: str, tool_args: dict, session: AsyncSession) -
         ]
         return json.dumps({"results": snippets})
 
+    elif tool_name == "search_cms_documents":
+        from app.rag.retriever import search_documents
+        query = tool_args.get("query", "")
+        chunks = await search_documents(query, session)
+        if not chunks:
+            return json.dumps({"results": [], "message": "No CMS documents indexed yet. Run the ingestion script first."})
+        formatted = [
+            f"[Source: {c['source']}, Page {c['page']}, Similarity: {c['similarity']}]\n{c['content']}"
+            for c in chunks
+        ]
+        return json.dumps({"results": formatted})
+
     return json.dumps({"error": f"Unknown tool: {tool_name}"})
 
 
@@ -224,9 +255,6 @@ def clean_content(content: str) -> str:
 
 
 async def ask_agent(session: AsyncSession, question: str) -> dict:
-    """
-    Smart agent with multi-turn tool calling loop.
-    """
     try:
         lang = detect(question)
     except Exception:
@@ -234,10 +262,11 @@ async def ask_agent(session: AsyncSession, question: str) -> dict:
 
     question_with_lang = f"{question}\n\n[LANGUAGE: {lang}]"
 
-    # Force tool choice for known simple queries
     forced_tool = None
     question_lower = question.lower()
-    if "highest concentration" in question_lower or "concentration of 5-star" in question_lower:
+    if any(kw in question_lower for kw in ["cms criteria", "star rating method", "how is the rating", "rating calculated", "cms methodology", "cms requirement", "criteria for"]):
+        forced_tool = {"type": "function", "function": {"name": "search_cms_documents"}}
+    elif "highest concentration" in question_lower or "concentration of 5-star" in question_lower:
         forced_tool = {"type": "function", "function": {"name": "get_rating_distribution"}}
     elif "5-star" in question_lower or "5 star" in question_lower or "five star" in question_lower:
         forced_tool = {"type": "function", "function": {"name": "get_top_rated_hospitals"}}
@@ -289,7 +318,6 @@ async def ask_agent(session: AsyncSession, question: str) -> dict:
 
         content = message.get("content", "") or ""
 
-        # No tool calls — model has finished
         if finish_reason == "stop" or not message.get("tool_calls"):
             final_content = clean_content(content)
             if not final_content:
@@ -302,7 +330,6 @@ async def ask_agent(session: AsyncSession, question: str) -> dict:
                 "results": [],
             }
 
-        # Execute tool calls
         messages.append({"role": "assistant", "tool_calls": message["tool_calls"]})
 
         for tool_call in message["tool_calls"]:
@@ -319,7 +346,6 @@ async def ask_agent(session: AsyncSession, question: str) -> dict:
                 "content": result,
             })
 
-    # Max iterations reached — force final answer without tools
     messages.append({
         "role": "user",
         "content": f"Based on the data you retrieved above, write a clear and concise response in the language specified by [LANGUAGE: {lang}]. Do not call any tools.",
