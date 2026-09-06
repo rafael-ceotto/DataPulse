@@ -16,7 +16,7 @@ Think about it this way: if you have a rare cancer and there's a specialized onc
 
 ## What it does
 
-DataPulse ingests, validates, and transforms data from 5,419 hospitals and 96,055 hospital infection records from CMS. All of that feeds an API that exposes quality metrics, physician analysis by state, scarce specialties, and a search interface that works both with direct SQL queries and an AI agent that knows when to go beyond internal data.
+DataPulse ingests, validates, and transforms data from 5,419 hospitals and 96,055 hospital infection records from CMS. All of that feeds an API that exposes quality metrics, physician analysis by state, scarce specialties, and a search interface that works both with direct SQL queries and an AI agent that knows when to go beyond internal data — including official CMS policy documents.
 
 The part I'm most proud of isn't the most obvious one. It's not the pipeline, and it's not the agent. It's the scarce specialty analysis. Knowing that a state has less than 50% of the specialists it should have is the kind of information that can save a life. If someone opens DataPulse and uses that before choosing where to get treated, the project was worth it.
 
@@ -24,8 +24,9 @@ The part I'm most proud of isn't the most obvious one. It's not the pipeline, an
 
 ## Stack
 
-- **Backend:** Python, FastAPI, SQLAlchemy, Alembic, PostgreSQL, Pydantic, httpx
-- **AI:** Groq API (openai/gpt-oss-120b) with tool calling and web search via Tavily
+- **Backend:** Python, FastAPI, SQLAlchemy, Alembic, PostgreSQL + pgvector, Pydantic, httpx
+- **AI:** Groq API (openai/gpt-oss-120b) with tool calling, web search via Tavily, and RAG over CMS documents
+- **Embeddings:** sentence-transformers (all-MiniLM-L6-v2) running locally
 - **Data Transformation:** dbt (staging, intermediate, marts)
 - **Orchestration:** Apache Airflow
 - **Caching:** Redis
@@ -70,18 +71,20 @@ graph TB
     end
 
     subgraph Storage["Storage"]
-        PG[(PostgreSQL)]
+        PG[(PostgreSQL + pgvector)]
         Redis[(Redis Cache)]
     end
 
     subgraph ExternalData["External Data Sources"]
         CMS[CMS API]
         Physicians[CMS Physicians API]
+        CMSPDF[CMS PDF Documents]
     end
 
     subgraph AI["AI & Search"]
         Groq[Groq API\nopenai/gpt-oss-120b]
         Tavily[Tavily\nWeb Search]
+        Embeddings[sentence-transformers\nall-MiniLM-L6-v2]
     end
 
     subgraph Integrations["Integrations"]
@@ -104,6 +107,10 @@ graph TB
     Agent --> Tavily
     Agent --> PG
     Agent --> Redis
+
+    CMSPDF -->|ingest_cms_docs.py| Embeddings
+    Embeddings -->|vector chunks| PG
+    Agent -->|search_cms_documents| PG
 
     DAG --> T1 --> T2 --> T3
     T1 -->|triggers| Pipeline
@@ -180,12 +187,16 @@ All integrations are optional. The pipeline and AI work without them.
 # 1. Start main stack (db, redis, api, frontend, prometheus, loki, grafana)
 docker compose up -d
 
-# 2. Optional — start Airflow (webserver + scheduler)
+# 2. Index CMS documents for RAG (first time only)
+cd backend
+poetry run python scripts/ingest_cms_docs.py
+
+# 3. Optional — start Airflow (webserver + scheduler)
 # Note: airflow_init only needed on first run
 docker compose --profile airflow up airflow_init
 docker compose --profile airflow up airflow_webserver airflow_scheduler -d
 
-# 3. Optional — run dbt manually
+# 4. Optional — run dbt manually
 docker compose --profile dbt run --rm dbt
 
 # To stop everything
@@ -247,6 +258,9 @@ poetry install
 # Run migrations
 cd backend
 alembic upgrade head
+
+# Index CMS documents for RAG
+poetry run python scripts/ingest_cms_docs.py
 
 # Start the API
 uvicorn app.main:app --reload
@@ -327,7 +341,7 @@ pytest tests/api -v          # API tests
 
 ## The AI layer
 
-This is the part that evolved the most during development. The agent isn't a chatbot. It's an analyst with access to real data that knows when it needs to look beyond the database.
+This is the part that evolved the most during development. The agent isn't a chatbot. It's an analyst with access to real data that knows when it needs to look beyond the database — and when it needs to look beyond the web too, into the actual policy documents behind the data.
 
 It operates in two modes:
 
@@ -335,7 +349,7 @@ It operates in two modes:
 
 **Agent mode** — for complex analysis. "Why do hospitals in Utah have higher ratings than the national average?" triggers a tool calling loop: it pulls the rating distribution from the database, then goes to the web for external context, and synthesizes everything into a coherent response.
 
-What I find most interesting is that the agent decides on its own which mode to use and, when it needs web search, it uses it. It's not a static RAG; it's a system that knows when internal data isn't enough.
+What I find most interesting is that the agent decides on its own which mode to use and, when it needs web search or document retrieval, it uses them. It's not a static system; it's one that knows when internal data isn't enough.
 
 **Available tools:**
 - `search_hospitals` — hospitals by state
@@ -345,8 +359,28 @@ What I find most interesting is that the agent decides on its own which mode to 
 - `get_scarce_specialties` — scarce specialties
 - `get_hospital_infections` — HAI infection summary by state
 - `web_search` — external search via Tavily
+- `search_cms_documents` — semantic search over official CMS methodology PDFs with source and page citation
 
 Any response can be saved to Notion with one click.
+
+---
+
+## RAG over CMS documents
+
+The agent can answer questions about CMS policy, star rating methodology, and regulatory requirements — not from its training data, but from the actual official documents.
+
+Two PDFs are indexed: the Comprehensive Methodology Report v3.0 (2018) and v5.1 (2026), totalling 447 chunks. When the agent calls `search_cms_documents`, it generates an embedding for the question using `all-MiniLM-L6-v2`, runs a cosine similarity search via pgvector, and retrieves the most relevant chunks — each with its source document and page number.
+
+The reason for using pgvector instead of a dedicated vector database is simple: DataPulse already uses PostgreSQL. Enabling the extension requires no new infrastructure, no new service, and no new operational concept. The vector store lives in the same database as the hospital data.
+
+To index the documents:
+
+```bash
+cd backend
+poetry run python scripts/ingest_cms_docs.py
+```
+
+To add more CMS documents, drop PDFs into `cms_docs/` and run the script again. It deletes and re-indexes each file on every run, so re-ingestion is safe.
 
 ---
 
@@ -469,7 +503,11 @@ On first load after a cold start, the cache is built automatically in the backgr
 
 **Why Airflow for orchestration?** Airflow adds visibility where you can see the DAG graph, retry failed tasks, and monitor run history from a UI. It also decouples orchestration from application code: the DAG calls the API endpoints rather than importing Python functions directly, which means the orchestrator and the application can evolve independently.
 
-**Why not classic RAG?** The agent with web search is more honest about what it knows and what it doesn't. A static RAG would answer with what it has; the agent goes looking when it needs to.
+**Why pgvector instead of a dedicated vector database?** DataPulse already uses PostgreSQL. Enabling the pgvector extension requires no new infrastructure — the vector store lives in the same database as the hospital data. For the scale of this project, it's the right tool.
+
+**Why sentence-transformers locally instead of an API?** Zero cost, zero latency on embedding generation, and no external dependency at query time. The model (`all-MiniLM-L6-v2`, 90MB) is downloaded once during the Docker build and cached in the image — it never needs to download again at runtime.
+
+**Why not classic RAG only?** The agent uses RAG for policy questions, web search for current context, and direct SQL for data questions. Each tool has its place. A system that only does RAG would be honest about documents but blind to the actual data; one that only does SQL would be precise about the data but ignorant of the rules behind it.
 
 **Upsert instead of delete+insert** — CMS updates its data periodically. With `INSERT ... ON CONFLICT DO UPDATE`, the pipeline can run as many times as needed without creating duplicates.
 
@@ -481,5 +519,4 @@ On first load after a cold start, the cache is built automatically in the backgr
 
 ## What's next
 
-- RAG over CMS policy documents
 - Elasticsearch for advanced full-text search
