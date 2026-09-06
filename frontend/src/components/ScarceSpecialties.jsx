@@ -41,8 +41,8 @@ export default function ScarceSpecialties() {
   const [data, setData] = useState(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
-  const [cacheStatus, setCacheStatus] = useState(null);
   const [cacheReady, setCacheReady] = useState(null);
+  const [warmingUp, setWarmingUp] = useState(false);
   const [stateCacheReady, setStateCacheReady] = useState(false);
 
   useEffect(() => {
@@ -52,36 +52,28 @@ export default function ScarceSpecialties() {
       .then(d => setCacheReady(d.national_specialty_cache === "ready"));
   }, [open]);
 
+  // Poll cache status while warming up
   useEffect(() => {
-    if (cacheStatus !== "warming_started" || cacheReady) return;
+    if (!warmingUp || cacheReady) return;
     const interval = setInterval(() => {
       fetch("/api/v1/physicians/cache-status")
         .then(r => r.json())
         .then(d => {
           if (d.national_specialty_cache === "ready") {
             setCacheReady(true);
+            setWarmingUp(false);
             clearInterval(interval);
           }
         });
     }, 30000);
     return () => clearInterval(interval);
-  }, [cacheStatus, cacheReady]);
+  }, [warmingUp, cacheReady]);
 
-  // Reset state cache when state changes
   useEffect(() => {
     setStateCacheReady(false);
     setData(null);
     setError(null);
   }, [state]);
-
-  async function warmCache() {
-    setCacheStatus("warming_started");
-    try {
-      await fetch("/api/v1/physicians/warm-cache", { method: "POST" });
-    } catch {
-      setCacheStatus("error");
-    }
-  }
 
   async function analyze() {
     setStateCacheReady(false);
@@ -90,11 +82,21 @@ export default function ScarceSpecialties() {
     setData(null);
     try {
       const res = await fetch(`/api/v1/physicians/scarce-specialties/${state}`);
-      const json = await res.json();
-      if (json[0]?.error) {
-        setError(json[0].message);
+
+      // Cache not ready — backend started warm-up automatically
+      if (res.status === 202) {
+        setWarmingUp(true);
+        setCacheReady(false);
+        setError("Cache is being prepared automatically. This takes 2-5 minutes on first load. The page will update when ready — no action needed.");
         return;
       }
+
+      if (!res.ok) {
+        setError("Could not load analysis. Try again.");
+        return;
+      }
+
+      const json = await res.json();
       setData(json);
       setStateCacheReady(true);
     } catch {
@@ -145,34 +147,17 @@ export default function ScarceSpecialties() {
         }}>
           {/* Cache status */}
           <div style={{ marginBottom: 20, padding: "14px 16px", background: "#101a20", borderRadius: 10, border: `1px solid #24323a` }}>
-            <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", flexWrap: "wrap", gap: 12, marginBottom: 8 }}>
+            <div style={{ marginBottom: 8 }}>
               <StatusDot
                 ready={cacheReady}
-                loading={false}
+                loading={warmingUp}
                 label={
                   cacheReady === null ? "Checking national cache..." :
+                  warmingUp ? "Preparing national cache (~2-5 min)..." :
                   cacheReady ? "National specialty cache ready" :
                   "National specialty cache not ready"
                 }
               />
-              {!cacheReady && (
-                <button
-                  onClick={warmCache}
-                  disabled={cacheStatus === "warming_started"}
-                  style={{
-                    background: "transparent",
-                    border: `1px solid #2c3b44`,
-                    color: cacheStatus === "warming_started" ? theme.mint : "#a7b6bf",
-                    borderRadius: 8,
-                    padding: "6px 14px",
-                    fontSize: 12.5,
-                    cursor: "pointer",
-                    fontFamily: theme.mono,
-                  }}
-                >
-                  {cacheStatus === "warming_started" ? "✓ Warming..." : "Warm cache"}
-                </button>
-              )}
             </div>
             <StatusDot
               ready={stateCacheReady}
@@ -183,9 +168,9 @@ export default function ScarceSpecialties() {
                 "State data not yet analyzed"
               }
             />
-            {cacheStatus === "warming_started" && !cacheReady && (
+            {warmingUp && !cacheReady && (
               <div style={{ marginTop: 8, fontSize: 12, color: "#6f8a95" }}>
-                Building in background (~5 min). Page will update when ready.
+                Building in background. Page will update automatically when ready.
               </div>
             )}
           </div>
@@ -212,26 +197,26 @@ export default function ScarceSpecialties() {
             </select>
             <button
               onClick={analyze}
-              disabled={loading || !cacheReady}
+              disabled={loading || warmingUp}
               style={{
-                background: cacheReady ? theme.mint : "#1b272e",
-                color: cacheReady ? "#0c1418" : "#6f8a95",
+                background: !loading && !warmingUp ? theme.mint : "#1b272e",
+                color: !loading && !warmingUp ? "#0c1418" : "#6f8a95",
                 border: "none",
                 borderRadius: 10,
                 padding: "11px 24px",
                 fontSize: 14,
                 fontWeight: 600,
-                cursor: loading || !cacheReady ? "not-allowed" : "pointer",
+                cursor: loading || warmingUp ? "not-allowed" : "pointer",
                 opacity: loading ? 0.7 : 1,
               }}
             >
-              {loading ? "Analyzing..." : "Analyze"}
+              {loading ? "Analyzing..." : warmingUp ? "Warming up..." : "Analyze"}
             </button>
           </div>
 
           {error && (
-            <div style={{ color: "#ff6b6b", fontSize: 14, marginBottom: 16, padding: "12px 16px", background: "#1a1010", borderRadius: 10, border: "1px solid #3a1a1a" }}>
-              ⚠ {error}
+            <div style={{ color: warmingUp ? "#f1c40f" : "#ff6b6b", fontSize: 14, marginBottom: 16, padding: "12px 16px", background: warmingUp ? "#1a1500" : "#1a1010", borderRadius: 10, border: `1px solid ${warmingUp ? "#3a3000" : "#3a1a1a"}` }}>
+              {warmingUp ? "⏳" : "⚠"} {error}
             </div>
           )}
 
@@ -278,7 +263,7 @@ export default function ScarceSpecialties() {
 
           {!data && !loading && !error && (
             <div style={{ textAlign: "center", color: "#6f8a95", fontSize: 14, padding: "32px 0" }}>
-              {cacheReady ? "Select a state and click Analyze." : "Warm the cache first, then select a state and click Analyze."}
+              Select a state and click Analyze.
             </div>
           )}
         </div>

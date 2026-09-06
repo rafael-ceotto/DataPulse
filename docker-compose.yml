@@ -17,6 +17,9 @@ services:
     container_name: datapulse_redis
     ports:
       - "6379:6379"
+    command: redis-server --save 60 1 --loglevel warning
+    volumes:
+    - redis_data:/data
 
   api:
     build:
@@ -165,3 +168,4 @@ services:
 volumes:
   postgres_data:
   airflow_db_data:
+  redis_data:

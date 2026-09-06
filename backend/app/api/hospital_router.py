@@ -1,4 +1,5 @@
-from fastapi import APIRouter, Depends, HTTPException, Request
+from fastapi import APIRouter, Depends, HTTPException, Request, BackgroundTasks
+from fastapi.responses import JSONResponse
 from slowapi import Limiter
 from slowapi.util import get_remote_address
 from pydantic import BaseModel
@@ -16,7 +17,12 @@ from app.repositories.hospital_repository import get_hospitals, get_hospitals_by
 from app.ai.hospital_ai_service import ask_hospital_ai
 from app.services.infection_service import ingest_infections
 from app.repositories.infection_repository import get_infections, get_infections_by_facility
-from app.services.physician_analysis_service import get_physician_hospital_correlation, search_physicians, get_scarce_specialties
+from app.services.physician_analysis_service import (
+    get_physician_hospital_correlation,
+    search_physicians,
+    get_scarce_specialties,
+    get_national_specialty_counts,
+)
 from app.ai.hospital_agent_service import ask_agent
 from app.repositories.pipeline_run_repository import get_pipeline_runs
 from app.core.notion import save_to_notion
@@ -195,7 +201,20 @@ async def physician_state_analysis(state: str, session: AsyncSession = Depends(g
     return data
 
 @router.get("/api/v1/physicians/scarce-specialties/{state}")
-async def scarce_specialties(state: str):
+async def scarce_specialties(state: str, background_tasks: BackgroundTasks):
+    from app.services.physician_analysis_service import NATIONAL_SPECIALTY_CACHE_KEY
+
+    national = await get_cache(NATIONAL_SPECIALTY_CACHE_KEY)
+    if not national:
+        background_tasks.add_task(get_national_specialty_counts)
+        return JSONResponse(
+            status_code=202,
+            content={
+                "status": "warming_up",
+                "message": "Cache is being prepared. This takes 2-5 minutes on first load. Try again shortly."
+            }
+        )
+
     return await get_scarce_specialties(state)
 
 @router.post("/api/v1/physicians/warm-cache")

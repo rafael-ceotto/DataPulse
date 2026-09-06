@@ -151,7 +151,7 @@ async def get_national_specialty_counts() -> dict:
 
     counts = {}
     limit = 1500
-    SAMPLE_SIZE = 50000  # ~1.5% of total — statistically significant
+    SAMPLE_SIZE = 50000
     offset = 0
     total_fetched = 0
 
@@ -174,7 +174,6 @@ async def get_national_specialty_counts() -> dict:
             total_fetched += len(results)
             offset += limit
 
-    # Scale up to estimated national total (3.3M / 50k = ~66x)
     TOTAL_PHYSICIANS = 3388151
     scale_factor = TOTAL_PHYSICIANS / total_fetched
     counts = {k: round(v * scale_factor) for k, v in counts.items()}
@@ -190,13 +189,7 @@ async def get_scarce_specialties(state: str) -> list[dict]:
     if cached:
         return cached
 
-    # Check if national cache is ready
     national_counts = await get_cache(NATIONAL_SPECIALTY_CACHE_KEY)
-    if not national_counts:
-        return [{
-            "error": "National specialty cache not ready",
-            "message": "Call POST /api/v1/physicians/warm-cache first and wait a few minutes"
-        }]
 
     all_results = []
     limit = 1500

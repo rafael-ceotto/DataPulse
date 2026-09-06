@@ -177,16 +177,31 @@ All integrations are optional. The pipeline and AI work without them.
 ### With Docker (recommended)
 
 ```bash
-docker compose up --build
+# 1. Start main stack (db, redis, api, frontend, prometheus, loki, grafana)
+docker compose up -d
+
+# 2. Optional — start Airflow (webserver + scheduler)
+# Note: airflow_init only needed on first run
+docker compose --profile airflow up airflow_init
+docker compose --profile airflow up airflow_webserver airflow_scheduler -d
+
+# 3. Optional — run dbt manually
+docker compose --profile dbt run --rm dbt
+
+# To stop everything
+docker compose --profile airflow down
+docker compose down
 ```
 
-This starts PostgreSQL, Redis, the API, and the frontend in one command. The frontend is available at `http://localhost` and the API at `http://localhost:8000`.
+> **Note:** Airflow uses `profiles: [airflow]` and does **not** start with `docker compose up -d`. It must be started explicitly with `--profile airflow`. Same for dbt.
+
+The frontend is available at `http://localhost` and the API at `http://localhost:8000`.
 
 To rebuild only what changed:
 
 ```bash
-docker compose up --build frontend -d  # frontend changes
-docker compose up --build api -d       # backend changes
+docker compose build api && docker compose up -d api            # backend changes
+docker compose build frontend && docker compose up -d frontend  # frontend changes
 ```
 
 ### With Airflow
@@ -284,7 +299,7 @@ Protected endpoints:
 | GET | `/api/v1/physicians/state-analysis/{state}` | Physician-hospital correlation by state |
 | GET | `/api/v1/physicians/scarce-specialties/{state}` | Top 10 scarce specialties vs national average |
 | GET | `/api/v1/physicians/cache-status` | Specialty cache status |
-| POST | `🔒 /api/v1/physicians/warm-cache` | Populates specialty cache in background |
+| POST | `/api/v1/physicians/warm-cache` | Populates specialty cache in background. Called automatically on first scarce specialties request |
 | POST | `🔒 /api/v1/ai/query` | Natural language query. Requires JWT |
 | POST | `🔒 /api/v1/notion/save` | Saves an insight to Notion. Requires JWT |
 | POST | `/api/v1/auth/token` | Returns a JWT |
@@ -443,6 +458,8 @@ The current CMS dataset has ~58.6% completeness (41.4% of hospitals don't have a
 Identifies medical specialties with significantly fewer physicians than the national average for a given state. Uses statistical sampling (50,000 records) to estimate national counts, then compares each state's share against the expected 1/56 (~1.79%).
 
 A scarcity ratio below 0.5 means the state has less than half the specialists it should. A critical gap.
+
+On first load after a cold start, the cache is built automatically in the background when a scarce specialties request is made. The frontend shows a warming state and polls every 30 seconds until ready — no manual action needed. The cache is persisted to disk via Redis RDB snapshots and survives container restarts.
 
 ---
 
