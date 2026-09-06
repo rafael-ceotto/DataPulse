@@ -264,7 +264,16 @@ async def ask_agent(session: AsyncSession, question: str) -> dict:
 
     forced_tool = None
     question_lower = question.lower()
-    if any(kw in question_lower for kw in ["cms criteria", "star rating method", "how is the rating", "rating calculated", "cms methodology", "cms requirement", "criteria for"]):
+    if any(kw in question_lower for kw in [
+        # English
+        "cms criteria", "star rating method", "how is the rating", "rating calculated",
+        "cms methodology", "cms requirement", "criteria for",
+        # Portuguese
+        "como é calculada", "como funciona a nota", "critérios do cms", "metodologia do cms",
+        "como é calculado", "nota dos hospitais",
+        # Spanish
+        "cómo se calcula", "criterios del cms", "metodología del cms", "cómo funciona la nota",
+    ]):
         forced_tool = {"type": "function", "function": {"name": "search_cms_documents"}}
     elif "highest concentration" in question_lower or "concentration of 5-star" in question_lower:
         forced_tool = {"type": "function", "function": {"name": "get_rating_distribution"}}
@@ -304,6 +313,11 @@ async def ask_agent(session: AsyncSession, question: str) -> dict:
         if response.status_code == 400:
             print(f"GROQ 400 ERROR: {response.json()}")
             return await ask_hospital_ai(session, question)
+
+        if response.status_code == 429:
+            print(f"Rate limit hit on iteration {iteration+1}, waiting 5s...")
+            await asyncio.sleep(5)
+            continue
 
         if response.status_code != 200:
             print(f"GROQ ERROR: {response.json()}")

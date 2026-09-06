@@ -16,7 +16,7 @@ Think about it this way: if you have a rare cancer and there's a specialized onc
 
 ## What it does
 
-DataPulse ingests, validates, and transforms data from 5,419 hospitals and 96,055 hospital infection records from CMS. All of that feeds an API that exposes quality metrics, physician analysis by state, scarce specialties, and a search interface that works both with direct SQL queries and an AI agent that knows when to go beyond internal data — including official CMS policy documents.
+DataPulse ingests, validates, and transforms data from 5,419 hospitals and 96,055 hospital infection records from CMS. All of that feeds an API that exposes quality metrics, physician analysis by state, scarce specialties, and a search interface that works both with direct SQL queries and an AI agent that knows when to go beyond internal data. This includes official CMS policy documents.
 
 The part I'm most proud of isn't the most obvious one. It's not the pipeline, and it's not the agent. It's the scarce specialty analysis. Knowing that a state has less than 50% of the specialists it should have is the kind of information that can save a life. If someone opens DataPulse and uses that before choosing where to get treated, the project was worth it.
 
@@ -341,7 +341,7 @@ pytest tests/api -v          # API tests
 
 ## The AI layer
 
-This is the part that evolved the most during development. The agent isn't a chatbot. It's an analyst with access to real data that knows when it needs to look beyond the database — and when it needs to look beyond the web too, into the actual policy documents behind the data.
+This is the part that evolved the most during development. The agent isn't a chatbot. It's an analyst with access to real data that knows when it needs to look beyond the database and when it needs to look beyond the web too. It can also dive into the actual policy documents behind the data.
 
 It operates in two modes:
 
@@ -367,7 +367,7 @@ Any response can be saved to Notion with one click.
 
 ## Example queries
 
-The agent is multilingual — it detects the language of the question and responds in the same language. A few examples of what you can ask:
+The agent is multilingual. Tt detects the language of the question and responds in the same language. A few examples of what you can ask:
 
 **In English:**
 - "Compare the healthcare system from Ohio and Vermont"
@@ -396,9 +396,9 @@ Questions about CMS methodology (like "How is the star rating calculated?") are 
 
 ## RAG over CMS documents
 
-The agent can answer questions about CMS policy, star rating methodology, and regulatory requirements — not from its training data, but from the actual official documents.
+The agent can answer questions about CMS policy, star rating methodology, and regulatory requirements. Not from its training data, but from the actual official documents.
 
-Two PDFs are indexed: the Comprehensive Methodology Report v3.0 (2018) and v5.1 (2026), totalling 447 chunks. When the agent calls `search_cms_documents`, it generates an embedding for the question using `all-MiniLM-L6-v2`, runs a cosine similarity search via pgvector, and retrieves the most relevant chunks — each with its source document and page number.
+Two PDFs are indexed: the Comprehensive Methodology Report v3.0 (2018) and v5.1 (2026), totalling 447 chunks. When the agent calls `search_cms_documents`, it generates an embedding for the question using `all-MiniLM-L6-v2`, runs a cosine similarity search via pgvector, and retrieves the most relevant chunks. Each with its source document and page number.
 
 The reason for using pgvector instead of a dedicated vector database is simple: DataPulse already uses PostgreSQL. Enabling the extension requires no new infrastructure, no new service, and no new operational concept. The vector store lives in the same database as the hospital data.
 
@@ -522,7 +522,7 @@ Identifies medical specialties with significantly fewer physicians than the nati
 
 A scarcity ratio below 0.5 means the state has less than half the specialists it should. A critical gap.
 
-On first load after a cold start, the cache is built automatically in the background when a scarce specialties request is made. The frontend shows a warming state and polls every 30 seconds until ready — no manual action needed. The cache is persisted to disk via Redis RDB snapshots and survives container restarts.
+On first load after a cold start, the cache is built automatically in the background when a scarce specialties request is made. The frontend shows a warming state and polls every 30 seconds until ready. The cache is persisted to disk via Redis RDB snapshots and survives container restarts.
 
 ---
 
@@ -532,9 +532,9 @@ On first load after a cold start, the cache is built automatically in the backgr
 
 **Why Airflow for orchestration?** Airflow adds visibility where you can see the DAG graph, retry failed tasks, and monitor run history from a UI. It also decouples orchestration from application code: the DAG calls the API endpoints rather than importing Python functions directly, which means the orchestrator and the application can evolve independently.
 
-**Why pgvector instead of a dedicated vector database?** DataPulse already uses PostgreSQL. Enabling the pgvector extension requires no new infrastructure — the vector store lives in the same database as the hospital data. For the scale of this project, it's the right tool.
+**Why pgvector instead of a dedicated vector database?** DataPulse already uses PostgreSQL. Enabling the pgvector extension requires no new infrastructure. The vector store lives in the same database as the hospital data. For the scale of this project, it's the right tool.
 
-**Why sentence-transformers locally instead of an API?** Zero cost, zero latency on embedding generation, and no external dependency at query time. The model (`all-MiniLM-L6-v2`, 90MB) is downloaded once during the Docker build and cached in the image — it never needs to download again at runtime.
+**Why sentence-transformers locally instead of an API?** Zero cost, zero latency on embedding generation, and no external dependency at query time. The model (`all-MiniLM-L6-v2`, 90MB) is downloaded once during the Docker build and cached in the image avoiding the need to download again at runtime.
 
 **Why not classic RAG only?** The agent uses RAG for policy questions, web search for current context, and direct SQL for data questions. Each tool has its place. A system that only does RAG would be honest about documents but blind to the actual data; one that only does SQL would be precise about the data but ignorant of the rules behind it.
 
