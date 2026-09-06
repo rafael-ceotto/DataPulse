@@ -367,7 +367,7 @@ Any response can be saved to Notion with one click.
 
 ## Example queries
 
-The agent is multilingual. Tt detects the language of the question and responds in the same language. A few examples of what you can ask:
+The agent is multilingual. It detects the language of the question and responds in the same language. A few examples of what you can ask:
 
 **In English:**
 - "Compare the healthcare system from Ohio and Vermont"
@@ -377,18 +377,31 @@ The agent is multilingual. Tt detects the language of the question and responds 
 - "Show me the lowest-rated hospitals in Florida"
 - "How is the overall star rating calculated?"
 - "What states have the worst infection rates?"
+- "Why did CMS change the star rating methodology in 2026?"
 
 **Em português:**
 - "Quais hospitais têm 5 estrelas em Ohio?"
 - "Compare o sistema de saúde do Texas com o da Califórnia"
 - "Quais especialidades médicas estão em falta em Nova York?"
 - "Como é calculada a nota dos hospitais pelo CMS?"
+- "Qual é o número mínimo de grupos de medidas que um hospital precisa para receber uma classificação de estrelas?"
 
 **En español:**
 - "¿Qué hospitales tienen 5 estrellas en Texas?"
 - "¿Cuáles son los estados con mejor calidad hospitalaria?"
 - "Compara el sistema de salud de Florida y Nueva York"
 - "¿Qué especialidades médicas escasean en California?"
+- "¿Por qué el CMS cambió la metodología de calificación de estrellas en 2026?"
+
+**En français:**
+- "Pourquoi le CMS a-t-il modifié la méthodologie de notation par étoiles en 2026?"
+- "Quel est le nombre minimum de groupes de mesures qu'un hôpital doit avoir pour recevoir une évaluation en étoiles?"
+
+**In italiano:**
+- "Perché il CMS ha cambiato la metodologia di valutazione a stelle nel 2026?"
+
+**Auf Deutsch:**
+- "Warum hat das CMS die Stern-Bewertungsmethodik im Jahr 2026 geändert?"
 
 Questions about CMS methodology (like "How is the star rating calculated?") are answered directly from the official CMS documents, with the source and page number cited in the response.
 
