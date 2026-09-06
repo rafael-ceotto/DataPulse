@@ -365,6 +365,35 @@ Any response can be saved to Notion with one click.
 
 ---
 
+## Example queries
+
+The agent is multilingual — it detects the language of the question and responds in the same language. A few examples of what you can ask:
+
+**In English:**
+- "Compare the healthcare system from Ohio and Vermont"
+- "What are the CMS criteria for a hospital to receive a 5-star rating?"
+- "Which states have the highest concentration of 5-star hospitals?"
+- "What scarce specialties does California have compared to the national average?"
+- "Show me the lowest-rated hospitals in Florida"
+- "How is the overall star rating calculated?"
+- "What states have the worst infection rates?"
+
+**Em português:**
+- "Quais hospitais têm 5 estrelas em Ohio?"
+- "Compare o sistema de saúde do Texas com o da Califórnia"
+- "Quais especialidades médicas estão em falta em Nova York?"
+- "Como é calculada a nota dos hospitais pelo CMS?"
+
+**En español:**
+- "¿Qué hospitales tienen 5 estrellas en Texas?"
+- "¿Cuáles son los estados con mejor calidad hospitalaria?"
+- "Compara el sistema de salud de Florida y Nueva York"
+- "¿Qué especialidades médicas escasean en California?"
+
+Questions about CMS methodology (like "How is the star rating calculated?") are answered directly from the official CMS documents, with the source and page number cited in the response.
+
+---
+
 ## RAG over CMS documents
 
 The agent can answer questions about CMS policy, star rating methodology, and regulatory requirements — not from its training data, but from the actual official documents.
