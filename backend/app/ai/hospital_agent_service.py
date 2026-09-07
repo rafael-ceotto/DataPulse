@@ -295,7 +295,7 @@ async def ask_agent(session: AsyncSession, question: str) -> dict:
         {"role": "user", "content": question_with_lang},
     ]
 
-    MAX_ITERATIONS = 3
+    MAX_ITERATIONS = 5
     all_tools_used = []
 
     for iteration in range(MAX_ITERATIONS):
