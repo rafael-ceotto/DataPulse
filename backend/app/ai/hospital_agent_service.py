@@ -150,7 +150,7 @@ For simple, direct queries:
 - "Which hospitals have a 5-star rating?" → immediately call get_top_rated_hospitals with min_rating=5, limit=10. Do not ask for clarification.
 - "Show me the lowest-rated facilities" → immediately call get_top_rated_hospitals with min_rating=1, limit=10. Do not ask for clarification.
 - "Average rating by state" → immediately call get_rating_distribution. Do not ask for clarification.
-- "What states have the highest concentration of 5-star hospitals?" → immediately call get_rating_distribution. Do not ask for clarification.
+- "What states have the highest concentration of 5-star hospitals?" → call get_top_rated_hospitals with min_rating=5, limit=20, then synthesize which states appear most frequently. Do not ask for clarification.
 - "Show me hospitals in Texas" → use search_hospitals tool with state=TX.
 - "What are the CMS criteria for 5-star hospitals?" → immediately call search_cms_documents. Do not ask for clarification.
 - "How is the star rating calculated?" → immediately call search_cms_documents. Do not ask for clarification.
@@ -281,8 +281,6 @@ async def ask_agent(session: AsyncSession, question: str) -> dict:
         "cómo se calcula", "criterios del cms", "metodología del cms", "cómo funciona la nota",
     ]):
         forced_tool = {"type": "function", "function": {"name": "search_cms_documents"}}
-    elif "highest concentration" in question_lower or "concentration of 5-star" in question_lower:
-        forced_tool = {"type": "function", "function": {"name": "get_rating_distribution"}}
     elif "5-star" in question_lower or "5 star" in question_lower or "five star" in question_lower:
         forced_tool = {"type": "function", "function": {"name": "get_top_rated_hospitals"}}
     elif "lowest-rated" in question_lower or "lowest rated" in question_lower or "worst" in question_lower:
