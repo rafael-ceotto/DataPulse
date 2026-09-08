@@ -30,6 +30,7 @@ The part I'm most proud of isn't the most obvious one. It's not the pipeline, an
 - **Data Transformation:** dbt (staging, intermediate, marts)
 - **Orchestration:** Apache Airflow
 - **Caching:** Redis
+- **Storage:** Floci (local AWS S3 emulator) via boto3
 - **Testing:** pytest, pytest-asyncio
 - **Infrastructure:** Docker, Docker Compose, GitHub Actions
 - **Frontend:** React + Vite
@@ -73,6 +74,7 @@ graph TB
     subgraph Storage["Storage"]
         PG[(PostgreSQL + pgvector)]
         Redis[(Redis Cache)]
+        S3[(Floci S3\nData Lake)]
     end
 
     subgraph ExternalData["External Data Sources"]
@@ -108,7 +110,8 @@ graph TB
     Agent --> PG
     Agent --> Redis
 
-    CMSPDF -->|ingest_cms_docs.py| Embeddings
+    CMSPDF -->|upload_cms_docs_to_s3.py| S3
+    S3 -->|ingest_cms_docs.py| Embeddings
     Embeddings -->|vector chunks| PG
     Agent -->|search_cms_documents| PG
 
@@ -120,6 +123,7 @@ graph TB
     Pipeline --> CMS
     Pipeline --> Physicians
     Pipeline --> PG
+    Pipeline --> S3
     Pipeline --> Groq
     Pipeline --> Slack
     Pipeline --> NotionAPI
@@ -138,6 +142,7 @@ The pipeline follows **Medallion Architecture** principles:
 - **Bronze:** raw CSV data fetched directly from CMS
 - **Silver:** validated and typed via Pydantic
 - **Gold:** clean records in PostgreSQL, ready for consumption and dbt transformation
+- **Data Lake:** processed records exported to S3 after each pipeline run
 
 ---
 
@@ -184,19 +189,22 @@ All integrations are optional. The pipeline and AI work without them.
 ### With Docker (recommended)
 
 ```bash
-# 1. Start main stack (db, redis, api, frontend, prometheus, loki, grafana)
+# 1. Start main stack (db, redis, api, frontend, floci, prometheus, loki, grafana)
 docker compose up -d
 
-# 2. Index CMS documents for RAG (first time only)
+# 2. Upload CMS PDFs to S3 (first time only)
 cd backend
+poetry run python scripts/upload_cms_docs_to_s3.py
+
+# 3. Index CMS documents for RAG (first time only)
 poetry run python scripts/ingest_cms_docs.py
 
-# 3. Optional — start Airflow (webserver + scheduler)
+# 4. Optional — start Airflow (webserver + scheduler)
 # Note: airflow_init only needed on first run
 docker compose --profile airflow up airflow_init
 docker compose --profile airflow up airflow_webserver airflow_scheduler -d
 
-# 4. Optional — run dbt manually
+# 5. Optional — run dbt manually
 docker compose --profile dbt run --rm dbt
 
 # To stop everything
@@ -249,8 +257,8 @@ dbt docs serve  # documentation at http://localhost:8080
 ### Locally
 
 ```bash
-# Start only the database and Redis
-docker compose up db redis -d
+# Start only the database, Redis, and Floci
+docker compose up db redis floci floci_init -d
 
 # Install dependencies
 poetry install
@@ -258,6 +266,9 @@ poetry install
 # Run migrations
 cd backend
 alembic upgrade head
+
+# Upload CMS PDFs to S3
+poetry run python scripts/upload_cms_docs_to_s3.py
 
 # Index CMS documents for RAG
 poetry run python scripts/ingest_cms_docs.py
@@ -415,14 +426,36 @@ Two PDFs are indexed: the Comprehensive Methodology Report v3.0 (2018) and v5.1 
 
 The reason for using pgvector instead of a dedicated vector database is simple: DataPulse already uses PostgreSQL. Enabling the extension requires no new infrastructure, no new service, and no new operational concept. The vector store lives in the same database as the hospital data.
 
-To index the documents:
+The CMS PDFs live in S3. To upload them and index them:
 
 ```bash
 cd backend
-poetry run python scripts/ingest_cms_docs.py
+poetry run python scripts/upload_cms_docs_to_s3.py  # upload to S3
+poetry run python scripts/ingest_cms_docs.py         # download from S3, chunk, embed, store
 ```
 
-To add more CMS documents, drop PDFs into `cms_docs/` and run the script again. It deletes and re-indexes each file on every run, so re-ingestion is safe.
+To add more CMS documents, drop PDFs into `cms_docs/`, upload them, and run the ingestion script again. It deletes and re-indexes each file on every run, so re-ingestion is safe.
+
+---
+
+## S3 data lake
+
+After every pipeline run, the processed hospital records are automatically exported to S3 as `pipeline-runs/{run_id}/hospitals.json`. This creates a versioned, append-only history of every dataset the pipeline has ever produced: a lightweight data lake pattern without any additional infrastructure.
+
+The CMS methodology PDFs are also stored in S3 under `cms-docs/`. The ingestion script downloads them from there, processes them locally, and cleans up. The source of truth for the documents is S3, not the local filesystem.
+
+DataPulse uses **Floci** as the local S3 emulator — a free, open-source drop-in replacement for LocalStack Community, which was sunset in March 2026. Floci starts in ~24ms, weighs ~90MB, requires no account or auth token, and is 100% compatible with the AWS S3 SDK. Swapping to real AWS S3 in production requires only changing the endpoint URL and credentials.
+
+The S3 bucket structure:
+
+s3://datapulse/
+pipeline-runs/
+{run_id}/
+hospitals.json
+cms-docs/
+Comprehensive Methodology Report (v3.0) (01-05-18).pdf
+Comprehensive Methodology Report (v5.1) (04-28-2026).pdf
+
 
 ---
 
@@ -550,6 +583,8 @@ On first load after a cold start, the cache is built automatically in the backgr
 **Why sentence-transformers locally instead of an API?** Zero cost, zero latency on embedding generation, and no external dependency at query time. The model (`all-MiniLM-L6-v2`, 90MB) is downloaded once during the Docker build and cached in the image avoiding the need to download again at runtime.
 
 **Why not classic RAG only?** The agent uses RAG for policy questions, web search for current context, and direct SQL for data questions. Each tool has its place. A system that only does RAG would be honest about documents but blind to the actual data; one that only does SQL would be precise about the data but ignorant of the rules behind it.
+
+**Why Floci instead of LocalStack?** LocalStack Community was sunset in March 2026 and now requires an auth token, security updates are frozen, and the image is over 1GB. Floci is the MIT-licensed, no-strings-attached replacement: no account, no token, ~90MB image, starts in ~24ms. The AWS S3 SDK works unchanged, only the endpoint URL differs. Moving to real AWS S3 in production is a one-line change.
 
 **Upsert instead of delete+insert** — CMS updates its data periodically. With `INSERT ... ON CONFLICT DO UPDATE`, the pipeline can run as many times as needed without creating duplicates.
 
