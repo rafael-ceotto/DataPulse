@@ -32,11 +32,17 @@ services:
       DB_URL: postgresql+asyncpg://datapulse:datapulse@db:5432/datapulse
       REDIS_URL: redis://redis:6379
       API_BASE_URL: http://datapulse_api:8000
+      FLOCI_ENDPOINT_URL: http://floci:4566
+      AWS_ACCESS_KEY_ID: test
+      AWS_SECRET_ACCESS_KEY: test
+      AWS_DEFAULT_REGION: us-east-1
+      S3_BUCKET_NAME: datapulse
     env_file:
       - backend/.env
     depends_on:
       - db
       - redis
+      - floci
     logging:
       driver: loki
       options:
@@ -164,6 +170,35 @@ services:
     command: scheduler
     profiles:
       - airflow
+
+  floci:
+    image: floci/floci:latest
+    container_name: datapulse_floci
+    ports:
+      - "4566:4566"
+    environment:
+      - FLOCI_STORAGE_MODE=memory
+      - FLOCI_HOSTNAME=floci
+
+  floci_init:
+    image: floci/floci:latest-compat
+    container_name: datapulse_floci_init
+    depends_on:
+      - floci
+    environment:
+      - AWS_ACCESS_KEY_ID=test
+      - AWS_SECRET_ACCESS_KEY=test
+      - AWS_DEFAULT_REGION=us-east-1
+      - AWS_ENDPOINT_URL=http://floci:4566
+    entrypoint: >
+      sh -c "
+        sleep 10 &&
+        aws s3 mb s3://datapulse --endpoint-url http://floci:4566 || true &&
+        aws s3api put-object --bucket datapulse --key pipeline-runs/ --endpoint-url http://floci:4566 || true &&
+        aws s3api put-object --bucket datapulse --key cms-docs/ --endpoint-url http://floci:4566 || true &&
+        echo 'Floci buckets ready'
+      "
+    restart: "no"
 
 volumes:
   postgres_data:

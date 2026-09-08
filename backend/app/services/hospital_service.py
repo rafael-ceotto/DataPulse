@@ -1,5 +1,6 @@
 from sqlalchemy.ext.asyncio import AsyncSession
 import subprocess
+import json
 
 from app.pipeline.cms_ingestion import fetch_data_cms, parse_hospitals
 from app.repositories.hospital_repository import save_hospitals, get_data_quality_metrics
@@ -7,6 +8,7 @@ from app.repositories.pipeline_run_repository import create_pipeline_run, update
 from app.ai.insight_service import generate_insight
 from app.core.slack import send_slack_alert
 from app.core.github import commit_insight
+from app.core.s3 import upload_json
 
 COMPLETENESS_THRESHOLD = 55.0
 
@@ -20,6 +22,27 @@ async def ingest_hospitals(session: AsyncSession):
 
         hospitals = parse_hospitals(csv_text)
         await save_hospitals(session, hospitals)
+        
+        try:
+            hospitals_data = [
+                {
+                    "facility_id": h.facility_id,
+                    "facility_name": h.facility_name,
+                    "city": h.city,
+                    "state": h.state,
+                    "zip_code": h.zip_code,
+                    "hospital_type": h.hospital_type,
+                    "hospital_ownership": h.hospital_ownership,
+                    "emergency_services": h.emergency_services,
+                    "overall_rating": h.overall_rating,
+                    "telephone_number": h.telephone_number,
+                }
+                for h in hospitals
+            ]
+            s3_key = f"pipeline-runs/{pipeline_run.id}/hospitals.json"
+            await upload_json(s3_key, json.dumps(hospitals_data, indent=2))
+        except Exception as e:
+            print(f"S3 export failed: {e}")
 
         rated = [h.overall_rating for h in hospitals if h.overall_rating is not None]
         avg_rating = round(sum(rated) / len(rated), 2) if rated else None
