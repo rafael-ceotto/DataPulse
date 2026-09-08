@@ -199,6 +199,8 @@ poetry run python scripts/upload_cms_docs_to_s3.py
 # 3. Index CMS documents for RAG (first time only)
 poetry run python scripts/ingest_cms_docs.py
 
+> **Note:** After the stack is up, the pipeline can also be triggered directly from the **Pipeline Runs** section in the frontend UI via the "▶ Run Pipeline" button.
+
 # 4. Optional — start Airflow (webserver + scheduler)
 # Note: airflow_init only needed on first run
 docker compose --profile airflow up airflow_init
