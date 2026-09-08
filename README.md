@@ -199,22 +199,6 @@ poetry run python scripts/upload_cms_docs_to_s3.py
 # 3. Index CMS documents for RAG (first time only)
 poetry run python scripts/ingest_cms_docs.py
 
-#After the stack is up, the pipeline can also be triggered directly from the **Pipeline Runs** section in the frontend UI via the "▶ Run Pipeline" button.
-
-# Note: These files exist inside the Floci container and are not visible in the local filesystem or VS Code explorer. Use the AWS CLI command above to inspect the S3 contents.
-
-To verify that the pipeline export reached S3, run:
-
-```bash
-docker run --rm --network datapulse_default \
-  -e AWS_ACCESS_KEY_ID=test \
-  -e AWS_SECRET_ACCESS_KEY=test \
-  -e AWS_DEFAULT_REGION=us-east-1 \
-  amazon/aws-cli s3 ls s3://datapulse --recursive --endpoint-url http://localhost:4566
-``
-
-Each successful pipeline run creates a new folder under `pipeline-runs/` with a unique UUID and a `hospitals.json` file containing all 5,419 processed records.
-
 # 4. Optional — start Airflow (webserver + scheduler)
 # Note: airflow_init only needed on first run
 docker compose --profile airflow up airflow_init
@@ -231,6 +215,22 @@ docker compose down
 > **Note:** Airflow uses `profiles: [airflow]` and does **not** start with `docker compose up -d`. It must be started explicitly with `--profile airflow`. Same for dbt.
 
 The frontend is available at `http://localhost` and the API at `http://localhost:8000`.
+
+The pipeline can also be triggered directly from the **Pipeline Runs** section in the frontend UI via the "▶ Run Pipeline" button.
+
+To verify that the pipeline export reached S3, run:
+
+```bash
+docker run --rm --network datapulse_default \
+  -e AWS_ACCESS_KEY_ID=test \
+  -e AWS_SECRET_ACCESS_KEY=test \
+  -e AWS_DEFAULT_REGION=us-east-1 \
+  amazon/aws-cli s3 ls s3://datapulse --recursive --endpoint-url http://localhost:4566
+```
+
+Each successful pipeline run creates a new folder under `pipeline-runs/` with a unique UUID and a `hospitals.json` file containing all 5,419 processed records.
+
+> **Note:** These files exist inside the Floci container and are not visible in the local filesystem or VS Code explorer. Use the AWS CLI command above to inspect the S3 contents.
 
 To rebuild only what changed:
 
