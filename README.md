@@ -199,7 +199,9 @@ poetry run python scripts/upload_cms_docs_to_s3.py
 # 3. Index CMS documents for RAG (first time only)
 poetry run python scripts/ingest_cms_docs.py
 
-> **Note:** After the stack is up, the pipeline can also be triggered directly from the **Pipeline Runs** section in the frontend UI via the "▶ Run Pipeline" button.
+#After the stack is up, the pipeline can also be triggered directly from the **Pipeline Runs** section in the frontend UI via the "▶ Run Pipeline" button.
+
+# Note: These files exist inside the Floci container and are not visible in the local filesystem or VS Code explorer. Use the AWS CLI command above to inspect the S3 contents.
 
 To verify that the pipeline export reached S3, run:
 
@@ -212,8 +214,6 @@ docker run --rm --network datapulse_default \
 ```
 
 Each successful pipeline run creates a new folder under `pipeline-runs/` with a unique UUID and a `hospitals.json` file containing all 5,419 processed records.
-
-> **Note:** These files exist inside the Floci container and are not visible in the local filesystem or VS Code explorer. Use the AWS CLI command above to inspect the S3 contents.
 
 # 4. Optional — start Airflow (webserver + scheduler)
 # Note: airflow_init only needed on first run
