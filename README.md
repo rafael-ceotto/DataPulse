@@ -211,7 +211,7 @@ docker run --rm --network datapulse_default \
   -e AWS_SECRET_ACCESS_KEY=test \
   -e AWS_DEFAULT_REGION=us-east-1 \
   amazon/aws-cli s3 ls s3://datapulse --recursive --endpoint-url http://localhost:4566
-```
+``
 
 Each successful pipeline run creates a new folder under `pipeline-runs/` with a unique UUID and a `hospitals.json` file containing all 5,419 processed records.
 
