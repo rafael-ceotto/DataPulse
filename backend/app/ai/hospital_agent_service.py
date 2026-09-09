@@ -39,6 +39,7 @@ TOOLS = [
                 "type": "object",
                 "properties": {
                     "min_rating": {"type": "integer", "description": "Minimum rating filter. Use 5 for 5-star hospitals, 1 for lowest rated.", "default": 5},
+                    "max_rating": {"type": "integer", "description": "Maximum rating filter. Use 1 for lowest rated hospitals."},
                     "limit": {"type": "integer", "description": "Number of results to return. Default 10.", "default": 10},
                     "state": {"type": "string", "description": "Optional 2-letter US state code to filter by state."}
                 },
@@ -148,7 +149,7 @@ ALWAYS use tools when the question asks for:
 
 For simple, direct queries:
 - "Which hospitals have a 5-star rating?" → immediately call get_top_rated_hospitals with min_rating=5, limit=10. Do not ask for clarification.
-- "Show me the lowest-rated facilities" → immediately call get_top_rated_hospitals with min_rating=1, limit=10. Do not ask for clarification.
+- "Show me the lowest-rated facilities" → immediately call get_top_rated_hospitals with max_rating=1, limit=10. Do not ask for clarification.
 - "Average rating by state" → immediately call get_rating_distribution. Do not ask for clarification.
 - "What states have the highest concentration of 5-star hospitals?" → call get_top_rated_hospitals with min_rating=5, limit=20, then synthesize which states appear most frequently. Do not ask for clarification.
 - "Show me hospitals in Texas" → use search_hospitals tool with state=TX.
@@ -188,10 +189,15 @@ async def execute_tool(tool_name: str, tool_args: dict, session: AsyncSession) -
             return json.dumps(r.json())
 
     elif tool_name == "get_top_rated_hospitals":
-        min_rating = tool_args.get("min_rating", 5)
+        max_rating = tool_args.get("max_rating", None)
+        min_rating = tool_args.get("min_rating", None if max_rating is not None else 5)
         limit = min(tool_args.get("limit", 10), 20)
         state = tool_args.get("state", "")
-        params = f"?limit={limit}&min_rating={min_rating}"
+        params = f"?limit={limit}"
+        if min_rating is not None:
+            params += f"&min_rating={min_rating}"
+        if max_rating is not None:
+            params += f"&max_rating={max_rating}"
         if state:
             params += f"&state={state}"
         async with httpx.AsyncClient() as client:
@@ -201,11 +207,11 @@ async def execute_tool(tool_name: str, tool_args: dict, session: AsyncSession) -
     elif tool_name == "get_rating_distribution":
         cached = await get_cache("rating_distribution")
         if cached:
-            return json.dumps(cached[:20] if isinstance(cached, list) else cached)
+            return json.dumps(cached)
         async with httpx.AsyncClient() as client:
             r = await client.get(f"{base_url}/api/v1/hospitals/metrics/rating-distribution")
             data = r.json()
-        return json.dumps(data[:20] if isinstance(data, list) else data)
+        return json.dumps(data)
 
     elif tool_name == "get_scarce_specialties":
         state = tool_args.get("state", "")

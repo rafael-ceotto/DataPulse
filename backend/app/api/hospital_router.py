@@ -85,8 +85,8 @@ async def list_pipeline_runs(limit: int = 20, session: AsyncSession = Depends(ge
     ]
 
 @router.get("/api/v1/hospitals")
-async def list_hospitals(page: int = 1, limit: int = 20, state: str | None = None, search: str | None = None, min_rating: int | None = None, session: AsyncSession = Depends(get_session)):
-    return await get_hospitals(session, page, limit, state, search, min_rating)
+async def list_hospitals(page: int = 1, limit: int = 20, state: str | None = None, search: str | None = None, min_rating: int | None = None, max_rating: int | None = None, session: AsyncSession = Depends(get_session)):
+    return await get_hospitals(session, page, limit, state, search, min_rating, max_rating)
 
 @router.get("/api/v1/hospitals/export")
 async def export_hospitals_by_state(state: str, session: AsyncSession = Depends(get_session), current_user: dict = Depends(get_current_user)):
