@@ -42,7 +42,10 @@ async def run_scheduled_pipeline():
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     from app.services.physician_analysis_service import get_national_specialty_counts
+    from app.workers.agent_worker import run_worker
+
     asyncio.create_task(get_national_specialty_counts())
+    asyncio.create_task(run_worker())
 
     scheduler = AsyncIOScheduler()
     scheduler.add_job(

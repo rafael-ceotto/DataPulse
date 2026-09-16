@@ -196,6 +196,7 @@ services:
         aws s3 mb s3://datapulse --endpoint-url http://floci:4566 || true &&
         aws s3api put-object --bucket datapulse --key pipeline-runs/ --endpoint-url http://floci:4566 || true &&
         aws s3api put-object --bucket datapulse --key cms-docs/ --endpoint-url http://floci:4566 || true &&
+        aws sqs create-queue --queue-name datapulse-ai-queries --endpoint-url http://floci:4566 || true &&
         echo 'Floci buckets ready'
       "
     restart: "no"

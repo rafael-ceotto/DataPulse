@@ -6,6 +6,7 @@ from pydantic import BaseModel
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select, func
 import asyncio
+import uuid
 
 from app.models.hospital import Hospital as HospitalModel
 from app.core.database import AsyncSessionLocal
@@ -26,6 +27,8 @@ from app.services.physician_analysis_service import (
 from app.ai.hospital_agent_service import ask_agent
 from app.repositories.pipeline_run_repository import get_pipeline_runs
 from app.core.notion import save_to_notion
+from app.core.sqs import publish_query
+from app.core.job_store import create_job, get_job
 
 import hashlib
 
@@ -129,9 +132,23 @@ async def ai_query(request: Request, body: AIQueryRequest, session: AsyncSession
     cached = await get_cache(cache_key)
     if cached:
         return cached
-    result = await ask_agent(session, body.question)
-    await set_cache(cache_key, result, ttl=600)
-    return result
+    job_id = str(uuid.uuid4())
+    await create_job(job_id, body.question)
+    await publish_query(job_id, body.question)
+
+    return {"job_id": job_id, "status": "queued"}
+
+@router.get("/api/v1/ai/query/{job_id}")
+async def get_ai_query_result(job_id: str, current_user: dict = Depends(get_current_user)):
+    job = await get_job(job_id)
+    if not job:
+        raise HTTPException(status_code=404, detail="Job not found")
+    if job["status"] == "done":
+        result = job["result"]
+        cache_key = f"ai_query:{hashlib.md5(job['question'].lower().encode()).hexdigest()}"
+        await set_cache(cache_key, result, ttl=600)
+        return result
+    return {"job_id": job_id, "status": job["status"]}
 
 @router.get("/api/v1/infections")
 async def list_infections(

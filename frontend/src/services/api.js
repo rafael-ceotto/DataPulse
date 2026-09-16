@@ -14,7 +14,7 @@ export async function getToken() {
   });
   const data = await response.json();
   cachedToken = data.access_token;
-  tokenExpiry = Date.now() + 55 * 60 * 1000; // 55 minutos
+  tokenExpiry = Date.now() + 55 * 60 * 1000;
   return cachedToken;
 }
 
@@ -36,6 +36,7 @@ export async function getHospitalById(facilityId) {
 
 export async function askAI(question) {
   const token = await getToken();
+
   const response = await fetch(`${API_URL}/api/v1/ai/query`, {
     method: "POST",
     headers: {
@@ -44,7 +45,38 @@ export async function askAI(question) {
     },
     body: JSON.stringify({ question }),
   });
-  return response.json();
+
+  const data = await response.json();
+
+  // Cached result returned directly
+  if (data.explanation || data.sql) {
+    return data;
+  }
+
+  // Poll for result
+  const jobId = data.job_id;
+  const maxAttempts = 60;
+  const interval = 2000;
+
+  for (let i = 0; i < maxAttempts; i++) {
+    await new Promise(resolve => setTimeout(resolve, interval));
+
+    const pollResponse = await fetch(`${API_URL}/api/v1/ai/query/${jobId}`, {
+      headers: { "Authorization": `Bearer ${token}` },
+    });
+
+    const pollData = await pollResponse.json();
+
+    if (pollData.status === "done" || pollData.explanation || pollData.sql) {
+      return pollData;
+    }
+
+    if (pollData.status === "failed") {
+      throw new Error(pollData.error || "Query failed");
+    }
+  }
+
+  throw new Error("Query timed out after 2 minutes");
 }
 
 export async function getHospitalInfections(facilityId) {
@@ -53,7 +85,7 @@ export async function getHospitalInfections(facilityId) {
   return response.json();
 }
 
-export async function saveToNotion(question, explanation, toolsUsed){
+export async function saveToNotion(question, explanation, toolsUsed) {
   const token = await getToken();
   const response = await fetch("/api/v1/notion/save", {
     method: "POST",
