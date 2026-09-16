@@ -9,9 +9,9 @@ from prometheus_fastapi_instrumentator import Instrumentator
 from slowapi import Limiter, _rate_limit_exceeded_handler
 from slowapi.errors import RateLimitExceeded
 from slowapi.util import get_remote_address
-
 from app.api.auth_router import router as auth_router
 from app.api.hospital_router import router
+from app.api.analytics_router import router as analytics_router
 from app.core.database import AsyncSessionLocal
 from app.services.hospital_service import ingest_hospitals
 from app.services.infection_service import ingest_infections
@@ -78,6 +78,7 @@ app.add_middleware(
 
 app.include_router(router)
 app.include_router(auth_router)
+app.include_router(analytics_router)
 
 
 @app.get("/")
