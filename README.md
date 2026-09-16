@@ -36,6 +36,7 @@ The part I'm most proud of isn't the most obvious one. It's not the pipeline, an
 - **Frontend:** React + Vite
 - **Integrations:** Slack, Notion, GitHub
 - **Observability:** Prometheus, Grafana, Loki, structlog
+- **Analytics:** DuckDB (historical queries over S3 pipeline snapshots)
 
 ---
 
@@ -344,6 +345,10 @@ Protected endpoints:
 | POST | `🔒 /api/v1/ai/query` | Natural language query. Requires JWT |
 | POST | `🔒 /api/v1/notion/save` | Saves an insight to Notion. Requires JWT |
 | POST | `/api/v1/auth/token` | Returns a JWT |
+| GET | `/api/v1/analytics/rating-trend` | Average rating per pipeline run over time |
+| GET | `/api/v1/analytics/rating-changes` | States with most rating change across runs |
+| GET | `/api/v1/analytics/hospital-appearances` | Hospitals missing from some runs |
+| POST | `🔒 /api/v1/analytics/query` | Custom DuckDB SQL query over S3 snapshots. Requires JWT |
 
 ---
 
@@ -387,6 +392,7 @@ What I find most interesting is that the agent decides on its own which mode to 
 - `get_hospital_infections` — HAI infection summary by state
 - `web_search` — external search via Tavily
 - `search_cms_documents` — semantic search over official CMS methodology PDFs with source and page citation
+- `get_historical_analytics` — historical analysis over S3 pipeline snapshots via DuckDB
 
 Any response can be saved to Notion with one click.
 
@@ -610,6 +616,23 @@ On first load after a cold start, the cache is built automatically in the backgr
 
 ---
 
+## DuckDB historical analytics
+
+After every pipeline run, a JSON snapshot of all 5,419 hospitals is exported to S3. DuckDB reads these snapshots directly, without loading them into PostgreSQL, and runs analytical queries across the full history of pipeline runs.
+
+This enables questions that PostgreSQL cannot answer, because the database only stores the current state. The S3 snapshots preserve every version of the dataset.
+
+Three built-in analyses are available via the API and exposed in the Pipeline Analytics dashboard:
+
+**Rating trend** — average rating, total hospitals, and rated hospitals per pipeline run. Shows whether data quality or hospital ratings are changing over time.
+
+**Rating changes** — states where the average rating changed most between the first and last run. A delta of 0 means the CMS data was stable across that period.
+
+**Hospital appearances** — facilities that appeared in some runs but not others. Useful for detecting when hospitals enter or leave the CMS dataset.
+
+The agent also has access to this data via the `get_historical_analytics` tool. Ask it "How has the average hospital rating changed across pipeline runs?" and it will query DuckDB and synthesize the result.
+
 ## What's next
 
+- SQS — decouple pipeline execution from the API using a message queue
 - Elasticsearch for advanced full-text search
