@@ -125,6 +125,24 @@ TOOLS = [
             }
         }
     },
+    {
+        "type": "function",
+        "function": {
+            "name": "get_historical_analytics",
+            "description": "Query historical data across multiple pipeline runs stored in S3. Use when asked about trends over time, how ratings changed across runs, or historical comparisons. Available analyses: 'rating_trend' (avg rating per run), 'rating_changes' (states with most change), 'hospital_appearances' (hospitals missing from some runs).",
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "analysis": {
+                        "type": "string",
+                        "description": "Type of analysis to run. One of: 'rating_trend', 'rating_changes', 'hospital_appearances'.",
+                        "enum": ["rating_trend", "rating_changes", "hospital_appearances"]
+                    }
+                },
+                "required": ["analysis"]
+            }
+        }
+    },
 ]
 
 AGENT_SYSTEM_PROMPT = """You are a healthcare data analyst assistant with access to a PostgreSQL database containing real CMS hospital quality data, including 5,419 US hospitals with ratings, locations, and healthcare-associated infection records. You also have access to official CMS policy documents and methodology guides via the search_cms_documents tool.
@@ -155,6 +173,8 @@ For simple, direct queries:
 - "Show me hospitals in Texas" → use search_hospitals tool with state=TX.
 - "What are the CMS criteria for 5-star hospitals?" → immediately call search_cms_documents. Do not ask for clarification.
 - "How is the star rating calculated?" → immediately call search_cms_documents. Do not ask for clarification.
+- "How has the average hospital rating changed across pipeline runs?" → immediately call get_historical_analytics with analysis='rating_trend'. Do not ask for clarification.
+- "Which states changed the most between pipeline runs?" → immediately call get_historical_analytics with analysis='rating_changes'. Do not ask for clarification.
 
 For comparison queries in any language:
 - "Compare the healthcare system from Ohio and Vermont" → call get_rating_distribution, then get_physician_state_analysis for OH, then get_physician_state_analysis for VT. Synthesize into a narrative comparison. Do NOT return a raw hospital list.
@@ -256,6 +276,19 @@ async def execute_tool(tool_name: str, tool_args: dict, session: AsyncSession) -
             for c in chunks
         ]
         return json.dumps({"results": formatted})
+    
+    elif tool_name == "get_historical_analytics":
+        from app.core.duckdb_analytics import get_rating_trend, get_rating_changes, get_hospital_appearances
+        analysis = tool_args.get("analysis", "rating_trend")
+        if analysis == "rating_trend":
+            data = get_rating_trend()
+        elif analysis == "rating_changes":
+            data = get_rating_changes()
+        elif analysis == "hospital_appearances":
+            data = get_hospital_appearances()
+        else:
+            data = []
+        return json.dumps(data)        
 
     return json.dumps({"error": f"Unknown tool: {tool_name}"})
 
