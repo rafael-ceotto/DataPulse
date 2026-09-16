@@ -328,6 +328,8 @@ async def ask_agent(session: AsyncSession, question: str) -> dict:
         forced_tool = {"type": "function", "function": {"name": "get_top_rated_hospitals"}}
     elif "average rating by state" in question_lower or "rating distribution" in question_lower:
         forced_tool = {"type": "function", "function": {"name": "get_rating_distribution"}}
+    elif "highest concentration" in question_lower or "concentration of 5-star" in question_lower:
+        forced_tool = {"type": "function", "function": {"name": "get_top_rated_hospitals"}}
 
     messages = [
         {"role": "system", "content": AGENT_SYSTEM_PROMPT},
