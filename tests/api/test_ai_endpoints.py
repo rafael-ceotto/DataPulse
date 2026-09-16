@@ -31,38 +31,29 @@ async def test_ai_query_requires_auth(client):
 
 
 async def test_ai_query_success(client, auth_token):
-    mock_result = {
-        "question": "Which hospitals have 5 stars?",
-        "mode": "sql",
-        "tools_used": [],
-        "explanation": "There are several 5-star hospitals.",
-        "results": [{"facility_name": "Test Hospital", "state": "OH", "overall_rating": 5}],
-    }
-
-    with patch("app.api.hospital_router.ask_agent", new=AsyncMock(return_value=mock_result)):
-        response = await client.post(
-            AI_URL,
-            json={"question": "Which hospitals have 5 stars?"},
-            headers={"Authorization": f"Bearer {auth_token}"},
-        )
+    with patch("app.api.hospital_router.ask_agent", new=AsyncMock(return_value={})):
+        with patch("app.api.hospital_router.publish_query", new=AsyncMock(return_value=True)):
+            with patch("app.api.hospital_router.create_job", new=AsyncMock(return_value=None)):
+                response = await client.post(
+                    AI_URL,
+                    json={"question": "Which hospitals have 5 stars?"},
+                    headers={"Authorization": f"Bearer {auth_token}"},
+                )
 
     assert response.status_code == 200
     data = response.json()
-    assert "explanation" in data
-    assert "results" in data
+    assert "job_id" in data
+    assert data["status"] == "queued"
 
 
 async def test_ai_query_empty_question(client, auth_token):
-    with patch("app.api.hospital_router.ask_agent", new=AsyncMock(return_value={
-        "question": "",
-        "mode": "sql",
-        "tools_used": [],
-        "explanation": "",
-        "results": [],
-    })):
-        response = await client.post(
-            AI_URL,
-            json={"question": ""},
-            headers={"Authorization": f"Bearer {auth_token}"},
-        )
+    with patch("app.api.hospital_router.publish_query", new=AsyncMock(return_value=True)):
+        with patch("app.api.hospital_router.create_job", new=AsyncMock(return_value=None)):
+            response = await client.post(
+                AI_URL,
+                json={"question": ""},
+                headers={"Authorization": f"Bearer {auth_token}"},
+            )
     assert response.status_code == 200
+    data = response.json()
+    assert "job_id" in data
