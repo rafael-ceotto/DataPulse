@@ -7,6 +7,7 @@ import ScarceSpecialties from "./components/ScarceSpecialties";
 import PipelineRuns from "./components/PipelineRuns";
 import RatingTrend from "./components/RatingTrend";
 import DataQuality from "./components/DataQuality";
+import PipelineAnalytics from "./components/PipelineAnalytics";
 import { theme } from "./theme";
 
 function CIBadge() {
@@ -125,6 +126,7 @@ export default function App() {
         <PhysicianAnalysis />
         <ScarceSpecialties />
         <PipelineRuns />
+        <PipelineAnalytics />
         <HospitalList />
       </main>
     </div>
