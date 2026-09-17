@@ -213,25 +213,37 @@ export default function AIQuery() {
 
           {/* Save to Notion button */}
           {answer.explanation && (
-            <button
-              onClick={handleSaveToNotion}
-              disabled={saving || saved}
-              style={{
-                background: "transparent",
-                border: `1px solid ${saved ? "#2f9e6f" : "#2c3b44"}`,
-                color: saved ? "#2f9e6f" : "#6f8a95",
-                borderRadius: 999,
-                padding: "5px 14px",
-                fontSize: 12,
-                fontFamily: theme.mono,
-                cursor: saving ? "wait" : "pointer",
-                letterSpacing: "0.06em",
-                marginBottom: 18,
-              }}
-            >
-              {saved ? "✓ Saved to Notion" : saving ? "Saving..." : "↗ Save to Notion"}
-            </button>
-          )}
+          <div style={{ display: "flex", alignItems: "center", gap: 16, marginBottom: 18, flexWrap: "wrap" }}>
+          <button
+          onClick={handleSaveToNotion}
+          disabled={saving || saved}
+          style={{
+          background: "transparent",
+          border: `1px solid ${saved ? "#2f9e6f" : "#2c3b44"}`,
+          color: saved ? "#2f9e6f" : "#6f8a95",
+          borderRadius: 999,
+          padding: "5px 14px",
+          fontSize: 12,
+          fontFamily: theme.mono,
+          cursor: saving ? "wait" : "pointer",
+          letterSpacing: "0.06em",
+          }}
+    >
+      {saved ? "✓ Saved to Notion" : saving ? "Saving..." : "↗ Save to Notion"}
+    </button>
+
+    {answer.tokens_used?.total > 0 && (
+      <span style={{ fontFamily: theme.mono, fontSize: 11, color: "#6f8a95", letterSpacing: "0.04em" }}>
+        {answer.tokens_used.total.toLocaleString()} tokens
+        {answer.estimated_cost_usd > 0 && (
+          <span style={{ marginLeft: 8 }}>
+            · ${answer.estimated_cost_usd.toFixed(6)}
+          </span>
+        )}
+      </span>
+    )}
+  </div>
+)}
 
           <div style={{ ...label, textAlign: "center" }}>Explanation</div>
 
