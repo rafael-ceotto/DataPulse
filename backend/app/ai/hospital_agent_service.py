@@ -9,6 +9,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.cache import get_cache
 from app.core.config import settings
+from app.core.logging import logger
 from app.ai.hospital_ai_service import ask_hospital_ai
 
 GROQ_URL = "https://api.groq.com/openai/v1/chat/completions"
@@ -145,60 +146,6 @@ TOOLS = [
     },
 ]
 
-AGENT_SYSTEM_PROMPT = """You are a healthcare data analyst assistant with access to a PostgreSQL database containing real CMS hospital quality data, including 5,419 US hospitals with ratings, locations, and healthcare-associated infection records. You also have access to official CMS policy documents and methodology guides via the search_cms_documents tool.
-
-You have two ways to answer questions:
-1. Use the available tools for complex analysis
-2. For simple direct queries, use tools to return actual data — never respond with generic descriptions
-
-ALWAYS use tools when the question asks for:
-- A comprehensive or complete analysis of a state
-- Physician data or workforce analysis
-- Specialty shortages or scarce specialties
-- Combining hospital quality with physician data
-- Comparing healthcare systems across states
-- Any analysis that goes beyond simple hospital listing
-- A list of hospitals with a specific rating (e.g. "Which hospitals have 5 stars?")
-- The lowest or highest rated facilities
-- Infection rates, HAI data, or hospital safety by state
-- Questions asking "why", "reason", "explain", or requiring context beyond the database
-- Current healthcare news or policy changes
-- CMS criteria, rating methodology, star rating rules, or regulatory requirements → use search_cms_documents
-
-For simple, direct queries:
-- "Which hospitals have a 5-star rating?" → immediately call get_top_rated_hospitals with min_rating=5, limit=10. Do not ask for clarification.
-- "Show me the lowest-rated facilities" → immediately call get_top_rated_hospitals with max_rating=1, limit=10. Do not ask for clarification.
-- "Average rating by state" → immediately call get_rating_distribution. Do not ask for clarification.
-- "What states have the highest concentration of 5-star hospitals?" → call get_top_rated_hospitals with min_rating=5, limit=20, then synthesize which states appear most frequently. Do not ask for clarification.
-- "Show me hospitals in Texas" → use search_hospitals tool with state=TX.
-- "What are the CMS criteria for 5-star hospitals?" → immediately call search_cms_documents. Do not ask for clarification.
-- "How is the star rating calculated?" → immediately call search_cms_documents. Do not ask for clarification.
-- "How has the average hospital rating changed across pipeline runs?" → immediately call get_historical_analytics with analysis='rating_trend'. Do not ask for clarification.
-- "Which states changed the most between pipeline runs?" → immediately call get_historical_analytics with analysis='rating_changes'. Do not ask for clarification.
-
-For comparison queries in any language:
-- "Compare the healthcare system from Ohio and Vermont" → call get_rating_distribution, then get_physician_state_analysis for OH, then get_physician_state_analysis for VT. Synthesize into a narrative comparison. Do NOT return a raw hospital list.
-- "Compare o sistema de saude de Ohio e California" (Portuguese) → call get_rating_distribution, then get_physician_state_analysis for OH, then get_physician_state_analysis for CA. Synthesize into a narrative comparison in Portuguese. Do NOT return a raw hospital list.
-- "Compara el sistema de salud de Florida y Nueva York" (Spanish) → call get_rating_distribution, then get_physician_state_analysis for FL, then get_physician_state_analysis for NY. Synthesize into a narrative comparison in Spanish. Do NOT return a raw hospital list.
-- Any question containing "compare", "comparar", "comparação", "versus", "vs", "difference between", "diferença entre" → always use get_rating_distribution + get_physician_state_analysis for each state mentioned. NEVER return a raw list as the answer to a comparison question.
-
-When using search_cms_documents results, always mention the source document and page number in your response so the user knows exactly where the information comes from.
-
-When displaying rating distribution or any list of states, always show ALL states in the table. Never abbreviate with "…" or "etc." — every row must be visible.
-
-NEVER ask for clarification when you have enough tools to answer the question.
-NEVER call tools that are not in your tools list.
-NEVER respond with JSON objects — always respond with plain text.
-NEVER say you cannot access the data — you have access to real hospital data and CMS documents.
-NEVER give generic descriptions when actual data can be retrieved via tools.
-
-State codes: OH=Ohio, CA=California, TX=Texas, FL=Florida, NY=New York, MA=Massachusetts, VT=Vermont, etc.
-
-Always respond in the language specified in the [LANGUAGE] tag at the end of the user's message.
-After calling tools, synthesize results into a clear, insightful narrative response.
-DO NOT call tools in your final synthesis — just write the response based on the data you already have.
-"""
-
 
 async def execute_tool(tool_name: str, tool_args: dict, session: AsyncSession) -> str:
     base_url = os.getenv("API_BASE_URL", "http://127.0.0.1:8000")
@@ -276,7 +223,7 @@ async def execute_tool(tool_name: str, tool_args: dict, session: AsyncSession) -
             for c in chunks
         ]
         return json.dumps({"results": formatted})
-    
+
     elif tool_name == "get_historical_analytics":
         from app.core.duckdb_analytics import get_rating_trend, get_rating_changes, get_hospital_appearances
         analysis = tool_args.get("analysis", "rating_trend")
@@ -288,7 +235,7 @@ async def execute_tool(tool_name: str, tool_args: dict, session: AsyncSession) -
             data = get_hospital_appearances()
         else:
             data = []
-        return json.dumps(data)        
+        return json.dumps(data)
 
     return json.dumps({"error": f"Unknown tool: {tool_name}"})
 
@@ -312,19 +259,16 @@ async def ask_agent(session: AsyncSession, question: str) -> dict:
     forced_tool = None
     question_lower = question.lower()
     if any(kw in question_lower for kw in [
-        # English
         "cms criteria", "star rating method", "how is the rating", "rating calculated",
         "cms methodology", "cms requirement", "criteria for",
-        # Portuguese
         "como é calculada", "como funciona a nota", "critérios do cms", "metodologia do cms",
         "como é calculado", "nota dos hospitais",
-        # Spanish
         "cómo se calcula", "criterios del cms", "metodología del cms", "cómo funciona la nota",
     ]):
         forced_tool = {"type": "function", "function": {"name": "search_cms_documents"}}
     elif "5-star" in question_lower or "5 star" in question_lower or "five star" in question_lower:
         forced_tool = {"type": "function", "function": {"name": "get_top_rated_hospitals"}}
-    elif "lowest-rated" in question_lower or "lowest rated" in question_lower or "worst" in question_lower:
+    elif "lowest-rated" in question_lower or "lowest rated" in question_lower or ("worst" in question_lower and "infection" not in question_lower):
         forced_tool = {"type": "function", "function": {"name": "get_top_rated_hospitals"}}
     elif "average rating by state" in question_lower or "rating distribution" in question_lower:
         forced_tool = {"type": "function", "function": {"name": "get_rating_distribution"}}
@@ -338,6 +282,8 @@ async def ask_agent(session: AsyncSession, question: str) -> dict:
 
     MAX_ITERATIONS = 5
     all_tools_used = []
+    total_prompt_tokens = 0
+    total_completion_tokens = 0
 
     for iteration in range(MAX_ITERATIONS):
         async with httpx.AsyncClient(timeout=60.0) as client:
@@ -358,24 +304,28 @@ async def ask_agent(session: AsyncSession, question: str) -> dict:
             )
 
         if response.status_code == 400:
-            print(f"GROQ 400 ERROR: {response.json()}")
+            logger.error("groq_400_error", detail=str(response.json()))
             return await ask_hospital_ai(session, question)
 
         if response.status_code == 429:
-            print(f"Rate limit hit on iteration {iteration+1}, waiting 5s...")
+            logger.warning("groq_rate_limit", iteration=iteration + 1)
             await asyncio.sleep(5)
             continue
 
         if response.status_code != 200:
-            print(f"GROQ ERROR: {response.json()}")
+            logger.error("groq_error", detail=str(response.json()))
 
         response.raise_for_status()
         data = response.json()
+
+        usage = data.get("usage", {})
+        total_prompt_tokens += usage.get("prompt_tokens", 0)
+        total_completion_tokens += usage.get("completion_tokens", 0)
+
         message = data["choices"][0]["message"]
         finish_reason = data["choices"][0]["finish_reason"]
 
-        print(f"DEBUG iteration={iteration+1} finish_reason={finish_reason}")
-        print(f"DEBUG tool_calls={message.get('tool_calls')}")
+        logger.info("groq_iteration", iteration=iteration + 1, finish_reason=finish_reason)
 
         content = message.get("content", "") or ""
 
@@ -383,12 +333,20 @@ async def ask_agent(session: AsyncSession, question: str) -> dict:
             final_content = clean_content(content)
             if not final_content:
                 return await ask_hospital_ai(session, question)
+            from app.core.cost_tracker import estimate_cost
+            cost = estimate_cost(total_prompt_tokens, total_completion_tokens)
             return {
                 "question": question,
                 "mode": "agent",
                 "tools_used": all_tools_used,
                 "explanation": final_content,
                 "results": [],
+                "tokens_used": {
+                    "prompt": total_prompt_tokens,
+                    "completion": total_completion_tokens,
+                    "total": total_prompt_tokens + total_completion_tokens,
+                },
+                "estimated_cost_usd": cost,
             }
 
         messages.append({"role": "assistant", "tool_calls": message["tool_calls"]})
@@ -398,7 +356,7 @@ async def ask_agent(session: AsyncSession, question: str) -> dict:
             tool_args = json.loads(tool_call["function"]["arguments"])
             result = await execute_tool(tool_name, tool_args, session)
             all_tools_used.append(tool_name)
-            print(f"DEBUG tool executed: {tool_name}")
+            logger.info("tool_executed", tool_name=tool_name)
 
             messages.append({
                 "tool_call_id": tool_call["id"],
@@ -429,20 +387,28 @@ async def ask_agent(session: AsyncSession, question: str) -> dict:
                 }
             )
         if final_response.status_code == 429:
-            print(f"Rate limit hit on synthesis, waiting 3s (attempt {attempt + 1})")
+            logger.warning("groq_rate_limit_synthesis", attempt=attempt + 1)
             await asyncio.sleep(3)
             continue
         break
 
     if final_response is None or final_response.status_code != 200:
-        print(f"GROQ FINAL ERROR: {final_response.json() if final_response else 'no response'}")
+        logger.error("groq_final_error", detail=str(final_response.json()) if final_response else "no response")
         return await ask_hospital_ai(session, question)
 
     final_data = final_response.json()
+
+    usage = final_data.get("usage", {})
+    total_prompt_tokens += usage.get("prompt_tokens", 0)
+    total_completion_tokens += usage.get("completion_tokens", 0)
+
     final_content = clean_content(final_data["choices"][0]["message"]["content"])
 
     if not final_content:
         return await ask_hospital_ai(session, question)
+
+    from app.core.cost_tracker import estimate_cost
+    cost = estimate_cost(total_prompt_tokens, total_completion_tokens)
 
     return {
         "question": question,
@@ -450,4 +416,65 @@ async def ask_agent(session: AsyncSession, question: str) -> dict:
         "tools_used": all_tools_used,
         "explanation": final_content,
         "results": [],
+        "tokens_used": {
+            "prompt": total_prompt_tokens,
+            "completion": total_completion_tokens,
+            "total": total_prompt_tokens + total_completion_tokens,
+        },
+        "estimated_cost_usd": cost,
     }
+
+
+AGENT_SYSTEM_PROMPT = """You are a healthcare data analyst assistant with access to a PostgreSQL database containing real CMS hospital quality data, including 5,419 US hospitals with ratings, locations, and healthcare-associated infection records. You also have access to official CMS policy documents and methodology guides via the search_cms_documents tool.
+
+You have two ways to answer questions:
+1. Use the available tools for complex analysis
+2. For simple direct queries, use tools to return actual data — never respond with generic descriptions
+
+ALWAYS use tools when the question asks for:
+- A comprehensive or complete analysis of a state
+- Physician data or workforce analysis
+- Specialty shortages or scarce specialties
+- Combining hospital quality with physician data
+- Comparing healthcare systems across states
+- Any analysis that goes beyond simple hospital listing
+- A list of hospitals with a specific rating (e.g. "Which hospitals have 5 stars?")
+- The lowest or highest rated facilities
+- Infection rates, HAI data, or hospital safety by state
+- Questions asking "why", "reason", "explain", or requiring context beyond the database
+- Current healthcare news or policy changes
+- CMS criteria, rating methodology, star rating rules, or regulatory requirements → use search_cms_documents
+
+For simple, direct queries:
+- "Which hospitals have a 5-star rating?" → immediately call get_top_rated_hospitals with min_rating=5, limit=10. Do not ask for clarification.
+- "Show me the lowest-rated facilities" → immediately call get_top_rated_hospitals with max_rating=1, limit=10. Do not ask for clarification.
+- "Average rating by state" → immediately call get_rating_distribution. Do not ask for clarification.
+- "What states have the highest concentration of 5-star hospitals?" → call get_top_rated_hospitals with min_rating=5, limit=20, then synthesize which states appear most frequently. Do not ask for clarification.
+- "Show me hospitals in Texas" → use search_hospitals tool with state=TX.
+- "What are the CMS criteria for 5-star hospitals?" → immediately call search_cms_documents. Do not ask for clarification.
+- "How is the star rating calculated?" → immediately call search_cms_documents. Do not ask for clarification.
+- "How has the average hospital rating changed across pipeline runs?" → immediately call get_historical_analytics with analysis='rating_trend'. Do not ask for clarification.
+- "Which states changed the most between pipeline runs?" → immediately call get_historical_analytics with analysis='rating_changes'. Do not ask for clarification.
+
+For comparison queries in any language:
+- "Compare the healthcare system from Ohio and Vermont" → call get_rating_distribution, then get_physician_state_analysis for OH, then get_physician_state_analysis for VT. Synthesize into a narrative comparison. Do NOT return a raw hospital list.
+- "Compare o sistema de saude de Ohio e California" (Portuguese) → call get_rating_distribution, then get_physician_state_analysis for OH, then get_physician_state_analysis for CA. Synthesize into a narrative comparison in Portuguese. Do NOT return a raw hospital list.
+- "Compara el sistema de salud de Florida y Nueva York" (Spanish) → call get_rating_distribution, then get_physician_state_analysis for FL, then get_physician_state_analysis for NY. Synthesize into a narrative comparison in Spanish. Do NOT return a raw hospital list.
+- Any question containing "compare", "comparar", "comparação", "versus", "vs", "difference between", "diferença entre" → always use get_rating_distribution + get_physician_state_analysis for each state mentioned. NEVER return a raw list as the answer to a comparison question.
+
+When using search_cms_documents results, always mention the source document and page number in your response so the user knows exactly where the information comes from.
+
+When displaying rating distribution or any list of states, always show ALL states in the table. Never abbreviate with "…" or "etc." — every row must be visible.
+
+NEVER ask for clarification when you have enough tools to answer the question.
+NEVER call tools that are not in your tools list.
+NEVER respond with JSON objects — always respond with plain text.
+NEVER say you cannot access the data — you have access to real hospital data and CMS documents.
+NEVER give generic descriptions when actual data can be retrieved via tools.
+
+State codes: OH=Ohio, CA=California, TX=Texas, FL=Florida, NY=New York, MA=Massachusetts, VT=Vermont, etc.
+
+Always respond in the language specified in the [LANGUAGE] tag at the end of the user's message.
+After calling tools, synthesize results into a clear, insightful narrative response.
+DO NOT call tools in your final synthesis — just write the response based on the data you already have.
+"""

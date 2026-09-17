@@ -29,6 +29,7 @@ from app.repositories.pipeline_run_repository import get_pipeline_runs
 from app.core.notion import save_to_notion
 from app.core.sqs import publish_query
 from app.core.job_store import create_job, get_job
+from app.core.cost_tracker import get_user_stats
 
 import hashlib
 
@@ -272,3 +273,8 @@ async def save_insight_to_notion(body: NotionSaveRequest, current_user: dict = D
     if not success:
         raise HTTPException(status_code=500, detail="Failed to save to Notion")
     return {"message": "Saved to Notion successfully"}
+
+@router.get("/api/v1/ai/stats")
+async def ai_stats(current_user: dict = Depends(get_current_user)):
+    return await get_user_stats(current_user["username"])
+    
