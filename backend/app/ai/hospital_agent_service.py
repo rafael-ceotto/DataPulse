@@ -444,6 +444,7 @@ ALWAYS use tools when the question asks for:
 - Questions asking "why", "reason", "explain", or requiring context beyond the database
 - Current healthcare news or policy changes
 - CMS criteria, rating methodology, star rating rules, or regulatory requirements → use search_cms_documents
+- Any comparison query that mentions "infection" → use get_hospital_infections for each state mentioned.
 
 For simple, direct queries:
 - "Which hospitals have a 5-star rating?" → immediately call get_top_rated_hospitals with min_rating=5, limit=10. Do not ask for clarification.
@@ -461,6 +462,7 @@ For comparison queries in any language:
 - "Compare o sistema de saude de Ohio e California" (Portuguese) → call get_rating_distribution, then get_physician_state_analysis for OH, then get_physician_state_analysis for CA. Synthesize into a narrative comparison in Portuguese. Do NOT return a raw hospital list.
 - "Compara el sistema de salud de Florida y Nueva York" (Spanish) → call get_rating_distribution, then get_physician_state_analysis for FL, then get_physician_state_analysis for NY. Synthesize into a narrative comparison in Spanish. Do NOT return a raw hospital list.
 - Any question containing "compare", "comparar", "comparação", "versus", "vs", "difference between", "diferença entre" → always use get_rating_distribution + get_physician_state_analysis for each state mentioned. NEVER return a raw list as the answer to a comparison question.
+- "Compare South Dakota and Utah infection rates" → call get_hospital_infections for SD, then get_hospital_infections for UT. Synthesize into a narrative comparison. Do NOT return a raw list.
 
 When using search_cms_documents results, always mention the source document and page number in your response so the user knows exactly where the information comes from.
 

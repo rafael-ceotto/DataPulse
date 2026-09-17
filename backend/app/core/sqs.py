@@ -24,7 +24,7 @@ def get_sqs_client():
         )
     return _sqs_client
 
-async def publish_query(job_id: str, question: str, language: str = "en") -> bool:
+async def publish_query(job_id: str, question: str, language: str = "en", username: str = "admin") -> bool:
     try:
         client = get_sqs_client()
         client.send_message(
@@ -33,6 +33,7 @@ async def publish_query(job_id: str, question: str, language: str = "en") -> boo
                 "job_id": job_id,
                 "question": question,
                 "language": language,
+                "username": username,
             }),
         )
         logger.info("sqs_message_published", job_id=job_id)
