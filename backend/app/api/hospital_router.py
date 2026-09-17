@@ -34,7 +34,21 @@ import hashlib
 
 
 router = APIRouter()
-limiter = Limiter(key_func=get_remote_address)
+
+def get_user_id(request: Request) -> str:
+    auth = request.headers.get("Authorization", "")
+    if auth.startswith("Bearer "):
+        from jose import jwt
+        from app.core.auth import SECRET_KEY, ALGORITHM
+        try:
+            token = auth.split(" ")[1]
+            payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
+            return payload.get("sub", get_remote_address(request))
+        except Exception:
+            pass
+    return get_remote_address(request)
+
+limiter = Limiter(key_func=get_user_id)
 
 async def get_session():
     async with AsyncSessionLocal() as session:
