@@ -71,3 +71,10 @@ jobs:
           DB_URL: postgresql+asyncpg://datapulse:datapulse@localhost:5432/datapulse
           TEST_DB_URL: postgresql+asyncpg://datapulse:datapulse@localhost:5432/datapulse_test
         run: poetry run pytest tests/api -v
+
+      - name: Run evaluation tests
+        env:
+          DB_URL: postgresql+asyncpg://datapulse:datapulse@localhost:5432/datapulse
+          TEST_DB_URL: postgresql+asyncpg://datapulse:datapulse@localhost:5432/datapulse_test
+        run: poetry run pytest tests/evaluation -v --tb=short
+        continue-on-error: true
