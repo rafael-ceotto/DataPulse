@@ -28,6 +28,6 @@ async def detect_anomalies(current_avg: float, previous_avg: float | None, quali
     if not anomalies:
         anomalies.append("✅ No anomalies detected. Data quality and ratings are within normal range.")
         
-    logger.info("anomly_detection_complete", anomaly_count=len(anomalies))
+    logger.info("anomaly_detection_complete", anomaly_count=len(anomalies))
     return anomalies
         
