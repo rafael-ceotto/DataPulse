@@ -24,7 +24,7 @@ async def ingest_hospitals(session: AsyncSession):
 
         hospitals = parse_hospitals(csv_text)
         await save_hospitals(session, hospitals)
-        
+
         try:
             hospitals_data = [
                 {
@@ -50,6 +50,7 @@ async def ingest_hospitals(session: AsyncSession):
         avg_rating = round(sum(rated) / len(rated), 2) if rated else None
 
         # Generate Insight
+        previous_avg = None
         insight = None
         if avg_rating is not None:
             try:
@@ -61,7 +62,6 @@ async def ingest_hospitals(session: AsyncSession):
                 insight = await generate_insight(avg_rating, previous_avg, history)
                 logger.info("insight_generated", preview=insight[:50])
 
-                # Slack alert — pipeline insight
                 variation = round(avg_rating - previous_avg, 3) if previous_avg else None
                 emoji = "🟡" if variation is None else ("🔴" if variation < -0.01 else ("🟢" if variation > 0.01 else "⚪"))
                 slack_message = (
@@ -71,23 +71,21 @@ async def ingest_hospitals(session: AsyncSession):
                     f"*Insight:* {insight}"
                 )
                 await send_slack_alert(slack_message)
-
-                # Commit insight to GitHub
                 await commit_insight(avg_rating, insight)
-                
-                # Anomaly detection
-                try:
-                    quality = await get_data_quality_metrics(session)
-                    anomalies = await detect_anomalies(avg_rating, previous_avg, quality)
-                    if anomalies:
-                        anomaly_text = "\n".join(anomalies)
-                        await send_slack_alert(f"🔍 *DataPulse Anomaly Detection*\n{anomaly_text}")
-                        logger.info("anomaly_alert_sent", count=(len(anomalies)))
-                except Exception as e:
-                    logger.error("anomaly_detection_failed", error=str(e))
 
             except Exception as e:
                 logger.error("insight_generation_failed", error=str(e))
+
+        # Proactive anomaly detection — independent from insight block
+        try:
+            quality_for_anomaly = await get_data_quality_metrics(session)
+            anomalies = await detect_anomalies(avg_rating, previous_avg, quality_for_anomaly)
+            if anomalies:
+                anomaly_text = "\n".join(anomalies)
+                await send_slack_alert(f"🔍 *DataPulse Anomaly Detection*\n{anomaly_text}")
+                logger.info("anomaly_alert_sent", count=len(anomalies))
+        except Exception as e:
+            logger.error("anomaly_detection_failed", error=str(e))
 
         # Data quality alert
         try:
