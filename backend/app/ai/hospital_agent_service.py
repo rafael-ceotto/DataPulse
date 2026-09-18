@@ -248,13 +248,19 @@ def clean_content(content: str) -> str:
     return content.strip()
 
 
-async def ask_agent(session: AsyncSession, question: str) -> dict:
+async def ask_agent(session: AsyncSession, question: str, username: str = "admin", conversation_id: str | None = None) -> dict:
     try:
         lang = detect(question)
     except Exception:
         lang = "en"
 
     question_with_lang = f"{question}\n\n[LANGUAGE: {lang}]"
+
+    # Load conversation history BEFORE building messages
+    history = []
+    if conversation_id:
+        from app.core.conversation_memory import get_conversation_history
+        history = await get_conversation_history(username, conversation_id)
 
     forced_tool = None
     question_lower = question.lower()
@@ -277,6 +283,7 @@ async def ask_agent(session: AsyncSession, question: str) -> dict:
 
     messages = [
         {"role": "system", "content": AGENT_SYSTEM_PROMPT},
+        *history,
         {"role": "user", "content": question_with_lang},
     ]
 
@@ -333,6 +340,9 @@ async def ask_agent(session: AsyncSession, question: str) -> dict:
             final_content = clean_content(content)
             if not final_content:
                 return await ask_hospital_ai(session, question)
+            if conversation_id:
+                from app.core.conversation_memory import append_to_conversation
+                await append_to_conversation(username, conversation_id, question, final_content)
             from app.core.cost_tracker import estimate_cost
             cost = estimate_cost(total_prompt_tokens, total_completion_tokens)
             return {
@@ -406,6 +416,10 @@ async def ask_agent(session: AsyncSession, question: str) -> dict:
 
     if not final_content:
         return await ask_hospital_ai(session, question)
+
+    if conversation_id:
+        from app.core.conversation_memory import append_to_conversation
+        await append_to_conversation(username, conversation_id, question, final_content)
 
     from app.core.cost_tracker import estimate_cost
     cost = estimate_cost(total_prompt_tokens, total_completion_tokens)

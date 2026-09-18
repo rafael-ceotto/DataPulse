@@ -34,7 +34,7 @@ export async function getHospitalById(facilityId) {
   return response.json();
 }
 
-export async function askAI(question) {
+export async function askAI(question, conversationId = null) {
   const token = await getToken();
 
   const response = await fetch(`${API_URL}/api/v1/ai/query`, {
@@ -43,17 +43,15 @@ export async function askAI(question) {
       "Content-Type": "application/json",
       "Authorization": `Bearer ${token}`,
     },
-    body: JSON.stringify({ question }),
+    body: JSON.stringify({ question, conversation_id: conversationId }),
   });
 
   const data = await response.json();
 
-  // Cached result returned directly
   if (data.explanation || data.sql) {
     return data;
   }
 
-  // Poll for result
   const jobId = data.job_id;
   const maxAttempts = 60;
   const interval = 2000;

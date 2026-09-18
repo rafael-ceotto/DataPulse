@@ -10,20 +10,21 @@ async def process_message(message: dict) -> None:
     job_id = message["job_id"]
     question = message["question"]
     receipt_handle = message["receipt_handle"]
+    username = message.get("username", "admin")
+    conversation_id = message.get("conversation_id", None)
 
     await set_job_processing(job_id)
     logger.info("agent_worker_processing", job_id=job_id, question=question)
 
     try:
         async with AsyncSessionLocal() as session:
-            result = await ask_agent(session, question)
+            result = await ask_agent(session, question, username=username, conversation_id=conversation_id)
         await set_job_done(job_id, result)
         await delete_message(receipt_handle)
 
         from app.core.cost_tracker import record_query_cost
         tokens = result.get("tokens_used", {})
         if tokens.get("total", 0) > 0:
-            username = message.get("username", "admin")
             await record_query_cost(
                 username,
                 tokens.get("prompt", 0),

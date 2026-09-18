@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useCallback } from "react";
 import { theme } from "../theme";
 import { askAI, saveToNotion } from "../services/api";
 import ReactMarkdown from "react-markdown";
@@ -22,6 +22,10 @@ const label = {
 
 const grid = { display: "grid", gridTemplateColumns: "2.4fr 1.4fr 0.8fr", gap: 12 };
 
+function generateConversationId() {
+  return crypto.randomUUID();
+}
+
 export default function AIQuery() {
   const [query, setQuery] = useState("");
   const [answer, setAnswer] = useState(null);
@@ -29,12 +33,18 @@ export default function AIQuery() {
   const [error, setError] = useState(null);
   const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState(false);
+  const [conversationId, setConversationId] = useState(() => generateConversationId());
 
   function clear() {
     setAnswer(null);
     setQuery("");
     setError(null);
     setSaved(false);
+  }
+
+  function newConversation() {
+    clear();
+    setConversationId(generateConversationId());
   }
 
   async function ask(text = query) {
@@ -46,7 +56,7 @@ export default function AIQuery() {
     setAnswer(null);
     setSaved(false);
     try {
-      const data = await askAI(q);
+      const data = await askAI(q, conversationId);
       setAnswer(data);
     } catch (err) {
       setError("Something went wrong. Try again.");
@@ -81,17 +91,26 @@ export default function AIQuery() {
         <h2 style={{ margin: 0, fontSize: 17, fontWeight: 600, color: "#fff", letterSpacing: "-0.01em" }}>
           Ask about the data
         </h2>
-        <span
-          style={{
-            fontFamily: theme.mono,
-            fontSize: 11,
-            color: theme.mint,
-            letterSpacing: "0.06em",
-            textTransform: "uppercase",
-          }}
-        >
+        <span style={{ fontFamily: theme.mono, fontSize: 11, color: theme.mint, letterSpacing: "0.06em", textTransform: "uppercase" }}>
           AI query
         </span>
+        <button
+          onClick={newConversation}
+          style={{
+            background: "transparent",
+            border: `1px solid #2c3b44`,
+            color: "#6f8a95",
+            borderRadius: 999,
+            padding: "4px 12px",
+            fontSize: 11,
+            fontFamily: theme.mono,
+            cursor: "pointer",
+            letterSpacing: "0.06em",
+            marginLeft: "auto",
+          }}
+        >
+          ↺ New conversation
+        </button>
       </div>
 
       <div style={{ display: "flex", gap: 10, flexWrap: "wrap" }}>
@@ -140,9 +159,7 @@ export default function AIQuery() {
             style={{
               background: "transparent",
               border: `1px solid #2c3b44`,
-              color: s === "What states have the highest concentration of 5-star hospitals?"
-                ? theme.mint
-                : "#a7b6bf",
+              color: s === "What states have the highest concentration of 5-star hospitals?" ? theme.mint : "#a7b6bf",
               borderRadius: 999,
               padding: "7px 14px",
               fontSize: 12.5,
@@ -180,7 +197,6 @@ export default function AIQuery() {
       {answer && !loading && (
         <div style={{ marginTop: 24, borderTop: `1px solid ${theme.darkBorder}`, paddingTop: 22 }}>
 
-          {/* Mode badge + tools used */}
           {answer.mode && (
             <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 18, flexWrap: "wrap" }}>
               <span
@@ -211,93 +227,48 @@ export default function AIQuery() {
             </div>
           )}
 
-          {/* Save to Notion button */}
           {answer.explanation && (
-          <div style={{ display: "flex", alignItems: "center", gap: 16, marginBottom: 18, flexWrap: "wrap" }}>
-          <button
-          onClick={handleSaveToNotion}
-          disabled={saving || saved}
-          style={{
-          background: "transparent",
-          border: `1px solid ${saved ? "#2f9e6f" : "#2c3b44"}`,
-          color: saved ? "#2f9e6f" : "#6f8a95",
-          borderRadius: 999,
-          padding: "5px 14px",
-          fontSize: 12,
-          fontFamily: theme.mono,
-          cursor: saving ? "wait" : "pointer",
-          letterSpacing: "0.06em",
-          }}
-    >
-      {saved ? "✓ Saved to Notion" : saving ? "Saving..." : "↗ Save to Notion"}
-    </button>
-
-    {answer.tokens_used?.total > 0 && (
-      <span style={{ fontFamily: theme.mono, fontSize: 11, color: "#6f8a95", letterSpacing: "0.04em" }}>
-        {answer.tokens_used.total.toLocaleString()} tokens
-        {answer.estimated_cost_usd > 0 && (
-          <span style={{ marginLeft: 8 }}>
-            · ${answer.estimated_cost_usd.toFixed(6)}
-          </span>
-        )}
-      </span>
-    )}
-  </div>
-)}
+            <div style={{ display: "flex", alignItems: "center", gap: 16, marginBottom: 18, flexWrap: "wrap" }}>
+              <button
+                onClick={handleSaveToNotion}
+                disabled={saving || saved}
+                style={{
+                  background: "transparent",
+                  border: `1px solid ${saved ? "#2f9e6f" : "#2c3b44"}`,
+                  color: saved ? "#2f9e6f" : "#6f8a95",
+                  borderRadius: 999,
+                  padding: "5px 14px",
+                  fontSize: 12,
+                  fontFamily: theme.mono,
+                  cursor: saving ? "wait" : "pointer",
+                  letterSpacing: "0.06em",
+                }}
+              >
+                {saved ? "✓ Saved to Notion" : saving ? "Saving..." : "↗ Save to Notion"}
+              </button>
+              {answer.tokens_used?.total > 0 && (
+                <span style={{ fontFamily: theme.mono, fontSize: 11, color: "#6f8a95", letterSpacing: "0.04em" }}>
+                  {answer.tokens_used.total.toLocaleString()} tokens
+                  {answer.estimated_cost_usd > 0 && (
+                    <span style={{ marginLeft: 8 }}>· ${answer.estimated_cost_usd.toFixed(6)}</span>
+                  )}
+                </span>
+              )}
+            </div>
+          )}
 
           <div style={{ ...label, textAlign: "center" }}>Explanation</div>
 
-          <div
-            style={{
-              margin: "0 auto 22px",
-              fontSize: 15.5,
-              lineHeight: 1.6,
-              color: "#dce5e9",
-              maxWidth: "74ch",
-              textAlign: "center",
-            }}
-          >
+          <div style={{ margin: "0 auto 22px", fontSize: 15.5, lineHeight: 1.6, color: "#dce5e9", maxWidth: "74ch", textAlign: "center" }}>
             <style>{`
-              .ai-explanation table {
-                border-collapse: collapse;
-                margin: 16px auto;
-                font-size: 14px;
-              }
-              .ai-explanation th,
-              .ai-explanation td {
-                border: 1px solid #2c3b44;
-                padding: 8px 16px;
-                text-align: center;
-              }
-              .ai-explanation th {
-                background: #1a2a32;
-                color: #6f8a95;
-                font-family: monospace;
-                font-size: 11px;
-                letter-spacing: 0.07em;
-                text-transform: uppercase;
-              }
-              .ai-explanation td {
-                color: #dce5e9;
-              }
-              .ai-explanation tr:nth-child(even) td {
-                background: #111e24;
-              }
-              .ai-explanation h2,
-              .ai-explanation h3 {
-                margin-top: 24px;
-                margin-bottom: 8px;
-                color: #fff;
-                font-size: 15px;
-              }
-              .ai-explanation ul {
-                text-align: left;
-                display: inline-block;
-                padding-left: 20px;
-              }
-              .ai-explanation p {
-                margin: 8px 0;
-              }
+              .ai-explanation table { border-collapse: collapse; margin: 16px auto; font-size: 14px; }
+              .ai-explanation th, .ai-explanation td { border: 1px solid #2c3b44; padding: 8px 16px; text-align: center; }
+              .ai-explanation th { background: #1a2a32; color: #6f8a95; font-family: monospace; font-size: 11px; letter-spacing: 0.07em; text-transform: uppercase; }
+              .ai-explanation td { color: #dce5e9; }
+              .ai-explanation tr:nth-child(even) td { background: #111e24; }
+              .ai-explanation h2, .ai-explanation h3 { margin-top: 24px; margin-bottom: 8px; color: #fff; font-size: 15px; }
+              .ai-explanation ul { text-align: left; display: inline-block; padding-left: 20px; }
+              .ai-explanation p { margin: 8px 0; }
             `}</style>
             <div className="ai-explanation">
               <ReactMarkdown remarkPlugins={[remarkGfm]}>{answer.explanation}</ReactMarkdown>
@@ -307,53 +278,16 @@ export default function AIQuery() {
           {answer.results?.length > 0 && (
             <>
               <div style={{ ...label, textAlign: "center" }}>Results · {answer.results.length} records</div>
-              <div
-                style={{
-                  background: theme.darkSurface,
-                  border: `1px solid ${theme.darkBorder}`,
-                  borderRadius: 12,
-                  overflow: "hidden",
-                  maxHeight: 400,
-                  overflowY: "auto",
-                }}
-              >
-                <div
-                  style={{
-                    ...grid,
-                    padding: "12px 16px",
-                    background: theme.darkInput,
-                    fontFamily: theme.mono,
-                    fontSize: 10.5,
-                    letterSpacing: "0.07em",
-                    textTransform: "uppercase",
-                    color: "#6f8a95",
-                    position: "sticky",
-                    top: 0,
-                    zIndex: 1,
-                  }}
-                >
+              <div style={{ background: theme.darkSurface, border: `1px solid ${theme.darkBorder}`, borderRadius: 12, overflow: "hidden", maxHeight: 400, overflowY: "auto" }}>
+                <div style={{ ...grid, padding: "12px 16px", background: theme.darkInput, fontFamily: theme.mono, fontSize: 10.5, letterSpacing: "0.07em", textTransform: "uppercase", color: "#6f8a95", position: "sticky", top: 0, zIndex: 1 }}>
                   <span>Facility</span>
                   <span>Location</span>
                   <span style={{ textAlign: "right" }}>Rating</span>
                 </div>
                 {answer.results.map((r, i) => (
-                  <div
-                    key={i}
-                    style={{
-                      ...grid,
-                      padding: "13px 16px",
-                      borderTop: `1px solid ${theme.darkBorder}`,
-                      fontSize: 14,
-                      color: "#dce5e9",
-                      alignItems: "center",
-                    }}
-                  >
-                    <span style={{ fontWeight: 500 }}>
-                      {r.facility_name ?? r.state ?? Object.values(r)[0]}
-                    </span>
-                    <span style={{ color: "#a7b6bf" }}>
-                      {r.city && r.state ? `${r.city}, ${r.state}` : r.state ? "Statewide" : "—"}
-                    </span>
+                  <div key={i} style={{ ...grid, padding: "13px 16px", borderTop: `1px solid ${theme.darkBorder}`, fontSize: 14, color: "#dce5e9", alignItems: "center" }}>
+                    <span style={{ fontWeight: 500 }}>{r.facility_name ?? r.state ?? Object.values(r)[0]}</span>
+                    <span style={{ color: "#a7b6bf" }}>{r.city && r.state ? `${r.city}, ${r.state}` : r.state ? "Statewide" : "—"}</span>
                     <span style={{ textAlign: "right", fontFamily: theme.mono, color: theme.mint }}>
                       {r.overall_rating ?? (r.avg_rating ? parseFloat(r.avg_rating).toFixed(2) : null) ?? (r.average_rating ? parseFloat(r.average_rating).toFixed(2) : null) ?? r.hospital_count ?? r.count ?? r.five_star_hospitals ?? r.num_hospitals ?? "—"}
                     </span>

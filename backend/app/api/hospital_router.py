@@ -57,6 +57,7 @@ async def get_session():
 
 class AIQueryRequest(BaseModel):
     question: str
+    conversation_id: str | None = None
 
 class NotionSaveRequest(BaseModel):
     question: str
@@ -149,7 +150,7 @@ async def ai_query(request: Request, body: AIQueryRequest, session: AsyncSession
         return cached
     job_id = str(uuid.uuid4())
     await create_job(job_id, body.question)
-    await publish_query(job_id, body.question, username=current_user["username"])
+    await publish_query(job_id, body.question, username=current_user["username"], conversation_id=body.conversation_id)
 
     return {"job_id": job_id, "status": "queued"}
 
