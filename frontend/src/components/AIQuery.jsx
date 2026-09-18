@@ -259,9 +259,9 @@ export default function AIQuery() {
 
           <div style={{ ...label, textAlign: "center" }}>Explanation</div>
 
-          <div style={{ margin: "0 auto 22px", fontSize: 15.5, lineHeight: 1.6, color: "#dce5e9", maxWidth: "74ch", textAlign: "center" }}>
+          <div style={{ margin: "0 auto 22px", fontSize: 15.5, lineHeight: 1.6, color: "#dce5e9", maxWidth: "74ch", textAlign: "center", overflowX: "auto" }}>
             <style>{`
-              .ai-explanation table { border-collapse: collapse; margin: 16px auto; font-size: 14px; }
+              .ai-explanation table { border-collapse: collapse; margin: 16px auto; font-size: 14px; max-width: 100; }
               .ai-explanation th, .ai-explanation td { border: 1px solid #2c3b44; padding: 8px 16px; text-align: center; }
               .ai-explanation th { background: #1a2a32; color: #6f8a95; font-family: monospace; font-size: 11px; letter-spacing: 0.07em; text-transform: uppercase; }
               .ai-explanation td { color: #dce5e9; }
@@ -269,6 +269,8 @@ export default function AIQuery() {
               .ai-explanation h2, .ai-explanation h3 { margin-top: 24px; margin-bottom: 8px; color: #fff; font-size: 15px; }
               .ai-explanation ul { text-align: left; display: inline-block; padding-left: 20px; }
               .ai-explanation p { margin: 8px 0; }
+              .ai-explanation { overflow-x: auto; display: block;}
+
             `}</style>
             <div className="ai-explanation">
               <ReactMarkdown remarkPlugins={[remarkGfm]}>{answer.explanation}</ReactMarkdown>

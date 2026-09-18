@@ -11,6 +11,7 @@ from app.core.cache import get_cache
 from app.core.config import settings
 from app.core.logging import logger
 from app.ai.hospital_ai_service import ask_hospital_ai
+from app.core.output_validator import validate_agent_output
 
 GROQ_URL = "https://api.groq.com/openai/v1/chat/completions"
 GROQ_MODEL = "openai/gpt-oss-120b"
@@ -345,19 +346,19 @@ async def ask_agent(session: AsyncSession, question: str, username: str = "admin
                 await append_to_conversation(username, conversation_id, question, final_content)
             from app.core.cost_tracker import estimate_cost
             cost = estimate_cost(total_prompt_tokens, total_completion_tokens)
-            return {
-                "question": question,
-                "mode": "agent",
-                "tools_used": all_tools_used,
-                "explanation": final_content,
-                "results": [],
-                "tokens_used": {
-                    "prompt": total_prompt_tokens,
-                    "completion": total_completion_tokens,
-                    "total": total_prompt_tokens + total_completion_tokens,
-                },
-                "estimated_cost_usd": cost,
-            }
+            return validate_agent_output({
+                    "question": question,
+                    "mode": "agent",
+                    "tools_used": all_tools_used,
+                    "explanation": final_content,
+                    "results": [],
+                    "tokens_used": {
+                        "prompt": total_prompt_tokens,
+                        "completion": total_completion_tokens,
+                        "total": total_prompt_tokens + total_completion_tokens,
+                    },
+                    "estimated_cost_usd": cost,
+            })
 
         messages.append({"role": "assistant", "tool_calls": message["tool_calls"]})
 
@@ -424,7 +425,7 @@ async def ask_agent(session: AsyncSession, question: str, username: str = "admin
     from app.core.cost_tracker import estimate_cost
     cost = estimate_cost(total_prompt_tokens, total_completion_tokens)
 
-    return {
+    return validate_agent_output({
         "question": question,
         "mode": "agent",
         "tools_used": all_tools_used,
@@ -436,7 +437,7 @@ async def ask_agent(session: AsyncSession, question: str, username: str = "admin
             "total": total_prompt_tokens + total_completion_tokens,
         },
         "estimated_cost_usd": cost,
-    }
+    })  
 
 
 AGENT_SYSTEM_PROMPT = """You are a healthcare data analyst assistant with access to a PostgreSQL database containing real CMS hospital quality data, including 5,419 US hospitals with ratings, locations, and healthcare-associated infection records. You also have access to official CMS policy documents and methodology guides via the search_cms_documents tool.
