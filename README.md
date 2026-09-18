@@ -261,6 +261,8 @@ The agent supports **conversational memory**. Each conversation has a unique ID 
 
 **Structured output validation** — every agent response is validated against a Pydantic schema before being returned. Empty explanations, wrong types, or missing fields are caught and logged before reaching the user.
 
+**Custom DuckDB query endpoint** — `POST /api/v1/analytics/query` accepts any `SELECT` query from authenticated users. In production with sensitive data, this would require an allowlist of permitted tables and columns, stricter rate limiting, and a full audit log. For DataPulse, the underlying CMS data is public, so the exposure risk is low. In production and most important, with sensitive data, the endpoint should not be used as-is in a system handling PII or regulated data.
+
 ---
 
 ## Testing
