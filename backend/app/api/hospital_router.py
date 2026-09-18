@@ -66,14 +66,14 @@ class NotionSaveRequest(BaseModel):
 
 
 @router.post("/api/v1/pipeline/run")
-async def run_pipeline(session: AsyncSession = Depends(get_session), current_user: dict = Depends(get_current_user)):
-    counter = await ingest_hospitals(session)
-    await invalidate_cache("rating_distribution")
-    await invalidate_cache("ai_query:*")
-    return {
-        "message": "Pipeline executed successfully",
-        "processed": counter,
-    }
+async def run_pipeline(background_tasks: BackgroundTasks, session: AsyncSession = Depends(get_session), current_user: dict = Depends(get_current_user)):
+    async def run_and_invalidate():
+        async with AsyncSessionLocal() as bg_session:
+            await ingest_hospitals(bg_session)
+        await invalidate_cache("rating_distribution")
+        await invalidate_cache("ai_query:*")
+    background_tasks.add_task(run_and_invalidate)
+    return {"status": "running", "message": "Pipeline started in background"}
 
 @router.post("/api/v1/pipeline/run/infections")
 async def run_infections_pipeline(session: AsyncSession = Depends(get_session), current_user: dict = Depends(get_current_user)):

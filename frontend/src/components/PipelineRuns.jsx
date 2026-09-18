@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useState, useRef } from "react";
 import { theme } from "../theme";
 import { getToken } from "../services/api";
 
@@ -6,15 +6,26 @@ export default function PipelineRuns() {
   const [runs, setRuns] = useState([]);
   const [loading, setLoading] = useState(true);
   const [running, setRunning] = useState(false);
+  const [progress, setProgress] = useState(0);
   const [runError, setRunError] = useState(null);
   const [runSuccess, setRunSuccess] = useState(null);
   const [open, setOpen] = useState(false);
   const [expandedInsight, setExpandedInsight] = useState(null);
+  const progressInterval = useRef(null);
+  const pollingInterval = useRef(null);
+  const [progressMessage, setProgressMessage] = useState("");
 
   useEffect(() => {
     if (!open) return;
     fetchRuns();
   }, [open]);
+
+  useEffect(() => {
+    return () => {
+      clearInterval(progressInterval.current);
+      clearInterval(pollingInterval.current);
+    };
+  }, []);
 
   async function fetchRuns() {
     setLoading(true);
@@ -32,10 +43,87 @@ export default function PipelineRuns() {
     }
   }
 
+  const PROGRESS_MESSAGES = [
+    "Fetching hospital data from CMS...",
+    "Validating and processing records...",
+    "Saving to database...",
+    "Running dbt models...",
+    "Generating AI insights...",
+    "Almost done...",
+  ];
+
+  function startProgressSimulation() {
+    setProgress(0);
+    setProgressMessage(PROGRESS_MESSAGES[0]);
+    let current = 0;
+    let msgIndex = 0;
+
+    progressInterval.current = setInterval(() => {
+      if (current < 95) {
+        current += Math.random() * 2;
+        if (current >= 95) current = 95;
+      } else {
+        current += 0.05;
+        if (current >= 99) current = 99;
+      }
+
+      msgIndex = Math.min(
+        Math.floor((current / 99) * PROGRESS_MESSAGES.length),
+        PROGRESS_MESSAGES.length - 1
+      );
+
+      setProgress(Math.round(current * 10) / 10);
+      setProgressMessage(PROGRESS_MESSAGES[msgIndex]);
+    }, 3000);
+  }
+
+  function stopProgress(success) {
+    clearInterval(progressInterval.current);
+    clearInterval(pollingInterval.current);
+    if (success) {
+      setProgress(100);
+      setTimeout(() => {
+        setProgress(0);
+        setRunning(false);
+      }, 1500);
+    } else {
+      setProgress(0);
+      setRunning(false);
+    }
+  }
+
+  async function pollForCompletion() {
+    pollingInterval.current = setInterval(async () => {
+      try {
+        const token = await getToken();
+        const res = await fetch("/api/v1/pipeline/runs?limit=1", {
+          headers: { Authorization: `Bearer ${token}` },
+        });
+        const data = await res.json();
+        const latest = data[0];
+        if (!latest) return;
+
+        if (latest.status === "success") {
+          setRunSuccess(`✓ Pipeline completed — ${latest.records_processed?.toLocaleString()} records processed`);
+          stopProgress(true);
+          await fetchRuns();
+        } else if (latest.status === "failed") {
+          setRunError("⚠ Pipeline run failed. Try again.");
+          stopProgress(false);
+          await fetchRuns();
+        }
+      } catch {
+        // keep polling
+      }
+    }, 5000);
+  }
+
   async function runPipeline() {
     setRunning(true);
     setRunError(null);
     setRunSuccess(null);
+    startProgressSimulation();
+
     try {
       const token = await getToken();
       const res = await fetch("/api/v1/pipeline/run", {
@@ -43,18 +131,23 @@ export default function PipelineRuns() {
         headers: { Authorization: `Bearer ${token}` },
       });
       if (!res.ok) throw new Error("Pipeline failed");
-      const data = await res.json();
-      setRunSuccess(`Pipeline completed — ${data.processed?.toLocaleString()} records processed`);
-      await fetchRuns();
+      await pollForCompletion();
     } catch {
-      setRunError("Pipeline run failed. Try again.");
-    } finally {
-      setRunning(false);
+      setRunError("⚠ Pipeline run failed. Try again.");
+      stopProgress(false);
     }
   }
 
   return (
     <section style={{ marginTop: 24 }}>
+      <style>{`
+        @keyframes pulse {
+          0% { opacity: 1; }
+          50% { opacity: 0.4; }
+          100% { opacity: 1; }
+        }
+      `}</style>
+
       <div
         onClick={() => setOpen((o) => !o)}
         style={{
@@ -93,34 +186,50 @@ export default function PipelineRuns() {
           boxShadow: "0 4px 12px rgba(16,26,32,.3)",
         }}>
 
-          {/* Run Pipeline button */}
-          <div style={{ display: "flex", alignItems: "center", gap: 12, marginBottom: 20 }}>
-            <button
-              onClick={(e) => { e.stopPropagation(); runPipeline(); }}
-              disabled={running}
-              style={{
-                background: running ? "#1b272e" : theme.mint,
-                color: running ? "#6f8a95" : "#0c1418",
-                border: "none",
-                borderRadius: 10,
-                padding: "11px 24px",
-                fontSize: 14,
-                fontWeight: 600,
-                cursor: running ? "not-allowed" : "pointer",
-                opacity: running ? 0.7 : 1,
-              }}
-            >
-              {running ? "Running..." : "▶ Run Pipeline"}
-            </button>
-            {runSuccess && (
-              <span style={{ fontSize: 13, color: theme.mint }}>
-                ✓ {runSuccess}
-              </span>
-            )}
-            {runError && (
-              <span style={{ fontSize: 13, color: "#ff6b6b" }}>
-                ⚠ {runError}
-              </span>
+          {/* Run Pipeline button + progress */}
+          <div style={{ marginBottom: 20 }}>
+            <div style={{ display: "flex", alignItems: "center", gap: 12, marginBottom: running ? 10 : 0 }}>
+              <button
+                onClick={(e) => { e.stopPropagation(); runPipeline(); }}
+                disabled={running}
+                style={{
+                  background: running ? "#1b272e" : theme.mint,
+                  color: running ? "#6f8a95" : "#0c1418",
+                  border: "none",
+                  borderRadius: 10,
+                  padding: "11px 24px",
+                  fontSize: 14,
+                  fontWeight: 600,
+                  cursor: running ? "not-allowed" : "pointer",
+                  opacity: running ? 0.7 : 1,
+                }}
+              >
+                {running ? `Running... ${progress}%` : "▶ Run Pipeline"}
+              </button>
+              {runSuccess && (
+                <span style={{ fontSize: 13, color: theme.mint }}>{runSuccess}</span>
+              )}
+              {runError && (
+                <span style={{ fontSize: 13, color: "#ff6b6b" }}>{runError}</span>
+              )}
+            </div>
+
+            {running && (
+              <div>
+                <div style={{ background: "#1e2d35", borderRadius: 999, height: 4, overflow: "hidden", maxWidth: 400, marginBottom: 6 }}>
+                  <div style={{
+                    height: "100%",
+                    width: `${progress}%`,
+                    background: progress === 100 ? theme.mint : "#f1c40f",
+                    borderRadius: 999,
+                    transition: "width 0.8s ease",
+                    animation: progress >= 99 && progress < 100 ? "pulse 1.5s ease-in-out infinite" : "none",
+                  }} />
+                </div>
+                <div style={{ fontFamily: theme.mono, fontSize: 11, color: "#6f8a95", letterSpacing: "0.04em" }}>
+                  {progressMessage}
+                </div>
+              </div>
             )}
           </div>
 
