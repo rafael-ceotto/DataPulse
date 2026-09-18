@@ -216,9 +216,11 @@ AI queries are processed asynchronously via SQS. The endpoint returns a `job_id`
 
 **Available tools:** `search_hospitals`, `get_top_rated_hospitals`, `get_rating_distribution`, `get_physician_state_analysis`, `get_scarce_specialties`, `get_hospital_infections`, `web_search`, `search_cms_documents`, `get_historical_analytics`
 
-The agent is multilingual — it detects the language of the question and responds in the same language (EN, PT, ES, FR, IT, DE).
+The agent is multilingual. It detects the language of the question and responds in the same language (EN, PT, ES, FR, IT, DE).
 
 Each response shows token usage and estimated cost. User-level stats available at `GET /api/v1/ai/stats`.
+
+The agent supports **conversational memory**. Each conversation has a unique ID and the agent remembers context across queries for 24 hours. Users can start a new conversation at any time via the "↺ New conversation" button
 
 ---
 
@@ -252,6 +254,12 @@ Each response shows token usage and estimated cost. User-level stats available a
 **JWT-based rate limiting** — each authenticated user has an independent 5/min limit, regardless of IP. Multi-tenant ready.
 
 **Upsert instead of delete+insert** — the pipeline can run as many times as needed without duplicates.
+
+**Conversational memory per session** — each conversation is stored in Redis under `conversation:{username}:{conversation_id}` with a 24h TTL. The agent receives the full history on each query, enabling follow-up questions without repeating context.
+
+**Proactive anomaly detection** — after every pipeline run, the system automatically checks for rating drops, completeness issues, and unusual counts of low-rated hospitals. Alerts go to Slack independently of the insight generation.
+
+**Structured output validation** — every agent response is validated against a Pydantic schema before being returned. Empty explanations, wrong types, or missing fields are caught and logged before reaching the user.
 
 ---
 
@@ -306,6 +314,4 @@ poetry run python run_pipeline.py
 
 ## What's next
 
-- Conversational memory — multi-turn queries where the agent remembers context across questions
-- Proactive insights — automatic anomaly detection after each pipeline run
-- Structured output validation — Pydantic schemas on agent responses to eliminate silent failures
+- Supabase Realtime — WebSockets for live dashboard updates
