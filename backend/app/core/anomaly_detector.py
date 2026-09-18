@@ -23,7 +23,7 @@ async def detect_anomalies(current_avg: float, previous_avg: float | None, quali
         )
     #Low rated hospitals
     low_rated = quality.get("low_rated_hospitals", 0)
-    if low_rated > 700:
+    if low_rated > 1000:
         anomalies.append(f"🔴 {low_rated:,} hospitals rated 1 or 2 stars — unusually high count.")
     if not anomalies:
         anomalies.append("✅ No anomalies detected. Data quality and ratings are within normal range.")
