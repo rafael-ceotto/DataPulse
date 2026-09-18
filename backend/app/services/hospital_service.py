@@ -9,6 +9,8 @@ from app.ai.insight_service import generate_insight
 from app.core.slack import send_slack_alert
 from app.core.github import commit_insight
 from app.core.s3 import upload_json
+from app.core.logging import logger
+from app.core.anomaly_detector import detect_anomalies
 
 COMPLETENESS_THRESHOLD = 55.0
 
@@ -42,7 +44,7 @@ async def ingest_hospitals(session: AsyncSession):
             s3_key = f"pipeline-runs/{pipeline_run.id}/hospitals.json"
             await upload_json(s3_key, json.dumps(hospitals_data, indent=2))
         except Exception as e:
-            print(f"S3 export failed: {e}")
+            logger.error("s3_export_failed", error=str(e))
 
         rated = [h.overall_rating for h in hospitals if h.overall_rating is not None]
         avg_rating = round(sum(rated) / len(rated), 2) if rated else None
@@ -51,13 +53,13 @@ async def ingest_hospitals(session: AsyncSession):
         insight = None
         if avg_rating is not None:
             try:
-                print(f"=== INSIGHT: generating for avg_rating={avg_rating} ===")
+                logger.info("insight_generating", avg_rating=avg_rating)
                 previous_avg = await get_previous_avg_rating(session)
-                print(f"=== INSIGHT: previous_avg={previous_avg} ===")
+                logger.info("insight_previous_avg", previous_avg=previous_avg)
                 history = await get_recent_insights(session, limit=5)
-                print(f"=== INSIGHT: history={len(history)} items ===")
+                logger.info("insight_history", count=len(history))
                 insight = await generate_insight(avg_rating, previous_avg, history)
-                print(f"=== INSIGHT: generated={insight[:50]} ===")
+                logger.info("insight_generated", preview=insight[:50])
 
                 # Slack alert — pipeline insight
                 variation = round(avg_rating - previous_avg, 3) if previous_avg else None
@@ -72,9 +74,20 @@ async def ingest_hospitals(session: AsyncSession):
 
                 # Commit insight to GitHub
                 await commit_insight(avg_rating, insight)
+                
+                # Anomaly detection
+                try:
+                    quality = await get_data_quality_metrics(session)
+                    anomalies = await detect_anomalies(avg_rating, previous_avg, quality)
+                    if anomalies:
+                        anomaly_text = "\n".join(anomalies)
+                        await send_slack_alert(f"🔍 *DataPulse Anomaly Detection*\n{anomaly_text}")
+                        logger.info("anomaly_alert_sent", count=(len(anomalies)))
+                except Exception as e:
+                    logger.error("anomaly_detection_failed", error=str(e))
 
             except Exception as e:
-                print(f"Insight generation failed: {e}")
+                logger.error("insight_generation_failed", error=str(e))
 
         # Data quality alert
         try:
@@ -88,7 +101,7 @@ async def ingest_hospitals(session: AsyncSession):
                     f"*Low rated (≤2★):* {quality.get('low_rated_hospitals', 0):,}"
                 )
         except Exception as e:
-            print(f"Data quality alert failed: {e}")
+            logger.error("data_quality_alert_failed", error=str(e))
 
         # Run dbt models
         try:
@@ -99,11 +112,11 @@ async def ingest_hospitals(session: AsyncSession):
                 timeout=120,
             )
             if result.returncode == 0:
-                print("=== DBT: models refreshed successfully ===")
+                logger.info("dbt_run_success")
             else:
-                print(f"=== DBT: failed — {result.stderr[:200]} ===")
+                logger.error("dbt_run_failed", stderr=result.stderr[:200])
         except Exception as e:
-            print(f"=== DBT: error — {e} ===")
+            logger.error("dbt_run_error", error=str(e))
 
         await update_pipeline_run(
             session,
