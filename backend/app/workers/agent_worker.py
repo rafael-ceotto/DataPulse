@@ -31,6 +31,13 @@ async def process_message(message: dict) -> None:
                 tokens.get("completion", 0),
             )
 
+        from app.core.realtime import publish_event
+        await publish_event("ai_query_done", {
+            "job_id": job_id,
+            "question": question,
+            "tools_used": result.get("tools_used", []),
+        })
+
         logger.info("agent_worker_done", job_id=job_id)
     except Exception as e:
         logger.error("agent_worker_failed", job_id=job_id, error=str(e))

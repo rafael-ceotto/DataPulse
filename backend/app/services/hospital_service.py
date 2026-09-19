@@ -11,6 +11,7 @@ from app.core.github import commit_insight
 from app.core.s3 import upload_json
 from app.core.logging import logger
 from app.core.anomaly_detector import detect_anomalies
+from app.core.realtime import publish_event
 
 COMPLETENESS_THRESHOLD = 55.0
 
@@ -126,6 +127,17 @@ async def ingest_hospitals(session: AsyncSession):
             avg_rating=avg_rating,
             insight=insight,
         )
+
+        # Publish Supabase Realtime event
+        try:
+            await publish_event("pipeline_completed", {
+                "avg_rating": avg_rating,
+                "records_processed": len(hospitals),
+                "insight": insight[:100] if insight else None,
+            })
+        except Exception as e:
+            logger.error("realtime_pipeline_event_failed", error=str(e))
+
         return len(hospitals)
 
     except Exception as e:

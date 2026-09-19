@@ -34,6 +34,8 @@ export async function getHospitalById(facilityId) {
   return response.json();
 }
 
+import {supabase} from './supabase'
+
 export async function askAI(question, conversationId = null) {
   const token = await getToken();
 
@@ -48,33 +50,42 @@ export async function askAI(question, conversationId = null) {
 
   const data = await response.json();
 
+  // Cached result returned directly
   if (data.explanation || data.sql) {
     return data;
   }
 
   const jobId = data.job_id;
-  const maxAttempts = 60;
-  const interval = 2000;
 
-  for (let i = 0; i < maxAttempts; i++) {
-    await new Promise(resolve => setTimeout(resolve, interval));
+  // Wait for result via Supabase Realtime
+  return new Promise((resolve, reject) => {
+    const timeout = setTimeout(() => {
+      channel.unsubscribe();
+      reject(new Error("Query timed out after 2 minutes"));
+    }, 120000);
 
-    const pollResponse = await fetch(`${API_URL}/api/v1/ai/query/${jobId}`, {
-      headers: { "Authorization": `Bearer ${token}` },
-    });
-
-    const pollData = await pollResponse.json();
-
-    if (pollData.status === "done" || pollData.explanation || pollData.sql) {
-      return pollData;
-    }
-
-    if (pollData.status === "failed") {
-      throw new Error(pollData.error || "Query failed");
-    }
-  }
-
-  throw new Error("Query timed out after 2 minutes");
+    const channel = supabase
+      .channel('ai-query-done')
+      .on('postgres_changes', {
+        event: 'INSERT',
+        schema: 'public',
+        table: 'events',
+        filter: `type=eq.ai_query_done`,
+      }, (payload) => {
+        if (payload.new?.payload?.job_id === jobId) {
+          clearTimeout(timeout);
+          channel.unsubscribe();
+          // Fetch the actual result
+          fetch(`${API_URL}/api/v1/ai/query/${jobId}`, {
+            headers: { "Authorization": `Bearer ${token}` },
+          })
+            .then(r => r.json())
+            .then(result => resolve(result))
+            .catch(reject);
+        }
+      })
+      .subscribe();
+  });
 }
 
 export async function getHospitalInfections(facilityId) {
