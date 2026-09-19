@@ -20,6 +20,7 @@ CMS (Centers for Medicare & Medicaid Services) data is public. 5,419 hospitals. 
 - **Storage:** Redis, Floci (local AWS S3 emulator) via boto3
 - **Analytics:** DuckDB (historical queries over S3 pipeline snapshots)
 - **Observability:** Prometheus, Grafana, Loki, structlog
+- **Realtime:** Supabase Realtime (WebSocket events for AI queries and pipeline runs)
 - **Infra:** Docker, Docker Compose, GitHub Actions CI/CD
 - **Frontend:** React + Vite
 - **Integrations:** Slack, Notion, GitHub
@@ -212,7 +213,7 @@ AI_RATE_LIMIT_PER_MINUTE=5
 
 The agent operates in two modes. **SQL mode** for direct questions where "Which hospitals have 5 stars in Ohio?" becomes a SELECT and returns data. **Agent mode** for complex analysis. It pulls data from the database, searches the web, reads CMS documents, and synthesizes a response.
 
-AI queries are processed asynchronously via SQS. The endpoint returns a `job_id` immediately, and the frontend polls for the result. Cached queries return synchronously with zero latency and zero cost.
+AI queries are processed asynchronously via SQS. The endpoint returns a `job_id` immediately, and the frontend receives the result instantly via Supabase Realtime WebSocket (no polling). Cached queries return synchronously with zero latency and zero cost.
 
 **Available tools:** `search_hospitals`, `get_top_rated_hospitals`, `get_rating_distribution`, `get_physician_state_analysis`, `get_scarce_specialties`, `get_hospital_infections`, `web_search`, `search_cms_documents`, `get_historical_analytics`
 
@@ -262,6 +263,10 @@ The agent supports **conversational memory**. Each conversation has a unique ID 
 **Structured output validation** — every agent response is validated against a Pydantic schema before being returned. Empty explanations, wrong types, or missing fields are caught and logged before reaching the user.
 
 **Custom DuckDB query endpoint** — `POST /api/v1/analytics/query` accepts any `SELECT` query from authenticated users. In production with sensitive data, this would require an allowlist of permitted tables and columns, stricter rate limiting, and a full audit log. For DataPulse, the underlying CMS data is public, so the exposure risk is low. In production and most important, with sensitive data, the endpoint should not be used as-is in a system handling PII or regulated data.
+
+**Supabase Realtime instead of polling** — AI query results are delivered via WebSocket. When the SQS worker finishes processing, it publishes an `ai_query_done` event to Supabase. The frontend subscribes to the events table and receives the result instantly, eliminating the 2-second polling loop.
+
+**Prompt caching not supported** — attempted `cache_control: ephemeral` on the system prompt via Groq API. The model `openai/gpt-oss-120b` does not support prompt caching. Feature available only on specific models.
 
 ---
 
@@ -316,5 +321,4 @@ poetry run python run_pipeline.py
 
 ## What's next
 
-- Supabase Realtime — WebSockets for live dashboard updates
 - Geographic scalability — support for non-US health data sources (DATASUS for Brazil, NHS for the UK) with region selection before querying. Would require per-country ingestion pipelines, adapted data schemas, and region-aware agent prompts.
