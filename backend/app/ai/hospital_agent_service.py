@@ -283,9 +283,9 @@ async def ask_agent(session: AsyncSession, question: str, username: str = "admin
         forced_tool = {"type": "function", "function": {"name": "get_top_rated_hospitals"}}
 
     messages = [
-        {"role": "system", "content": AGENT_SYSTEM_PROMPT},
-        *history,
-        {"role": "user", "content": question_with_lang},
+    {"role": "system", "content": AGENT_SYSTEM_PROMPT},
+    *history,
+    {"role": "user", "content": question_with_lang},
     ]
 
     MAX_ITERATIONS = 5
