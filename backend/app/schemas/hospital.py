@@ -13,6 +13,8 @@ class Hospital(BaseModel):
     emergency_services: str
     overall_rating: int | None = None
     telephone_number: str | None = None
+    latitude: float | None = None
+    longitude: float | None = None
 
     @field_validator("overall_rating", mode="before")
     @classmethod

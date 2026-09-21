@@ -134,6 +134,12 @@ async def rating_distribution(session: AsyncSession = Depends(get_session)):
     await set_cache(cache_key, data, ttl=3600)
     return data
 
+@router.get("/api/v1/hospitals/nearby")
+async def hospitals_nearby(lat:float, lng:float, radius:float=50.0, min_rating:int | None = None, limit: int=20, session: AsyncSession = Depends(get_session),):
+    from app.repositories.hospital_repository import get_hospitals_nearby
+    results = await get_hospitals_nearby(session, lat, lng, radius, min_rating, limit)
+    return results
+
 @router.get("/api/v1/hospitals/{facility_id}")
 async def get_hospitals_facility_id(facility_id: str, session: AsyncSession = Depends(get_session)):
     hospital = await get_hospitals_by_id(session, facility_id)
@@ -278,4 +284,6 @@ async def save_insight_to_notion(body: NotionSaveRequest, current_user: dict = D
 @router.get("/api/v1/ai/stats")
 async def ai_stats(current_user: dict = Depends(get_current_user)):
     return await get_user_stats(current_user["username"])
+
+
     
