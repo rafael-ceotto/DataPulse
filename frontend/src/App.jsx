@@ -8,6 +8,7 @@ import PipelineRuns from "./components/PipelineRuns";
 import RatingTrend from "./components/RatingTrend";
 import DataQuality from "./components/DataQuality";
 import PipelineAnalytics from "./components/PipelineAnalytics";
+import HospitalsNearMe from "./components/HospitalsNearMe";
 import { theme } from "./theme";
 
 function CIBadge() {
@@ -123,6 +124,7 @@ export default function App() {
         <RatingChart />
         <RatingTrend />
         <DataQuality />
+        <HospitalsNearMe />
         <PhysicianAnalysis />
         <ScarceSpecialties />
         <PipelineRuns />

@@ -147,6 +147,7 @@ async def get_hospitals_nearby(session: AsyncSession, lat: float, lng: float, ra
     result = await session.execute(query)
     rows = result.all()
     
+    # Filter by exact distance
     return [
         {
             "facility_id": h.facility_id,
@@ -164,4 +165,5 @@ async def get_hospitals_nearby(session: AsyncSession, lat: float, lng: float, ra
             "distance_miles": round(distance, 1),
         }
         for h, distance in rows
+        if distance <= radius_miles
     ]
