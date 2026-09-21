@@ -31,11 +31,7 @@ export default function RatingChart() {
         label: "Average Rating",
         data: data.map((d) => d.avg_rating),
         backgroundColor: data.map((d) =>
-          d.avg_rating >= 4
-            ? "#2f9e6f"
-            : d.avg_rating >= 3
-            ? theme.accent
-            : "#c0392b"
+          d.avg_rating >= 4 ? "#2f9e6f" : d.avg_rating >= 3 ? theme.accent : "#c0392b"
         ),
         borderRadius: 6,
         borderSkipped: false,
@@ -76,7 +72,7 @@ export default function RatingChart() {
       <div
         onClick={() => setOpen((o) => !o)}
         style={{
-          background: theme.dark,
+          background: "#101a20",
           border: `1px solid #1e2d35`,
           borderRadius: open ? "14px 14px 0 0" : 14,
           padding: "18px 22px",

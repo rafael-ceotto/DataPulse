@@ -66,7 +66,6 @@ export default function HospitalsNearMe() {
   const [testCity, setTestCity] = useState("");
   const [currentCoords, setCurrentCoords] = useState(null);
 
-  // Re-fetch when radius or minRating changes and we have coords
   useEffect(() => {
     if (!currentCoords) return;
     fetchHospitals(currentCoords.lat, currentCoords.lng, currentCoords.label, radius);
@@ -92,6 +91,16 @@ export default function HospitalsNearMe() {
     } finally {
       setLoading(false);
     }
+  }
+
+  function clearLocation() {
+    setHospitals([]);
+    setCurrentCoords(null);
+    setLocationStatus(null);
+    setTestCity("");
+    setError(null);
+    setMinRating("");
+    setRadius(25);
   }
 
   async function findNearMe() {
@@ -133,12 +142,23 @@ export default function HospitalsNearMe() {
     return "#ff6b6b";
   }
 
+  const selectStyle = {
+    background: "#1b272e",
+    border: `1px solid #2c3b44`,
+    borderRadius: 8,
+    padding: "10px 14px",
+    color: "#fff",
+    fontSize: 13,
+    fontFamily: theme.mono,
+    cursor: "pointer",
+  };
+
   return (
     <section style={{ marginTop: 24 }}>
       <div
         onClick={() => setOpen((o) => !o)}
         style={{
-          background: theme.dark,
+          background: "#101a20",
           border: `1px solid #1e2d35`,
           borderRadius: open ? "14px 14px 0 0" : 14,
           padding: "18px 22px",
@@ -172,18 +192,12 @@ export default function HospitalsNearMe() {
           padding: "24px 22px",
           boxShadow: "0 4px 12px rgba(16,26,32,.3)",
         }}>
-
-          {/* Controls */}
           <div style={{ display: "flex", gap: 12, flexWrap: "wrap", alignItems: "flex-end", marginBottom: 20 }}>
             <div>
               <div style={{ fontFamily: theme.mono, fontSize: 10.5, color: "#6f8a95", letterSpacing: "0.07em", textTransform: "uppercase", marginBottom: 6 }}>
                 Radius (miles)
               </div>
-              <select
-                value={radius}
-                onChange={(e) => setRadius(Number(e.target.value))}
-                style={{ background: theme.darkInput, border: `1px solid #2c3b44`, borderRadius: 8, padding: "10px 14px", color: "#fff", fontSize: 13, fontFamily: theme.mono, cursor: "pointer" }}
-              >
+              <select value={radius} onChange={(e) => setRadius(Number(e.target.value))} style={selectStyle}>
                 {[10, 25, 50, 100].map(r => <option key={r} value={r}>{r} miles</option>)}
               </select>
             </div>
@@ -192,11 +206,7 @@ export default function HospitalsNearMe() {
               <div style={{ fontFamily: theme.mono, fontSize: 10.5, color: "#6f8a95", letterSpacing: "0.07em", textTransform: "uppercase", marginBottom: 6 }}>
                 Min Rating
               </div>
-              <select
-                value={minRating}
-                onChange={(e) => setMinRating(e.target.value)}
-                style={{ background: theme.darkInput, border: `1px solid #2c3b44`, borderRadius: 8, padding: "10px 14px", color: "#fff", fontSize: 13, fontFamily: theme.mono, cursor: "pointer" }}
-              >
+              <select value={minRating} onChange={(e) => setMinRating(e.target.value)} style={selectStyle}>
                 <option value="">Any rating</option>
                 {[1, 2, 3, 4, 5].map(r => <option key={r} value={r}>{"★".repeat(r)} ({r}+)</option>)}
               </select>
@@ -220,16 +230,28 @@ export default function HospitalsNearMe() {
               {loading ? "Searching..." : "📍 Use my location"}
             </button>
 
+            {currentCoords && (
+              <button
+                onClick={clearLocation}
+                style={{
+                  background: "transparent",
+                  border: `1px solid #2c3b44`,
+                  borderRadius: 10,
+                  padding: "11px 16px",
+                  fontSize: 13,
+                  color: "#6f8a95",
+                  cursor: "pointer",
+                }}
+              >
+                ✕ Clear
+              </button>
+            )}
+
             <div>
               <div style={{ fontFamily: theme.mono, fontSize: 10.5, color: "#6f8a95", letterSpacing: "0.07em", textTransform: "uppercase", marginBottom: 6 }}>
                 Or test with a US city
               </div>
-              <select
-                value={testCity}
-                onChange={handleTestCity}
-                disabled={loading}
-                style={{ background: theme.darkInput, border: `1px solid #2c3b44`, borderRadius: 8, padding: "10px 14px", color: "#fff", fontSize: 13, fontFamily: theme.mono, cursor: "pointer", minWidth: 220 }}
-              >
+              <select value={testCity} onChange={handleTestCity} disabled={loading} style={{ ...selectStyle, minWidth: 220 }}>
                 <option value="">Select a city...</option>
                 {US_CITIES.map(c => <option key={c.label} value={c.label}>{c.label}</option>)}
               </select>

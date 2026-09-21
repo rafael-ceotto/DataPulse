@@ -36,9 +36,7 @@ export default function DataQuality() {
         <div style={{ fontSize: 28, fontWeight: 700, color: alert ? "#c0392b" : color, letterSpacing: "-0.02em" }}>
           {value ?? "—"}
         </div>
-        {sub && (
-          <div style={{ fontSize: 12, color: "#6f8a95" }}>{sub}</div>
-        )}
+        {sub && <div style={{ fontSize: 12, color: "#6f8a95" }}>{sub}</div>}
       </div>
     );
   }
@@ -72,7 +70,7 @@ export default function DataQuality() {
       <div
         onClick={() => setOpen((o) => !o)}
         style={{
-          background: theme.dark,
+          background: "#101a20",
           border: `1px solid #1e2d35`,
           borderRadius: open ? "14px 14px 0 0" : 14,
           padding: "18px 22px",
@@ -112,38 +110,11 @@ export default function DataQuality() {
             <div style={{ display: "flex", flexDirection: "column", gap: 20 }}>
               <ProgressBar pct={metrics.completeness_pct} />
               <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(200px, 1fr))", gap: 14 }}>
-                <MetricCard
-                  label="Total Hospitals"
-                  value={metrics.total_hospitals?.toLocaleString() ?? "—"}
-                  sub="CMS facilities in dataset"
-                  color="#dce5e9"
-                />
-                <MetricCard
-                  label="Rated Hospitals"
-                  value={metrics.rated_hospitals?.toLocaleString() ?? "—"}
-                  sub="Have an overall star rating"
-                  color="#2f9e6f"
-                />
-                <MetricCard
-                  label="Unrated Hospitals"
-                  value={metrics.unrated_hospitals?.toLocaleString() ?? "—"}
-                  sub="Missing overall rating"
-                  color="#f0a500"
-                  alert={metrics.unrated_hospitals > 500}
-                />
-                <MetricCard
-                  label="Low Rated (≤2★)"
-                  value={metrics.low_rated_hospitals?.toLocaleString() ?? "—"}
-                  sub="Rated 1 or 2 stars"
-                  color="#c0392b"
-                  alert={metrics.low_rated_hospitals > 0}
-                />
-                <MetricCard
-                  label="Missing Phone"
-                  value={metrics.missing_phone?.toLocaleString() ?? "0"}
-                  sub="No telephone number"
-                  color="#6f8a95"
-                />
+                <MetricCard label="Total Hospitals" value={metrics.total_hospitals?.toLocaleString() ?? "—"} sub="CMS facilities in dataset" color="#dce5e9" />
+                <MetricCard label="Rated Hospitals" value={metrics.rated_hospitals?.toLocaleString() ?? "—"} sub="Have an overall star rating" color="#2f9e6f" />
+                <MetricCard label="Unrated Hospitals" value={metrics.unrated_hospitals?.toLocaleString() ?? "—"} sub="Missing overall rating" color="#f0a500" alert={metrics.unrated_hospitals > 500} />
+                <MetricCard label="Low Rated (≤2★)" value={metrics.low_rated_hospitals?.toLocaleString() ?? "—"} sub="Rated 1 or 2 stars" color="#c0392b" alert={metrics.low_rated_hospitals > 0} />
+                <MetricCard label="Missing Phone" value={metrics.missing_phone?.toLocaleString() ?? "0"} sub="No telephone number" color="#6f8a95" />
               </div>
             </div>
           ) : (

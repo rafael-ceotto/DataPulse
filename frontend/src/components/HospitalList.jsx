@@ -17,28 +17,16 @@ function Stars({ rating }) {
 function exportCSV(hospitals, filename = "hospitals_selected.csv") {
   const headers = ["Facility ID", "Facility Name", "Address", "City", "State", "ZIP Code", "Type", "Ownership", "Emergency Services", "Overall Rating", "Phone", "HAI Worse", "HAI Better", "HAI Average"];
   const rows = hospitals.map((h) => [
-    h.facility_id,
-    h.facility_name,
-    h.address,
-    h.city,
-    h.state,
-    h.zip_code,
-    h.hospital_type,
-    h.hospital_ownership,
-    h.emergency_services,
-    h.overall_rating ?? "",
-    h.telephone_number ?? "",
-    h._infections?.worse ?? "",
-    h._infections?.better ?? "",
-    h._infections?.average ?? "",
+    h.facility_id, h.facility_name, h.address, h.city, h.state, h.zip_code,
+    h.hospital_type, h.hospital_ownership, h.emergency_services,
+    h.overall_rating ?? "", h.telephone_number ?? "",
+    h._infections?.worse ?? "", h._infections?.better ?? "", h._infections?.average ?? "",
   ]);
   const csv = [headers, ...rows].map((r) => r.map((v) => `"${String(v).replace(/"/g, '""')}"`).join(",")).join("\n");
   const blob = new Blob([csv], { type: "text/csv" });
   const url = URL.createObjectURL(blob);
   const a = document.createElement("a");
-  a.href = url;
-  a.download = filename;
-  a.click();
+  a.href = url; a.download = filename; a.click();
   URL.revokeObjectURL(url);
 }
 
@@ -85,7 +73,7 @@ function HospitalCard({ hospital, expanded, onExpand, onClose, onInfectionsLoade
     >
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: 8 }}>
         <div style={{ flex: 1 }}>
-          <h3 style={{ margin: "0 0 6px", fontSize: 15.5, fontWeight: 600, lineHeight: 1.35, letterSpacing: "-0.01em" }}>
+          <h3 style={{ margin: "0 0 6px", fontSize: 15.5, fontWeight: 600, lineHeight: 1.35, letterSpacing: "-0.01em", color: theme.ink }}>
             {hospital.facility_name}
           </h3>
           <div style={{ fontSize: 13.5, color: theme.muted }}>
@@ -95,15 +83,7 @@ function HospitalCard({ hospital, expanded, onExpand, onClose, onInfectionsLoade
         {expanded && (
           <button
             onClick={(e) => { e.stopPropagation(); onClose(); }}
-            style={{
-              background: "none",
-              border: "none",
-              fontSize: 18,
-              color: theme.muted,
-              cursor: "pointer",
-              lineHeight: 1,
-              padding: "0 2px",
-            }}
+            style={{ background: "none", border: "none", fontSize: 18, color: theme.muted, cursor: "pointer", lineHeight: 1, padding: "0 2px" }}
           >
             ✕
           </button>
@@ -135,15 +115,8 @@ function HospitalCard({ hospital, expanded, onExpand, onClose, onInfectionsLoade
             <div style={{ fontFamily: theme.mono, fontSize: 10.5, color: theme.faint, letterSpacing: "0.06em", textTransform: "uppercase", marginBottom: 10 }}>
               Healthcare-Associated Infections
             </div>
-
-            {loadingInfections && (
-              <div style={{ fontSize: 13, color: theme.muted }}>Loading...</div>
-            )}
-
-            {!loadingInfections && infections.length === 0 && (
-              <div style={{ fontSize: 13, color: theme.muted }}>No infection data available.</div>
-            )}
-
+            {loadingInfections && <div style={{ fontSize: 13, color: theme.muted }}>Loading...</div>}
+            {!loadingInfections && infections.length === 0 && <div style={{ fontSize: 13, color: theme.muted }}>No infection data available.</div>}
             {!loadingInfections && infections.length > 0 && (
               <div style={{ display: "flex", gap: 20, flexWrap: "wrap" }}>
                 {[
@@ -152,12 +125,8 @@ function HospitalCard({ hospital, expanded, onExpand, onClose, onInfectionsLoade
                   { label: "— Average", count: average, color: "#6f8a95" },
                 ].map(({ label, count, color }) => (
                   <div key={label} style={{ display: "flex", alignItems: "center", gap: 6 }}>
-                    <span style={{ fontFamily: theme.mono, fontSize: 16, fontWeight: 700, color }}>
-                      {count}
-                    </span>
-                    <span style={{ fontFamily: theme.mono, fontSize: 10.5, color, letterSpacing: "0.04em" }}>
-                      {label}
-                    </span>
+                    <span style={{ fontFamily: theme.mono, fontSize: 16, fontWeight: 700, color }}>{count}</span>
+                    <span style={{ fontFamily: theme.mono, fontSize: 10.5, color, letterSpacing: "0.04em" }}>{label}</span>
                   </div>
                 ))}
               </div>
@@ -215,34 +184,20 @@ export default function HospitalList() {
 
   function handleExpand(hospital) {
     setExpandedId(hospital.facility_id);
-    setSelected((prev) => ({
-      ...prev,
-      [hospital.facility_id]: { ...hospital },
-    }));
+    setSelected((prev) => ({ ...prev, [hospital.facility_id]: { ...hospital } }));
   }
 
   function handleClose(facilityId) {
     setExpandedId(null);
-    setSelected((prev) => {
-      const next = { ...prev };
-      delete next[facilityId];
-      return next;
-    });
+    setSelected((prev) => { const next = { ...prev }; delete next[facilityId]; return next; });
   }
 
   function handleInfectionsLoaded(facilityId, infections) {
-    setSelected((prev) => ({
-      ...prev,
-      [facilityId]: { ...prev[facilityId], _infections: infections },
-    }));
+    setSelected((prev) => ({ ...prev, [facilityId]: { ...prev[facilityId], _infections: infections } }));
   }
 
   function handleClear() {
-    setStateFilter("");
-    setSearch("");
-    setPage(1);
-    setSelected({});
-    setExpandedId(null);
+    setStateFilter(""); setSearch(""); setPage(1); setSelected({}); setExpandedId(null);
   }
 
   async function exportStateCSV() {
@@ -299,48 +254,19 @@ export default function HospitalList() {
           boxShadow: "0 4px 12px rgba(16,26,32,.3)",
         }}>
           <div style={{ display: "flex", gap: 10, flexWrap: "wrap", marginBottom: 20 }}>
-            <input
-              type="text"
-              value={search}
-              onChange={(e) => { setSearch(e.target.value); setPage(1); }}
-              placeholder="Search by hospital name..."
-              style={{ ...control, flex: "1 1 220px" }}
-            />
-            <input
-              type="text"
-              value={stateFilter}
-              onChange={(e) => { setStateFilter(e.target.value); setPage(1); }}
-              placeholder="Filter by state (e.g. TX)"
-              style={{ ...control, width: 180 }}
-            />
-            <button
-              onClick={(e) => { e.stopPropagation(); handleClear(); }}
-              style={{ ...control, cursor: "pointer", color: "#a7b6bf" }}
-            >
-              Clear
-            </button>
+            <input type="text" value={search} onChange={(e) => { setSearch(e.target.value); setPage(1); }} placeholder="Search by hospital name..." style={{ ...control, flex: "1 1 220px" }} />
+            <input type="text" value={stateFilter} onChange={(e) => { setStateFilter(e.target.value); setPage(1); }} placeholder="Filter by state (e.g. TX)" style={{ ...control, width: 180 }} />
+            <button onClick={(e) => { e.stopPropagation(); handleClear(); }} style={{ ...control, cursor: "pointer", color: "#a7b6bf" }}>Clear</button>
             {hospitals.length > 0 && (
-              <button
-                onClick={(e) => { e.stopPropagation(); exportCSV(hospitals, `hospitals_${hospitals[0]?.state || "all"}_page.csv`); }}
-                style={{ ...control, cursor: "pointer", color: theme.mint, borderColor: theme.mint }}
-              >
-                ↓ Export CSV
-              </button>
+              <button onClick={(e) => { e.stopPropagation(); exportCSV(hospitals, `hospitals_${hospitals[0]?.state || "all"}_page.csv`); }} style={{ ...control, cursor: "pointer", color: theme.mint, borderColor: theme.mint }}>↓ Export CSV</button>
             )}
             {stateFilter && hospitals.length > 0 && (
-              <button
-                onClick={(e) => { e.stopPropagation(); exportStateCSV(); }}
-                disabled={exportingState}
-                style={{ ...control, cursor: exportingState ? "wait" : "pointer", color: "#a78bfa", borderColor: "#a78bfa", opacity: exportingState ? 0.7 : 1 }}
-              >
+              <button onClick={(e) => { e.stopPropagation(); exportStateCSV(); }} disabled={exportingState} style={{ ...control, cursor: exportingState ? "wait" : "pointer", color: "#a78bfa", borderColor: "#a78bfa", opacity: exportingState ? 0.7 : 1 }}>
                 {exportingState ? "Exporting..." : `↓ Export All ${stateFilter}`}
               </button>
             )}
             {selectedList.length > 0 && (
-              <button
-                onClick={(e) => { e.stopPropagation(); exportCSV(selectedList, "hospitals_selected.csv"); }}
-                style={{ ...control, cursor: "pointer", color: "#f0a500", borderColor: "#f0a500" }}
-              >
+              <button onClick={(e) => { e.stopPropagation(); exportCSV(selectedList, "hospitals_selected.csv"); }} style={{ ...control, cursor: "pointer", color: "#f0a500", borderColor: "#f0a500" }}>
                 ★ Export Selected ({selectedList.length})
               </button>
             )}
@@ -366,17 +292,11 @@ export default function HospitalList() {
           )}
 
           <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 16, flexWrap: "wrap", marginTop: 24 }}>
-            <div style={{ fontFamily: theme.mono, fontSize: 12, color: "#6f8a95" }}>
-              Page {page}
-            </div>
+            <div style={{ fontFamily: theme.mono, fontSize: 12, color: "#6f8a95" }}>Page {page}</div>
             <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
-              <button onClick={() => setPage((p) => Math.max(1, p - 1))} disabled={page === 1} style={{ ...control, borderRadius: 9, cursor: "pointer", fontSize: 13.5 }}>
-                Prev
-              </button>
+              <button onClick={() => setPage((p) => Math.max(1, p - 1))} disabled={page === 1} style={{ ...control, borderRadius: 9, cursor: "pointer", fontSize: 13.5 }}>Prev</button>
               <button style={pageBtn(true)}>{page}</button>
-              <button onClick={() => setPage((p) => p + 1)} disabled={hospitals.length < limit} style={{ ...control, borderRadius: 9, cursor: "pointer", fontSize: 13.5 }}>
-                Next
-              </button>
+              <button onClick={() => setPage((p) => p + 1)} disabled={hospitals.length < limit} style={{ ...control, borderRadius: 9, cursor: "pointer", fontSize: 13.5 }}>Next</button>
             </div>
           </div>
         </div>

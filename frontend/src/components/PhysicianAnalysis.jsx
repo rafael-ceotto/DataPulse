@@ -10,50 +10,49 @@ const US_STATES = [
   "DC","PR","GU","VI"
 ];
 
-export default function PhysicianAnalysis(){
-    const [open, setOpen] = useState(false);
-    const [state, setState] =  useState("OH");
-    const [data, setData] = useState(null);
-    const [loading, setLoading] = useState(false);
-    const [error, setError] = useState(null);
+export default function PhysicianAnalysis() {
+  const [open, setOpen] = useState(false);
+  const [state, setState] = useState("OH");
+  const [data, setData] = useState(null);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState(null);
 
-    async function analyze(){
-        setLoading(true);
-        setError(null);
-        setData(null);
-        try{
-            const res = await fetch(`/api/v1/physicians/state-analysis/${state}`);
-            if(!res.ok) throw new Error("Failed to fetch data");
-            setData(await res.json());
-        } catch(e){
-            setError("Could not load analysis. Try again");
-        } finally{
-            setLoading(false);
-        }
+  async function analyze() {
+    setLoading(true);
+    setError(null);
+    setData(null);
+    try {
+      const res = await fetch(`/api/v1/physicians/state-analysis/${state}`);
+      if (!res.ok) throw new Error("Failed to fetch data");
+      setData(await res.json());
+    } catch (e) {
+      setError("Could not load analysis. Try again");
+    } finally {
+      setLoading(false);
     }
+  }
 
-    const metrics = data ? [
-        { label: "State", value: data.state},
-        { label: "Physicians", value: data.physician_count?.toLocaleString()},
-        { label: "Hospitals", value: data.hospital_count?.toLocaleString()},
-        { label: "Avg Hospital Rating", value: data.avg_hospital_rating ? `${data.avg_hospital_rating} / 5` : "—" },
-        { label: "Physicians per Hospital", value: data.physicians_per_hospital?.toLocaleString() },
-        
-    ] : [];
+  const metrics = data ? [
+    { label: "State", value: data.state },
+    { label: "Physicians", value: data.physician_count?.toLocaleString() },
+    { label: "Hospitals", value: data.hospital_count?.toLocaleString() },
+    { label: "Avg Hospital Rating", value: data.avg_hospital_rating ? `${data.avg_hospital_rating} / 5` : "—" },
+    { label: "Physicians per Hospital", value: data.physicians_per_hospital?.toLocaleString() },
+  ] : [];
 
-    const ratingColor = (rating) => {
-        if(!rating) return "#6f8a95";
-        if(rating >= 4) return "#2f9e6f";
-        if(rating >=3) return theme.accent;
-        return "#c0392b";
-    }
+  const ratingColor = (rating) => {
+    if (!rating) return "#6f8a95";
+    if (rating >= 4) return "#2f9e6f";
+    if (rating >= 3) return theme.accent;
+    return "#c0392b";
+  };
 
-    return (
+  return (
     <section style={{ marginTop: 24 }}>
       <div
         onClick={() => setOpen((o) => !o)}
         style={{
-          background: theme.dark,
+          background: "#101a20",
           border: `1px solid #1e2d35`,
           borderRadius: open ? "14px 14px 0 0" : 14,
           padding: "18px 22px",
@@ -130,11 +129,7 @@ export default function PhysicianAnalysis(){
           )}
 
           {data && (
-            <div style={{
-              display: "grid",
-              gridTemplateColumns: "repeat(auto-fill, minmax(200px, 1fr))",
-              gap: 12,
-            }}>
+            <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(200px, 1fr))", gap: 12 }}>
               {metrics.map(({ label, value }) => (
                 <div
                   key={label}
@@ -151,9 +146,7 @@ export default function PhysicianAnalysis(){
                   <div style={{
                     fontSize: 20,
                     fontWeight: 700,
-                    color: label === "Avg Hospital Rating"
-                      ? ratingColor(data.avg_hospital_rating)
-                      : "#fff",
+                    color: label === "Avg Hospital Rating" ? ratingColor(data.avg_hospital_rating) : "#fff",
                     fontFamily: label !== "State" ? theme.mono : theme.sans,
                   }}>
                     {value}
@@ -171,6 +164,5 @@ export default function PhysicianAnalysis(){
         </div>
       )}
     </section>
-  );    
-    
+  );
 }

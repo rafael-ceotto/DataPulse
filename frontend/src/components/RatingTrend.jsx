@@ -45,7 +45,7 @@ export default function RatingTrend() {
         label: "Avg Hospital Rating",
         data: runs.map((r) => r.avg_rating),
         borderColor: theme.mint,
-        backgroundColor: "rgba(47, 158, 111, 0.08)",
+        backgroundColor: "rgba(133, 214, 198, 0.08)",
         pointBackgroundColor: theme.mint,
         pointRadius: 4,
         pointHoverRadius: 6,
@@ -96,7 +96,7 @@ export default function RatingTrend() {
       <div
         onClick={() => setOpen((o) => !o)}
         style={{
-          background: theme.dark,
+          background: "#101a20",
           border: `1px solid #1e2d35`,
           borderRadius: open ? "14px 14px 0 0" : 14,
           padding: "18px 22px",

@@ -11,125 +11,159 @@ import PipelineAnalytics from "./components/PipelineAnalytics";
 import HospitalsNearMe from "./components/HospitalsNearMe";
 import { theme } from "./theme";
 
-function CIBadge() {
-  const [status, setStatus] = useState(null);
+const TABS = [
+  { id: "hospitals", label: "Hospitals" },
+  { id: "analytics", label: "Analytics" },
+  { id: "pipeline", label: "Pipeline" },
+  { id: "physicians", label: "Physicians" },
+];
 
+function useCIStatus() {
+  const [status, setStatus] = useState(null);
   useEffect(() => {
-    function fetchStatus() {
+    function fetch_() {
       fetch("https://api.github.com/repos/rafael-ceotto/DataPulse/actions/runs?per_page=1")
         .then((r) => r.json())
         .then((data) => {
           const run = data.workflow_runs?.[0];
           if (run) setStatus(run.conclusion);
         })
-        .catch(() => setStatus(null));
+        .catch(() => {});
     }
-
-    fetchStatus();
-    const interval = setInterval(fetchStatus, 60000);
-    return () => clearInterval(interval);
+    fetch_();
+    const id = setInterval(fetch_, 60000);
+    return () => clearInterval(id);
   }, []);
-
-  const color = status === "success" ? "#2f9e6f" : status === "failure" ? "#c0392b" : "#6f8a95";
-  const label = status === "success" ? "CI passing" : status === "failure" ? "CI failing" : "CI unknown";
-
-  return (
-    <>
-      <span style={{ width: 7, height: 7, borderRadius: "50%", background: color }} />
-      <span>5,419 facilities · {label}</span>
-    </>
-  );
+  return status;
 }
 
-function Header() {
+function MetricCard({ label, value, accent }) {
   return (
-    <header style={{ background: theme.surface, borderBottom: `1px solid #e3e7ea` }}>
-      <div
-        style={{
-          maxWidth: 1160,
-          margin: "0 auto",
-          padding: "22px 28px",
-          display: "flex",
-          alignItems: "center",
-          justifyContent: "space-between",
-          gap: 20,
-          flexWrap: "wrap",
-        }}
-      >
-        <div style={{ display: "flex", alignItems: "center", gap: 14 }}>
-          <div
-            style={{
-              width: 40,
-              height: 40,
-              borderRadius: 11,
-              background: theme.accent,
-              display: "flex",
-              alignItems: "center",
-              justifyContent: "center",
-              gap: 3,
-            }}
-          >
-            {[10, 18, 13].map((h, i) => (
-              <span
-                key={i}
-                style={{
-                  display: "block",
-                  width: 3,
-                  height: h,
-                  borderRadius: 2,
-                  background: "#fff",
-                  animation: `dp-pulse 1.4s ease-in-out ${i * 0.2}s infinite`,
-                }}
-              />
-            ))}
-          </div>
-          <div>
-            <div style={{ fontSize: 22, fontWeight: 700, letterSpacing: "-0.02em", lineHeight: 1.1 }}>DataPulse</div>
-            <div style={{ fontSize: 13, color: theme.muted, marginTop: 3 }}>CMS Hospital Quality Data</div>
-          </div>
-        </div>
-        <div
-          style={{
-            display: "flex",
-            alignItems: "center",
-            gap: 10,
-            fontFamily: theme.mono,
-            fontSize: 11,
-            letterSpacing: "0.06em",
-            textTransform: "uppercase",
-            color: theme.muted,
-          }}
-        >
-          <CIBadge />
-        </div>
+    <div style={{
+      background: "#16222a",
+      border: `1px solid #1e2d35`,
+      borderRadius: 12,
+      padding: "16px 20px",
+      flex: "1 1 160px",
+    }}>
+      <div style={{ fontFamily: theme.mono, fontSize: 10, color: "#6f8a95", letterSpacing: "0.07em", textTransform: "uppercase", marginBottom: 8 }}>
+        {label}
       </div>
-    </header>
+      <div style={{ fontSize: 22, fontWeight: 700, color: accent || "#dce5e9", letterSpacing: "-0.02em" }}>
+        {value}
+      </div>
+    </div>
   );
 }
 
 export default function App() {
+  const [activeTab, setActiveTab] = useState("hospitals");
+  const ciStatus = useCIStatus();
+  const ciColor = ciStatus === "success" ? theme.mint : ciStatus === "failure" ? "#ff6b6b" : "#6f8a95";
+  const ciLabel = ciStatus === "success" ? "CI passing" : ciStatus === "failure" ? "CI failing" : "CI unknown";
+
   return (
-    <div style={{ minHeight: "100vh", background: theme.bg, color: theme.ink, fontFamily: theme.sans, paddingBottom: 72 }}>
+    <div style={{ minHeight: "100vh", background: "#f4f6f8", color: theme.ink, fontFamily: theme.sans }}>
       <style>{`
         @import url('https://fonts.googleapis.com/css2?family=Instrument+Sans:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500&display=swap');
-        body { margin: 0; background: ${theme.bg}; }
-        a { color: ${theme.accent}; text-decoration: none; }
-        a:hover { color: #0b566c; text-decoration: underline; }
-        input, button { font-family: inherit; }
-        @keyframes dp-pulse { 0%,100% { opacity: .25; transform: scaleY(.5); } 50% { opacity: 1; transform: scaleY(1); } }
+        body { margin: 0; background: #f4f6f8; }
+        * { box-sizing: border-box; }
+        @keyframes dp-pulse { 0%,100% { opacity:.25; transform:scaleY(.5); } 50% { opacity:1; transform:scaleY(1); } }
+        @keyframes pulse { 0% { opacity:1; } 50% { opacity:0.4; } 100% { opacity:1; } }
       `}</style>
-      <Header />
-      <main style={{ maxWidth: 1160, margin: "0 auto", padding: 28 }}>
+
+      {/* Header */}
+      <header style={{
+        borderBottom: `1px solid #e6eaec`,
+        padding: "16px 40px",
+        display: "flex",
+        alignItems: "center",
+        justifyContent: "space-between",
+        background: "#ffffff",
+      }}>
+        <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
+          <div style={{
+            width: 36, height: 36, borderRadius: 9,
+            background: theme.accent,
+            display: "flex", alignItems: "center", justifyContent: "center", gap: 3,
+          }}>
+            {[10, 18, 13].map((h, i) => (
+              <span key={i} style={{
+                display: "block", width: 3, height: h, borderRadius: 2,
+                background: "#fff",
+                animation: `dp-pulse 1.4s ease-in-out ${i * 0.2}s infinite`,
+              }} />
+            ))}
+          </div>
+          <div>
+            <div style={{ fontSize: 18, fontWeight: 700, letterSpacing: "-0.02em", color: theme.ink }}>DataPulse</div>
+            <div style={{ fontSize: 11, color: theme.muted, fontFamily: theme.mono }}>CMS Hospital Quality Data</div>
+          </div>
+        </div>
+      </header>
+
+      <main style={{ maxWidth: 1400, margin: "0 auto", padding: "32px 40px" }}>
+
+        {/* AI Query */}
         <AIQuery />
-        <RatingChart />
-        <RatingTrend />
-        <DataQuality />
-        <HospitalsNearMe />
-        <PhysicianAnalysis />
-        <ScarceSpecialties />
-        <PipelineRuns />
-        <PipelineAnalytics />
-        <HospitalList />
+
+        {/* Metric cards */}
+        <div style={{ display: "flex", gap: 12, marginTop: 24, flexWrap: "wrap" }}>
+          <MetricCard label="Facilities" value="5,419" accent={theme.mint} />
+          <MetricCard label="Avg Rating" value="3.21 ★" accent="#f1c40f" />
+          <MetricCard label="Completeness" value="58.6%" accent="#dce5e9" />
+          <MetricCard label="CI Status" value={ciLabel} accent={ciColor} />
+        </div>
+
+        {/* Tabs */}
+        <div style={{ display: "flex", gap: 4, marginTop: 36, borderRadius: 12, padding: "4px", width: "fit-content",}}>
+          {TABS.map((tab) => (
+            <button
+              key={tab.id}
+              onClick={() => setActiveTab(tab.id)}
+              style={{
+                background: activeTab === tab.id ? "#0F6F8C" : "#85d6c6",
+                border: "none",
+                borderRadius: 9,
+                color: activeTab === tab.id ? "#ffffff" : theme.ink,
+                fontFamily: theme.sans,
+                fontSize: 14,
+                fontWeight: activeTab === tab.id ? 600 : 400,
+                padding: "8px 20px",
+                cursor: "pointer",
+                transition: "all 0.15s",
+                boxShadow: activeTab === tab.id ? "0 1px 4px rgba(0,0,0,.15)" : "none",
+              }}
+            >
+              {tab.label}
+            </button>
+          ))}
+        </div>
+
+        {/* Tab content */}
+        <div style={{ marginTop: 24 }}>
+          {activeTab === "hospitals" && (
+            <>
+              <HospitalsNearMe />
+              <RatingChart />
+              <DataQuality />
+              <HospitalList />
+            </>
+          )}
+          {activeTab === "analytics" && (
+            <>
+              <RatingTrend />
+              <PipelineAnalytics />
+            </>
+          )}
+          {activeTab === "pipeline" && <PipelineRuns />}
+          {activeTab === "physicians" && (
+            <>
+              <PhysicianAnalysis />
+              <ScarceSpecialties />
+            </>
+          )}
+        </div>
       </main>
     </div>
   );

@@ -56,7 +56,6 @@ export default function PipelineRuns() {
     setProgress(0);
     setProgressMessage(PROGRESS_MESSAGES[0]);
     let current = 0;
-    let msgIndex = 0;
 
     progressInterval.current = setInterval(() => {
       if (current < 95) {
@@ -67,7 +66,7 @@ export default function PipelineRuns() {
         if (current >= 99) current = 99;
       }
 
-      msgIndex = Math.min(
+      const msgIndex = Math.min(
         Math.floor((current / 99) * PROGRESS_MESSAGES.length),
         PROGRESS_MESSAGES.length - 1
       );
@@ -82,10 +81,7 @@ export default function PipelineRuns() {
     clearInterval(pollingInterval.current);
     if (success) {
       setProgress(100);
-      setTimeout(() => {
-        setProgress(0);
-        setRunning(false);
-      }, 1500);
+      setTimeout(() => { setProgress(0); setRunning(false); }, 1500);
     } else {
       setProgress(0);
       setRunning(false);
@@ -112,9 +108,7 @@ export default function PipelineRuns() {
           stopProgress(false);
           await fetchRuns();
         }
-      } catch {
-        // keep polling
-      }
+      } catch { }
     }, 5000);
   }
 
@@ -151,7 +145,7 @@ export default function PipelineRuns() {
       <div
         onClick={() => setOpen((o) => !o)}
         style={{
-          background: theme.dark,
+          background: "#101a20",
           border: `1px solid #1e2d35`,
           borderRadius: open ? "14px 14px 0 0" : 14,
           padding: "18px 22px",
@@ -185,8 +179,6 @@ export default function PipelineRuns() {
           padding: "24px 22px",
           boxShadow: "0 4px 12px rgba(16,26,32,.3)",
         }}>
-
-          {/* Run Pipeline button + progress */}
           <div style={{ marginBottom: 20 }}>
             <div style={{ display: "flex", alignItems: "center", gap: 12, marginBottom: running ? 10 : 0 }}>
               <button
@@ -206,12 +198,8 @@ export default function PipelineRuns() {
               >
                 {running ? `Running... ${progress}%` : "▶ Run Pipeline"}
               </button>
-              {runSuccess && (
-                <span style={{ fontSize: 13, color: theme.mint }}>{runSuccess}</span>
-              )}
-              {runError && (
-                <span style={{ fontSize: 13, color: "#ff6b6b" }}>{runError}</span>
-              )}
+              {runSuccess && <span style={{ fontSize: 13, color: theme.mint }}>{runSuccess}</span>}
+              {runError && <span style={{ fontSize: 13, color: "#ff6b6b" }}>{runError}</span>}
             </div>
 
             {running && (
@@ -233,7 +221,6 @@ export default function PipelineRuns() {
             )}
           </div>
 
-          {/* Runs table */}
           {loading ? (
             <div style={{ color: "#6f8a95", fontSize: 14 }}>Loading...</div>
           ) : runs.length === 0 ? (

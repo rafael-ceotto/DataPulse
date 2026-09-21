@@ -52,7 +52,6 @@ export default function ScarceSpecialties() {
       .then(d => setCacheReady(d.national_specialty_cache === "ready"));
   }, [open]);
 
-  // Poll cache status while warming up
   useEffect(() => {
     if (!warmingUp || cacheReady) return;
     const interval = setInterval(() => {
@@ -82,20 +81,16 @@ export default function ScarceSpecialties() {
     setData(null);
     try {
       const res = await fetch(`/api/v1/physicians/scarce-specialties/${state}`);
-
-      // Cache not ready — backend started warm-up automatically
       if (res.status === 202) {
         setWarmingUp(true);
         setCacheReady(false);
         setError("Cache is being prepared automatically. This takes 2-5 minutes on first load. The page will update when ready — no action needed.");
         return;
       }
-
       if (!res.ok) {
         setError("Could not load analysis. Try again.");
         return;
       }
-
       const json = await res.json();
       setData(json);
       setStateCacheReady(true);
@@ -111,7 +106,7 @@ export default function ScarceSpecialties() {
       <div
         onClick={() => setOpen((o) => !o)}
         style={{
-          background: theme.dark,
+          background: "#101a20",
           border: `1px solid #1e2d35`,
           borderRadius: open ? "14px 14px 0 0" : 14,
           padding: "18px 22px",
@@ -145,7 +140,6 @@ export default function ScarceSpecialties() {
           padding: "24px 22px",
           boxShadow: "0 4px 12px rgba(16,26,32,.3)",
         }}>
-          {/* Cache status */}
           <div style={{ marginBottom: 20, padding: "14px 16px", background: "#101a20", borderRadius: 10, border: `1px solid #24323a` }}>
             <div style={{ marginBottom: 8 }}>
               <StatusDot
@@ -175,7 +169,6 @@ export default function ScarceSpecialties() {
             )}
           </div>
 
-          {/* Controls */}
           <div style={{ display: "flex", gap: 10, marginBottom: 24, flexWrap: "wrap" }}>
             <select
               value={state}
@@ -215,7 +208,15 @@ export default function ScarceSpecialties() {
           </div>
 
           {error && (
-            <div style={{ color: warmingUp ? "#f1c40f" : "#ff6b6b", fontSize: 14, marginBottom: 16, padding: "12px 16px", background: warmingUp ? "#1a1500" : "#1a1010", borderRadius: 10, border: `1px solid ${warmingUp ? "#3a3000" : "#3a1a1a"}` }}>
+            <div style={{
+              color: warmingUp ? "#f1c40f" : "#ff6b6b",
+              fontSize: 14,
+              marginBottom: 16,
+              padding: "12px 16px",
+              background: warmingUp ? "#1a1500" : "#1a1010",
+              borderRadius: 10,
+              border: `1px solid ${warmingUp ? "#3a3000" : "#3a1a1a"}`,
+            }}>
               {warmingUp ? "⏳" : "⚠"} {error}
             </div>
           )}
