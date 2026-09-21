@@ -24,6 +24,7 @@ CMS (Centers for Medicare & Medicaid Services) data is public. 5,419 hospitals. 
 - **Infra:** Docker, Docker Compose, GitHub Actions CI/CD
 - **Frontend:** React + Vite
 - **Integrations:** Slack, Notion, GitHub
+- **Geolocation:** ZIP code geocoding via US Census lookup (33,792 ZIP codes) (hospital proximity search)
 
 ---
 
@@ -187,6 +188,7 @@ docker compose --profile dbt run --rm dbt
 | GET | `/api/v1/analytics/rating-changes` | States with most change across runs |
 | GET | `/api/v1/analytics/hospital-appearances` | Hospitals missing from some runs |
 | POST | `🔒 /api/v1/analytics/query` | Custom DuckDB SQL query over S3 snapshots |
+| GET | `/api/v1/hospitals/nearby` | Hospitals within radius. Supports `lat`, `lng`, `radius`, `min_rating` |
 
 ---
 
@@ -205,6 +207,8 @@ GITHUB_TOKEN=...              # optional
 GITHUB_REPO=your-username/DataPulse
 PIPELINE_INTERVAL_HOURS=6
 AI_RATE_LIMIT_PER_MINUTE=5
+SUPABASE_URL=https://...      # required for Realtime
+SUPABASE_ANON_KEY=eyJ...      # required for Realtime
 ```
 
 ---
@@ -267,6 +271,8 @@ The agent supports **conversational memory**. Each conversation has a unique ID 
 **Supabase Realtime instead of polling** — AI query results are delivered via WebSocket. When the SQS worker finishes processing, it publishes an `ai_query_done` event to Supabase. The frontend subscribes to the events table and receives the result instantly, eliminating the 2-second polling loop.
 
 **Prompt caching not supported** — attempted `cache_control: ephemeral` on the system prompt via Groq API. The model `openai/gpt-oss-120b` does not support prompt caching. Feature available only on specific models.
+
+**ZIP code geocoding instead of a geocoding API** — hospital coordinates are derived from ZIP codes using a public US Census lookup table with 33,792 entries. Zero cost, zero external dependency, works offline. Proximity search uses a Haversine approximation in PostgreSQL with an exact distance filter in Python to ensure radius accuracy.
 
 ---
 
