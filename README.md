@@ -22,7 +22,7 @@ CMS (Centers for Medicare & Medicaid Services) data is public. 5,419 hospitals. 
 - **Observability:** Prometheus, Grafana, Loki, structlog
 - **Realtime:** Supabase Realtime (WebSocket events for AI queries and pipeline runs)
 - **Infra:** Docker, Docker Compose, GitHub Actions CI/CD
-- **Frontend:** React + Vite
+- **Frontend:** React + Vite + tab navigation (Hospitals, Analytics, Pipeline, Physicians), metric cards, dark collapsibles with white hospital cards, geolocation component with 51 US city presets
 - **Integrations:** Slack, Notion, GitHub
 - **Geolocation:** ZIP code geocoding via US Census lookup (33,792 ZIP codes) (hospital proximity search)
 
@@ -273,6 +273,8 @@ The agent supports **conversational memory**. Each conversation has a unique ID 
 **Prompt caching not supported** — attempted `cache_control: ephemeral` on the system prompt via Groq API. The model `openai/gpt-oss-120b` does not support prompt caching. Feature available only on specific models.
 
 **ZIP code geocoding instead of a geocoding API** — hospital coordinates are derived from ZIP codes using a public US Census lookup table with 33,792 entries. Zero cost, zero external dependency, works offline. Proximity search uses a Haversine approximation in PostgreSQL with an exact distance filter in Python to ensure radius accuracy.
+
+**Tab-based layout with dark collapsibles** — the frontend is organized into four tabs (Hospitals, Analytics, Pipeline, Physicians) with the AI query as the permanent hero element. Collapsibles use a dark theme (#101a20) against a light background (#f4f6f8), while hospital cards use white with dark text for maximum readability and a clinical feel appropriate to the health data domain.
 
 ---
 
