@@ -329,4 +329,4 @@ poetry run python run_pipeline.py
 
 ## What's next
 
-- Geographic scalability — support for non-US health data sources (DATASUS for Brazil, NHS for the UK) with region selection before querying. Would require per-country ingestion pipelines, adapted data schemas, and region-aware agent prompts.
+- Geographic scalability — support for non-US health data sources (DATASUS for Brazil, NHS for the UK) with region selection before querying. Would require per-country ingestion pipelines, adapted data schemas, and region-aware agent prompts. It'll take some time to make these adjustments.
