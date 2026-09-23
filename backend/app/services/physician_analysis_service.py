@@ -9,6 +9,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.cache import get_cache, set_cache
 from app.models.hospital import Hospital as HospitalModel
+from app.core.logging import logger
 
 CMS_PHYSICIAN_API = "https://data.cms.gov/provider-data/api/1/datastore/query/mj5m-pzi6/0"
 CACHE_KEY = "physician_state_counts"
@@ -188,6 +189,20 @@ async def get_scarce_specialties(state: str) -> list[dict]:
     cached = await get_cache(cache_key)
     if cached:
         return cached
+
+    # Try Parquet first (PySpark processed data — full 3.3M records)
+    try:
+        from app.core.duckdb_analytics import get_scarce_specialties_from_parquet
+        parquet_results = get_scarce_specialties_from_parquet(state)
+        if parquet_results:
+            logger.info("scarce_specialties_from_parquet", state=state, count=len(parquet_results))
+            await set_cache(cache_key, parquet_results, ttl=3600)
+            return parquet_results
+    except Exception as e:
+        logger.error("scarce_specialties_parquet_failed", state=state, error=str(e))
+
+    # Fallback to sampling if Parquet not available
+    logger.info("scarce_specialties_fallback_sampling", state=state)
 
     national_counts = await get_cache(NATIONAL_SPECIALTY_CACHE_KEY)
 

@@ -119,3 +119,52 @@ def get_hospital_appearances() -> list[dict]:
         ORDER BY appearances ASC
         LIMIT 20
     """)
+    
+def get_scarce_specialties_from_parquet(state:str) -> list[dict]:
+    """Read physician specialty Parquet from S3"""
+    """Return top-k(10) scarce specialties for state"""
+    """Requires PySpark job to run first"""
+    client =  get_s3_client()
+    prefix = f"physicians/processed/specialties/state={state}"
+    
+    #If parquet -> True
+    response = client.list_objects_v2(Bucket=BUCKET_NAME, Prefix=prefix)
+    objects = response.get("Contents", [])
+    parquet_files = [obj["Key"] for obj in objects if obj["Key"].endswith(".parquet")]
+    if not parquet_files:
+        return []
+    
+    #2nd -> Download file to temp
+    import tempfile
+    import os
+    
+    tmp_files = []
+    for key in parquet_files:
+        body = client.get_object(Bucket=BUCKET_NAME, Key=key)["Body"].read()
+        tmp = tempfile.NamedTemporaryFile(delete=False, suffix=".parquet")
+        tmp.write(body)
+        tmp.close()
+        tmp_files.append(tmp.name)
+    
+    try:
+        con = duckdb.connect()
+        files_str = ", ".join([f"'{f}'" for f in tmp_files])
+        result = con.execute(f"""
+            SELECT
+                specialty,
+                state_count,
+                national_count,
+                ROUND(CAST(state_count AS DOUBLE) / national_count * 100, 2) AS state_share_pct,
+                ROUND(1.0 / 56 * 100, 2) AS expected_share_pct,
+                ROUND(scarcity_ratio, 3) AS scarcity_ratio,
+                gap
+            FROM read_parquet([{files_str}])
+            WHERE scarcity_ratio < 0.5
+            ORDER BY scarcity_ratio ASC
+            LIMIT 10
+        """).fetchdf()
+        con.close()
+        return result.to_dict(orient="records")
+    finally:
+        for f in tmp_files:
+            os.unlink(f)
