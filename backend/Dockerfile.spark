@@ -1,0 +1,16 @@
+FROM python:3.13-slim
+
+WORKDIR /app
+
+# Java for PySpark
+RUN apt-get update && apt-get install -y \
+    default-jdk \
+    && rm -rf /var/lib/apt/lists/*
+
+# light installation
+RUN pip install pyspark==3.5.1 httpx boto3 structlog
+
+COPY backend/app/ ./app/
+COPY backend/scripts/ ./scripts/
+
+CMD ["python", "scripts/process_physicians_spark.py"]

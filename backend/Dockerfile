@@ -13,6 +13,7 @@ RUN python -c "from sentence_transformers import SentenceTransformer; SentenceTr
 
 COPY backend/app/ ./app/
 COPY backend/datapulse/ ./datapulse/
+COPY backend/scripts/ ./scripts/
 
 EXPOSE 8000
 

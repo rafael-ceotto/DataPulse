@@ -202,6 +202,24 @@ services:
         echo 'Floci buckets ready'
       "
     restart: "no"
+  
+  physician_processor:
+    build:
+      context: .
+      dockerfile: backend/Dockerfile.spark
+    container_name: datapulse_physician_processor
+    environment:
+      FLOCI_ENDPOINT_URL: http://floci:4566
+      AWS_ACCESS_KEY_ID: test
+      AWS_SECRET_ACCESS_KEY: test
+      AWS_DEFAULT_REGION: us-east-1
+      S3_BUCKET_NAME: datapulse
+    env_file:
+      - backend/.env
+    depends_on:
+      - floci
+    profiles:
+      - spark
 
 volumes:
   postgres_data:
