@@ -25,6 +25,7 @@ CMS (Centers for Medicare & Medicaid Services) data is public. 5,419 hospitals. 
 - **Frontend:** React + Vite + tab navigation (Hospitals, Analytics, Pipeline, Physicians), metric cards, dark collapsibles with white hospital cards, geolocation component with 51 US city presets
 - **Integrations:** Slack, Notion, GitHub
 - **Geolocation:** ZIP code geocoding via US Census lookup (33,792 ZIP codes) (hospital proximity search)
+- **Big Data:** PySpark 3.5 — full 3.3M physician records processed as temporary Docker container, output saved as Parquet to S3
 
 ---
 
@@ -254,7 +255,7 @@ The agent supports **conversational memory**. Each conversation has a unique ID 
 
 **Floci instead of LocalStack** — LocalStack Community was sunset in March 2026. Floci is the MIT-licensed replacement: no account, no token, ~90MB, starts in ~24ms. Moving to real AWS S3 is a one-line change.
 
-**Sampling for specialty analysis** — 50,000 records sampled from 3.3M to estimate national specialty counts. Reduces API calls from ~2,200 to ~33.
+**PySpark for full physician dataset** — the scarce specialties analysis previously sampled 50,000 records from 3.3M. PySpark now processes the full dataset as a temporary container (`docker compose --profile spark run --rm physician_processor`), saves results as Parquet to S3 partitioned by state, and DuckDB reads them in milliseconds. The endpoint falls back to sampling if the Parquet is not available. When DATASUS, NHS and other countries are added, the total volume will exceed 10M records and at that point PySpark stops being a choice and becomes the only viable option.
 
 **JWT-based rate limiting** — each authenticated user has an independent 5/min limit, regardless of IP. Multi-tenant ready.
 
@@ -324,7 +325,13 @@ docker compose logs api --tail=30
 # Run pipeline directly (bypasses Nginx timeout on slow connections)
 cd backend
 poetry run python run_pipeline.py
+
+# Run PySpark physician processing job (processes full 3.3M records)
+docker compose --profile spark build physician_processor
+docker compose --profile spark run --rm physician_processor
 ```
+
+
 ---
 
 ## What's next
