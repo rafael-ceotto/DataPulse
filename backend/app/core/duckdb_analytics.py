@@ -150,7 +150,7 @@ def get_scarce_specialties_from_parquet(state:str) -> list[dict]:
         con = duckdb.connect()
         files_str = ", ".join([f"'{f}'" for f in tmp_files])
         result = con.execute(f"""
-            SELECT
+            SELECT DISTINCT
                 specialty,
                 state_count,
                 national_count,
