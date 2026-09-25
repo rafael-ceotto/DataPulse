@@ -1,75 +1,10 @@
 import os
 import boto3
 import tempfile
+import time
+import httpx
 import pysus
-from pyspark.sql import SparkSession
-from pyspark.sql import functions as F
-
-s3_ENDPOINT = os.getenv("FLOCI_ENDPOINT_URL", "http://floci:4566")
-s3_BUCKET = os.getenv("s3_BUCKET_NAME", "datapulse")
-AWS_ACCESS_KEY_ID = os.getenv("AWS_ACCESS_KEY_ID", "test")
-AWS_SECRET_ACCESS_KEY = os.getenv("AWS_SECRET_ACCESS_KEY", "test")
-AWS_REGION = os.getenv("AWS_DEFAULT_REGION", "us-east-1")
-
-#BR states
-BR_STATES = [
-    "AC","AL","AP","AM","BA","CE","DF","ES","GO","MA",
-    "MT","MS","MG","PA","PB","PR","PE","PI","RJ","RN",
-    "RS","RO","RR","SC","SP","SE","TO"
-]
-
-# CNES TP_UNID mapping to hospital types
-TP_UNID_MAP = {
-    "01": "Hospital Geral",
-    "02": "Hospital Especializado",
-    "04": "Unidade de Apoio Diagnose e Terapia",
-    "05": "Pronto Socorro Geral",
-    "07": "Unidade de Saúde da Família",
-    "15": "Unidade Mista",
-    "20": "Pronto-Atendimento",
-    "21": "Hospital/Dia - Isolado",
-    "36": "Clínica Especializada",
-    "39": "Unidade de Atenção em Saúde Indígena",
-    "69": "Centro de Atenção Psicossocial",
-    "70": "Laboratório de Saúde Pública",
-    "71": "Centro de Diagnóstico por Imagem",
-    "72": "Unidade de Saúde Mental",
-    "73": "Pronto-socorro Especializado",
-    "74": "Policlínica",
-    "75": "Maternidade",
-    "76": "Hospital Dia",
-    "77": "Banco de Leite Humano",
-    "78": "Unidade de Atenção à Saúde Indígena",
-    "79": "Oficina Ortopédica",
-    "80": "Laboratório de Genética Humana",
-    "81": "Central de Regulação de Serviços de Saúde",
-    "82": "Unidade de Atenção à Saúde do Trabalhador",
-    "83": "Polo de Academia da Saúde",
-    "84": "Telessaúde",
-    "85": "Centro de Imunização",
-}
-
-NATUREZA_MAP = {
-    "01": "Administração Pública",
-    "02": "Entidades Empresariais",
-    "03": "Entidades sem Fins Lucrativos",
-    "04": "Pessoas Físicas",
-    "05": "Entidades Fechadas de Previdência Privada",
-}
-
-def get_s3_client():
-    return boto3.client(
-       "s3",
-        endpoint_url=s3_ENDPOINT,
-        aws_access_key_id=AWS_ACCESS_KEY_ID,
-        aws_secret_access_key=AWS_SECRET_ACCESS_KEY,
-        region_name=AWS_REGION, 
-    )
-    
-import os
-import boto3
-import tempfile
-import pysus
+import pandas as pd
 from pyspark.sql import SparkSession
 from pyspark.sql import functions as F
 
@@ -85,6 +20,8 @@ BR_STATES = [
     "RS","RO","RR","SC","SP","SE","TO"
 ]
 
+CNES_API = "https://apidadosabertos.saude.gov.br/cnes/estabelecimentos"
+
 
 def get_s3_client():
     return boto3.client(
@@ -96,50 +33,72 @@ def get_s3_client():
     )
 
 
-def download_cnes_all_states(year: int = 2024, month: int = 12) -> str:
-    """Download CNES ST for Brazilian states -> CSV"""
+def download_cnes_with_beds(year: int = 2024, month: int = 12) -> pd.DataFrame:
+    """Download CNES ST for all states, filter only establishments with hospital beds."""
     print(f"Downloading CNES ST data for all {len(BR_STATES)} states...")
-
-    import pandas as pd
     all_dfs = []
 
     for state in BR_STATES:
         try:
             result = pysus.ftp.cnes(group='ST', state=state, year=year, month=month, source='origin')
             df = result.to_dataframe()
-            if df is not None and len(df) > 0:
-                df['UF'] = state
-                all_dfs.append(df)
-                print(f"  {state}: {len(df)} establishments - OK")
-            else:
-                print(f"  {state}: empty dataframe")
+            df['LEITHOSP'] = pd.to_numeric(df['LEITHOSP'], errors='coerce').fillna(0)
+            hospitals = df[df['LEITHOSP'] > 0].copy()
+            hospitals['UF'] = state
+            all_dfs.append(hospitals)
+            print(f"  {state}: {len(df)} total, {len(hospitals)} with beds")
         except Exception as e:
             print(f"  {state}: ERROR - {type(e).__name__}: {e}")
 
-    print(f"States loaded: {len(all_dfs)} of {len(BR_STATES)}")
-
-    if not all_dfs:
-        raise ValueError("No state data loaded — check FTP connection")
-
     combined = pd.concat(all_dfs, ignore_index=True)
-    print(f"Total establishments: {len(combined)}")
-
-    tmp = tempfile.NamedTemporaryFile(delete=False, suffix='.csv')
-    combined.to_csv(tmp.name, index=False)
-    tmp.close()
-
-    s3 = get_s3_client()
-    s3_key = f"brazil/raw/cnes_estabelecimentos_{year}{month:02d}.csv"
-    with open(tmp.name, 'rb') as f:
-        s3.put_object(Bucket=S3_BUCKET, Key=s3_key, Body=f.read())
-    print(f"Uploaded to S3: {s3_key}")
-
-    os.unlink(tmp.name)
-    return s3_key
+    print(f"Total hospitals with beds: {len(combined)}")
+    return combined
 
 
-def process_with_spark(s3_key: str):
-    """Process with PySpark -> save as Parquet"""
+def fetch_hospital_names(cnes_codes: list) -> dict:
+    """Fetch hospital names and addresses from CNES REST API."""
+    print(f"Fetching names for {len(cnes_codes)} hospitals from API...")
+    names = {}
+    
+    batch_size = 20
+    total_batches = (len(cnes_codes) + batch_size - 1) // batch_size
+    
+    with httpx.Client(timeout=15.0) as client:
+        for i in range(0, len(cnes_codes), batch_size):
+            batch = cnes_codes[i:i + batch_size]
+            batch_num = i // batch_size + 1
+            
+            if batch_num % 50 == 0:
+                print(f"  Batch {batch_num}/{total_batches}...")
+            
+            for cnes_code in batch:
+                try:
+                    r = client.get(f"{CNES_API}?limit=1&offset=0", params={"codigo_cnes": cnes_code})
+                    if r.status_code == 200:
+                        data = r.json()
+                        establishments = data.get("estabelecimentos", [])
+                        if establishments:
+                            e = establishments[0]
+                            names[str(cnes_code)] = {
+                                "facility_name": e.get("nome_razao_social") or e.get("nome_fantasia") or f"CNES {cnes_code}",
+                                "address": f"{e.get('endereco_estabelecimento', '')} {e.get('numero_estabelecimento', '')}".strip(),
+                                "city": str(e.get("codigo_municipio", "")),
+                                "telephone_number": e.get("numero_telefone_estabelecimento"),
+                                "latitude": e.get("latitude_estabelecimento_decimo_grau"),
+                                "longitude": e.get("longitude_estabelecimento_decimo_grau"),
+                            }
+                except Exception as e:
+                    pass
+            
+            # Small delay to avoid rate limiting
+            time.sleep(0.1)
+    
+    print(f"Names fetched: {len(names)} of {len(cnes_codes)}")
+    return names
+
+
+def process_with_spark(df: pd.DataFrame, names: dict) -> None:
+    """Process DATASUS data with PySpark and save as Parquet."""
     print("Starting Spark job...")
 
     spark = SparkSession.builder \
@@ -149,44 +108,47 @@ def process_with_spark(s3_key: str):
         .getOrCreate()
     spark.sparkContext.setLogLevel("WARN")
 
-    s3 = get_s3_client()
-    obj = s3.get_object(Bucket=S3_BUCKET, Key=s3_key)
-    csv_content = obj["Body"].read().decode("utf-8")
+    # Add enriched data from API
+    df['facility_name'] = df['CNES'].apply(lambda x: names.get(str(x), {}).get('facility_name', f"CNES {x}"))
+    df['address'] = df['CNES'].apply(lambda x: names.get(str(x), {}).get('address', ''))
+    df['city'] = df['CNES'].apply(lambda x: names.get(str(x), {}).get('city', df.loc[df['CNES'] == x, 'CODUFMUN'].values[0] if len(df.loc[df['CNES'] == x]) > 0 else ''))
+    df['telephone_number'] = df['CNES'].apply(lambda x: names.get(str(x), {}).get('telephone_number'))
+    df['latitude'] = df['CNES'].apply(lambda x: names.get(str(x), {}).get('latitude'))
+    df['longitude'] = df['CNES'].apply(lambda x: names.get(str(x), {}).get('longitude'))
 
     tmp = tempfile.NamedTemporaryFile(delete=False, suffix='.csv')
-    tmp.write(csv_content.encode())
+    df.to_csv(tmp.name, index=False)
     tmp.close()
     tmp_path = tmp.name
 
     try:
-        df = spark.read.csv(tmp_path, header=True, inferSchema=False)
-        print(f"Total records: {df.count()}")
+        sdf = spark.read.csv(tmp_path, header=True, inferSchema=False)
+        print(f"Total records: {sdf.count()}")
 
-        df = df.select(
+        sdf = sdf.select(
             F.col("CNES").alias("facility_id"),
-            F.col("CODUFMUN").alias("municipality_code"),
-            F.col("COD_CEP").alias("zip_code"),
+            F.col("facility_name"),
+            F.col("address"),
+            F.col("city"),
             F.col("UF").alias("state"),
-            F.col("TP_UNID").alias("hospital_type_code"),
-            F.col("NATUREZA").alias("ownership_code"),
-            F.col("VINC_SUS").alias("vinc_sus"),
+            F.col("COD_CEP").alias("zip_code"),
+            F.col("TP_UNID").alias("hospital_type"),
+            F.col("NATUREZA").alias("hospital_ownership"),
             F.col("URGEMERG").alias("emergency_services_raw"),
             F.col("LEITHOSP").alias("hospital_beds"),
-            F.col("TURNO_AT").alias("operation_hours"),
-            F.col("COMPETEN").alias("competencia"),
+            F.col("telephone_number"),
+            F.col("latitude"),
+            F.col("longitude"),
         ) \
         .withColumn("country", F.lit("BR")) \
-        .withColumn("facility_name", F.concat(F.lit("CNES "), F.col("facility_id"))) \
         .withColumn("emergency_services", F.when(F.col("emergency_services_raw") == "1", "Sim").otherwise("Não")) \
-        .withColumn("address", F.lit(None).cast("string")) \
-        .withColumn("city", F.col("municipality_code")) \
         .withColumn("overall_rating", F.lit(None).cast("integer")) \
         .withColumn("normalized_score", F.lit(None).cast("double")) \
         .withColumn("rating_system", F.lit("CNES — dados estruturais")) \
         .withColumn("raw_rating_label", F.lit(None).cast("string"))
 
         local_parquet = "/tmp/datasus-br"
-        df.write \
+        sdf.write \
             .mode("overwrite") \
             .partitionBy("country", "state") \
             .parquet(local_parquet)
@@ -197,10 +159,10 @@ def process_with_spark(s3_key: str):
                 if file.endswith(".parquet"):
                     local_file = os.path.join(root, file)
                     relative = os.path.relpath(local_file, local_parquet)
-                    s3_key_out = f"hospitals/processed/{relative}".replace("\\", "/")
+                    s3_key = f"hospitals/processed/{relative}".replace("\\", "/")
                     with open(local_file, "rb") as f:
-                        s3.put_object(Bucket=S3_BUCKET, Key=s3_key_out, Body=f.read())
-                    print(f"parquet_uploaded key={s3_key_out}")
+                        s3.put_object(Bucket=S3_BUCKET, Key=s3_key, Body=f.read())
+                    print(f"parquet_uploaded key={s3_key}")
 
     finally:
         os.unlink(tmp_path)
@@ -208,7 +170,8 @@ def process_with_spark(s3_key: str):
         print("Spark job complete")
 
 
-if __name__ == "__main__":
-    s3_key = download_cnes_all_states(year=2024, month=12)
-    process_with_spark(s3_key)    
-
+if __name__ == "__main__":    
+    df = download_cnes_with_beds(year=2024, month=12)    
+    cnes_codes = df['CNES'].tolist()
+    names = fetch_hospital_names(cnes_codes)    
+    process_with_spark(df, names)
