@@ -134,6 +134,17 @@ async def rating_distribution(session: AsyncSession = Depends(get_session)):
     await set_cache(cache_key, data, ttl=3600)
     return data
 
+@router.post("/api/v1/pipeline/run/brazil")
+async def run_brazil_pipeline(background_tasks: BackgroundTasks, session: AsyncSession = Depends(get_session), current_user: dict = Depends(get_current_user)):
+    from app.services.datasus_services import ingest_br_hospitals
+    async def run_and_invalidate():
+        async with AsyncSessionLocal() as bg_session:
+            await ingest_br_hospitals(bg_session)
+        await invalidate_cache("rating_distribution")
+        await invalidate_cache("ai_query:*")
+    background_tasks.add_task(run_and_invalidate)
+    return {"status": "running", "message": "Brazil pipeline started in background", "country": "BR"}
+
 @router.get("/api/v1/hospitals/nearby")
 async def hospitals_nearby(lat:float, lng:float, radius:float=50.0, min_rating:int | None = None, limit: int=20, session: AsyncSession = Depends(get_session),):
     from app.repositories.hospital_repository import get_hospitals_nearby

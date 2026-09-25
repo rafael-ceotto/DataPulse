@@ -26,6 +26,10 @@ async def save_hospitals(session: AsyncSession,
                 telephone_number=hospital.telephone_number,
                 latitude=hospital.latitude,
                 longitude=hospital.longitude,
+                country=hospital.country,
+                normalized_score=hospital.normalized_score,
+                rating_system=hospital.rating_system,
+                raw_rating_label=hospital.raw_rating_label,
             ).on_conflict_do_update(
                 index_elements=["facility_id"],
                 set_=dict(
@@ -35,6 +39,10 @@ async def save_hospitals(session: AsyncSession,
                     telephone_number=hospital.telephone_number,
                     latitude=hospital.latitude,
                     longitude=hospital.longitude,
+                    country=hospital.country,
+                    normalized_score=hospital.normalized_score,
+                    rating_system=hospital.rating_system,
+                    raw_rating_label=hospital.raw_rating_label,
                 )
             )
             await session.execute(stmt)
