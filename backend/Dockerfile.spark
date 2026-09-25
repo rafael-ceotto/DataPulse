@@ -8,7 +8,7 @@ RUN apt-get update && apt-get install -y \
     && rm -rf /var/lib/apt/lists/*
 
 # light installation
-RUN pip install pyspark==3.5.1 httpx boto3 structlog
+RUN pip install pyspark==3.5.1 httpx boto3 structlog pysus
 
 COPY backend/app/ ./app/
 COPY backend/scripts/ ./scripts/

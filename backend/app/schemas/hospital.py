@@ -15,6 +15,10 @@ class Hospital(BaseModel):
     telephone_number: str | None = None
     latitude: float | None = None
     longitude: float | None = None
+    country: str | None = "US"
+    normalized_score: float | None = None
+    rating_system: str | None = None
+    raw_rating_label: str | None = None
 
     @field_validator("overall_rating", mode="before")
     @classmethod

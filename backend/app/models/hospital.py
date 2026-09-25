@@ -18,3 +18,7 @@ class Hospital(Base):
     telephone_number: Mapped[str | None] =  mapped_column(String, nullable=True)
     latitude: Mapped[float | None] = mapped_column(Float, nullable=True)
     longitude: Mapped[float | None] = mapped_column(Float, nullable=True)
+    country: Mapped[str | None] =  mapped_column(String(2), nullable=True, server_default="US")
+    normalized_score: Mapped[float | None] = mapped_column(Float, nullable=True)
+    rating_system: Mapped[str | None] = mapped_column(String(50), nullable=True)
+    raw_rating_label: Mapped[str | None] = mapped_column(String(100), nullable=True)

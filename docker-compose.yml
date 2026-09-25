@@ -221,6 +221,25 @@ services:
     profiles:
       - spark
 
+  datasus_processor:
+    build:
+      context: .
+      dockerfile: backend/Dockerfile.spark
+    container_name: datapulse_datasus_processor
+    environment:
+      FLOCI_ENDPOINT_URL: http://floci:4566
+      AWS_ACCESS_KEY_ID: test
+      AWS_SECRET_ACCESS_KEY: test
+      AWS_DEFAULT_REGION: us-east-1
+      S3_BUCKET_NAME: datapulse
+    env_file:
+      - backend/.env
+    command: python scripts/process_datasus_spark.py
+    depends_on:
+      - floci
+    profiles:
+      - spark
+
 volumes:
   postgres_data:
   airflow_db_data:
