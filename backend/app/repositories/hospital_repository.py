@@ -52,8 +52,10 @@ async def save_hospitals(session: AsyncSession,
         raise e
 
 
-async def get_hospitals(session: AsyncSession, page: int = 1, limit: int = 20, state: str | None = None, search: str | None = None, min_rating: int | None = None, max_rating: int | None = None) -> list[HospitalModel]:
+async def get_hospitals(session: AsyncSession, page: int = 1, limit: int = 20, state: str | None = None, search: str | None = None, min_rating: int | None = None, max_rating: int | None = None, country: str | None = "US") -> list[HospitalModel]:
     query = select(HospitalModel)
+    if country:
+        query = query.where(HospitalModel.country == country)
     if state:
         query = query.where(HospitalModel.state == state)
     if min_rating is not None:
@@ -77,7 +79,7 @@ async def get_hospitals_by_id(session: AsyncSession, facility_id: str) -> Hospit
     result = await session.execute(select(HospitalModel).where(HospitalModel.facility_id == facility_id))
     return result.scalar_one_or_none()
 
-async def get_rating_distribution(session: AsyncSession) -> list[dict]:
+async def get_rating_distribution(session: AsyncSession, country: str = "US") -> list[dict]:
     result = await session.execute(
         select(
             HospitalModel.state,
@@ -85,6 +87,7 @@ async def get_rating_distribution(session: AsyncSession) -> list[dict]:
             func.count(HospitalModel.facility_id).label("total",)
         )
         .where(HospitalModel.overall_rating.isnot(None))
+        .where(HospitalModel.country == country)
         .group_by(HospitalModel.state)
         .order_by(func.avg(HospitalModel.overall_rating).desc())
     )
@@ -96,24 +99,24 @@ async def get_all_hospitals_by_state(session: AsyncSession, state: str) -> list[
     )
     return result.scalars().all()
 
-async def get_data_quality_metrics(session: AsyncSession) -> dict:
+async def get_data_quality_metrics(session: AsyncSession, country: str = "US") -> dict:
     total_result =  await session.execute(
-        select(func.count(HospitalModel.facility_id))
+        select(func.count(HospitalModel.facility_id)).where(HospitalModel.country == country)
     )
     total = total_result.scalar()
     
     rated_result = await session.execute(
-        select(func.count(HospitalModel.facility_id)).where(HospitalModel.overall_rating.isnot(None))
+        select(func.count(HospitalModel.facility_id)).where(HospitalModel.overall_rating.isnot(None)).where(HospitalModel.country == country)
     )
     rated = rated_result.scalar()
     
     low_result = await session.execute(
-        select(func.count(HospitalModel.facility_id)).where(HospitalModel.overall_rating <=2).where(HospitalModel.overall_rating.isnot(None))
+        select(func.count(HospitalModel.facility_id)).where(HospitalModel.overall_rating <=2).where(HospitalModel.overall_rating.isnot(None)).where(HospitalModel.country == country)
     )
     low_rated = low_result.scalar()
     
     no_phone_result = await session.execute(
-        select(HospitalModel.facility_id).where(HospitalModel.telephone_number.is_(None))
+        select(func.count(HospitalModel.facility_id)).where(HospitalModel.telephone_number.is_(None)).where(HospitalModel.country == country)
     )
     no_phone = no_phone_result.scalar()
     
@@ -126,7 +129,7 @@ async def get_data_quality_metrics(session: AsyncSession) -> dict:
         "missing_phone": no_phone, 
     }
     
-async def get_hospitals_nearby(session: AsyncSession, lat: float, lng: float, radius_miles: float = 50.0, min_rating: int | None = None, limit: int = 20) ->list[dict]:
+async def get_hospitals_nearby(session: AsyncSession, lat: float, lng: float, radius_miles: float = 50.0, min_rating: int | None = None, limit: int = 20, country: str = "US") ->list[dict]:
     # Using Haversine formula approximation with PostgreSQL
     # 1 degree latitute = 69 miles
     # 1 degree longitude =  69 * cos(lat) miles
@@ -146,6 +149,7 @@ async def get_hospitals_nearby(session: AsyncSession, lat: float, lng: float, ra
         .where(HospitalModel.longitude.isnot(None))
         .where(HospitalModel.latitude.between(lat-lat_delta, lat+lat_delta))
         .where(HospitalModel.longitude.between(lng-lng_delta, lng+lng_delta))
+        .where(HospitalModel.country == country)
     )
     
     if min_rating is not None:

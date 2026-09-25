@@ -73,21 +73,18 @@ def fetch_hospital_names(cnes_codes: list) -> dict:
             
             for cnes_code in batch:
                 try:
-                    r = client.get(f"{CNES_API}?limit=1&offset=0", params={"codigo_cnes": cnes_code})
+                    r = client.get(f"{CNES_API}/{cnes_code}", timeout=15.0)
                     if r.status_code == 200:
-                        data = r.json()
-                        establishments = data.get("estabelecimentos", [])
-                        if establishments:
-                            e = establishments[0]
-                            names[str(cnes_code)] = {
-                                "facility_name": e.get("nome_razao_social") or e.get("nome_fantasia") or f"CNES {cnes_code}",
-                                "address": f"{e.get('endereco_estabelecimento', '')} {e.get('numero_estabelecimento', '')}".strip(),
-                                "city": str(e.get("codigo_municipio", "")),
-                                "telephone_number": e.get("numero_telefone_estabelecimento"),
-                                "latitude": e.get("latitude_estabelecimento_decimo_grau"),
-                                "longitude": e.get("longitude_estabelecimento_decimo_grau"),
-                            }
-                except Exception as e:
+                        e = r.json()
+                        names[str(cnes_code)] = {
+                        "facility_name": e.get("nome_razao_social") or e.get("nome_fantasia") or f"CNES {cnes_code}",
+                        "address": f"{e.get('endereco_estabelecimento', '')} {e.get('numero_estabelecimento', '')}".strip(),
+                        "city": str(e.get("codigo_municipio", "")),
+                        "telephone_number": e.get("numero_telefone_estabelecimento"),
+                        "latitude": e.get("latitude_estabelecimento_decimo_grau"),
+                        "longitude": e.get("longitude_estabelecimento_decimo_grau"),
+                    }
+                except Exception:
                     pass
             
             # Small delay to avoid rate limiting

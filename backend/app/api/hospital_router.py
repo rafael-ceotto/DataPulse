@@ -104,8 +104,8 @@ async def list_pipeline_runs(limit: int = 20, session: AsyncSession = Depends(ge
     ]
 
 @router.get("/api/v1/hospitals")
-async def list_hospitals(page: int = 1, limit: int = 20, state: str | None = None, search: str | None = None, min_rating: int | None = None, max_rating: int | None = None, session: AsyncSession = Depends(get_session)):
-    return await get_hospitals(session, page, limit, state, search, min_rating, max_rating)
+async def list_hospitals(page: int = 1, limit: int = 20, state: str | None = None, search: str | None = None, min_rating: int | None = None, max_rating: int | None = None, country: str | None = "US", session: AsyncSession = Depends(get_session)):
+    return await get_hospitals(session, page, limit, state, search, min_rating, max_rating, country)
 
 @router.get("/api/v1/hospitals/export")
 async def export_hospitals_by_state(state: str, session: AsyncSession = Depends(get_session), current_user: dict = Depends(get_current_user)):
@@ -115,22 +115,22 @@ async def export_hospitals_by_state(state: str, session: AsyncSession = Depends(
     return hospitals
 
 @router.get("/api/v1/hospitals/data-quality")
-async def data_quality(session: AsyncSession = Depends(get_session), current_user: dict = Depends(get_current_user)):
-    cache_key = "data_quality"
+async def data_quality(country: str = "US", session: AsyncSession = Depends(get_session), current_user: dict = Depends(get_current_user)):
+    cache_key = f"data_quality:{country}"
     cached = await get_cache(cache_key)
     if cached:
         return cached
-    data = await get_data_quality_metrics(session)
+    data = await get_data_quality_metrics(session, country)
     await set_cache(cache_key, data, ttl=3600)
     return data
 
 @router.get("/api/v1/hospitals/metrics/rating-distribution")
-async def rating_distribution(session: AsyncSession = Depends(get_session)):
-    cache_key = "rating_distribution"
+async def rating_distribution(country: str = "US", session: AsyncSession = Depends(get_session)):
+    cache_key = f"rating_distribution:{country}"
     cached = await get_cache(cache_key)
     if cached:
         return cached
-    data = await get_rating_distribution(session)
+    data = await get_rating_distribution(session, country)
     await set_cache(cache_key, data, ttl=3600)
     return data
 
@@ -146,9 +146,9 @@ async def run_brazil_pipeline(background_tasks: BackgroundTasks, session: AsyncS
     return {"status": "running", "message": "Brazil pipeline started in background", "country": "BR"}
 
 @router.get("/api/v1/hospitals/nearby")
-async def hospitals_nearby(lat:float, lng:float, radius:float=50.0, min_rating:int | None = None, limit: int=20, session: AsyncSession = Depends(get_session),):
+async def hospitals_nearby(lat:float, lng:float, radius:float=50.0, min_rating:int | None = None, limit: int=20, country: str = "US", session: AsyncSession = Depends(get_session),):
     from app.repositories.hospital_repository import get_hospitals_nearby
-    results = await get_hospitals_nearby(session, lat, lng, radius, min_rating, limit)
+    results = await get_hospitals_nearby(session, lat, lng, radius, min_rating, limit, country)
     return results
 
 @router.get("/api/v1/hospitals/{facility_id}")
