@@ -13,16 +13,17 @@ import { theme } from "../theme";
 
 ChartJS.register(CategoryScale, LinearScale, BarElement, Title, Tooltip, Legend);
 
-export default function RatingChart() {
+export default function RatingChart({ country = "US" }) {
   const [data, setData] = useState([]);
   const [open, setOpen] = useState(false);
 
   useEffect(() => {
     if (!open) return;
-    fetch("/api/v1/hospitals/metrics/rating-distribution")
+    setData([]);
+    fetch(`/api/v1/hospitals/metrics/rating-distribution?country=${country}`)
       .then((r) => r.json())
       .then(setData);
-  }, [open]);
+  }, [open, country]);
 
   const chartData = {
     labels: data.map((d) => d.state),
@@ -67,6 +68,8 @@ export default function RatingChart() {
     },
   };
 
+  const noRating = country === "BR";
+
   return (
     <section style={{ marginTop: 24 }}>
       <div
@@ -86,10 +89,10 @@ export default function RatingChart() {
       >
         <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
           <h2 style={{ margin: 0, fontSize: 17, fontWeight: 600, letterSpacing: "-0.01em", color: "#fff" }}>
-            Average Rating by State
+            {country === "BR" ? "Avaliação Média por Estado" : "Average Rating by State"}
           </h2>
           <span style={{ fontFamily: theme.mono, fontSize: 11, color: theme.mint, letterSpacing: "0.06em", textTransform: "uppercase" }}>
-            Quality metrics
+            {country === "BR" ? "Métricas de qualidade" : "Quality metrics"}
           </span>
         </div>
         <span style={{ fontSize: 20, color: "#6f8a95", transition: "transform .2s", transform: open ? "rotate(180deg)" : "rotate(0deg)" }}>
@@ -106,27 +109,36 @@ export default function RatingChart() {
           padding: "24px 22px",
           boxShadow: "0 4px 12px rgba(16,26,32,.3)",
         }}>
-          <div style={{ display: "flex", gap: 20, marginBottom: 16, fontFamily: theme.mono, fontSize: 11, letterSpacing: "0.06em" }}>
-            {[
-              { color: "#2f9e6f", label: "≥ 4.0 Excellent" },
-              { color: theme.accent, label: "≥ 3.0 Good" },
-              { color: "#c0392b", label: "< 3.0 Below average" },
-            ].map(({ color, label }) => (
-              <div key={label} style={{ display: "flex", alignItems: "center", gap: 6, color: "#6f8a95" }}>
-                <span style={{ width: 10, height: 10, borderRadius: 3, background: color, display: "block" }} />
-                {label}
-              </div>
-            ))}
-          </div>
-
-          {data.length > 0 ? (
-            <div style={{ overflowX: "auto" }}>
-              <div style={{ minWidth: data.length * 28, height: 400 }}>
-                <Bar data={chartData} options={options} />
-              </div>
+          {noRating ? (
+            <div style={{ textAlign: "center", color: "#6f8a95", padding: 40, fontFamily: theme.mono, fontSize: 13 }}>
+              O Brasil não possui um sistema nacional de rating hospitalar.<br />
+              Os dados do CNES são estruturais — leitos, equipamentos e especialidades.
             </div>
           ) : (
-            <div style={{ textAlign: "center", color: "#6f8a95", padding: 40 }}>Loading...</div>
+            <>
+              <div style={{ display: "flex", gap: 20, marginBottom: 16, fontFamily: theme.mono, fontSize: 11, letterSpacing: "0.06em" }}>
+                {[
+                  { color: "#2f9e6f", label: "≥ 4.0 Excellent" },
+                  { color: theme.accent, label: "≥ 3.0 Good" },
+                  { color: "#c0392b", label: "< 3.0 Below average" },
+                ].map(({ color, label }) => (
+                  <div key={label} style={{ display: "flex", alignItems: "center", gap: 6, color: "#6f8a95" }}>
+                    <span style={{ width: 10, height: 10, borderRadius: 3, background: color, display: "block" }} />
+                    {label}
+                  </div>
+                ))}
+              </div>
+
+              {data.length > 0 ? (
+                <div style={{ overflowX: "auto" }}>
+                  <div style={{ minWidth: data.length * 28, height: 400 }}>
+                    <Bar data={chartData} options={options} />
+                  </div>
+                </div>
+              ) : (
+                <div style={{ textAlign: "center", color: "#6f8a95", padding: 40 }}>Loading...</div>
+              )}
+            </>
           )}
         </div>
       )}

@@ -166,7 +166,7 @@ const pageBtn = (active) => ({
   cursor: "pointer",
 });
 
-export default function HospitalList() {
+export default function HospitalList({ country = "US" }) {
   const [open, setOpen] = useState(false);
   const [hospitals, setHospitals] = useState([]);
   const [stateFilter, setStateFilter] = useState("");
@@ -179,8 +179,17 @@ export default function HospitalList() {
 
   useEffect(() => {
     if (!open) return;
-    getHospitals(page, limit, stateFilter, search).then(setHospitals);
-  }, [page, stateFilter, search, open]);
+    getHospitals(page, limit, stateFilter, search, country).then(setHospitals);
+  }, [page, stateFilter, search, open, country]);
+
+  useEffect(() => {
+    setPage(1);
+    setHospitals([]);
+    setStateFilter("");
+    setSearch("");
+    setExpandedId(null);
+    setSelected({});
+  }, [country]);
 
   function handleExpand(hospital) {
     setExpandedId(hospital.facility_id);
@@ -204,7 +213,7 @@ export default function HospitalList() {
     if (!stateFilter) return;
     setExportingState(true);
     try {
-      const response = await fetch(`/api/v1/hospitals/export?state=${stateFilter}`);
+      const response = await fetch(`/api/v1/hospitals/export?state=${stateFilter}&country=${country}`);
       const data = await response.json();
       exportCSV(data, `hospitals_${stateFilter}_all.csv`);
     } finally {
@@ -233,10 +242,10 @@ export default function HospitalList() {
       >
         <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
           <h2 style={{ margin: 0, fontSize: 17, fontWeight: 600, letterSpacing: "-0.01em", color: "#fff" }}>
-            Browse Hospitals
+            {country === "BR" ? "Explorar Hospitais" : "Browse Hospitals"}
           </h2>
           <span style={{ fontFamily: theme.mono, fontSize: 11, color: theme.mint, letterSpacing: "0.06em", textTransform: "uppercase" }}>
-            5,419 facilities
+            {country === "BR" ? `${country === "US" ? "5,419" : "7,680"} instalações` : `${country === "US" ? "5,419" : "7,680"} facilities`}
           </span>
         </div>
         <span style={{ fontSize: 20, color: "#6f8a95", transition: "transform .2s", transform: open ? "rotate(180deg)" : "rotate(0deg)" }}>
@@ -255,7 +264,7 @@ export default function HospitalList() {
         }}>
           <div style={{ display: "flex", gap: 10, flexWrap: "wrap", marginBottom: 20 }}>
             <input type="text" value={search} onChange={(e) => { setSearch(e.target.value); setPage(1); }} placeholder="Search by hospital name..." style={{ ...control, flex: "1 1 220px" }} />
-            <input type="text" value={stateFilter} onChange={(e) => { setStateFilter(e.target.value); setPage(1); }} placeholder="Filter by state (e.g. TX)" style={{ ...control, width: 180 }} />
+            <input type="text" value={stateFilter} onChange={(e) => { setStateFilter(e.target.value.toUpperCase()); setPage(1); }} placeholder={country === "US" ? "Filter by state (e.g. TX)" : "Filter by state (e.g. SP)"} style={{ ...control, width: 180 }} />
             <button onClick={(e) => { e.stopPropagation(); handleClear(); }} style={{ ...control, cursor: "pointer", color: "#a7b6bf" }}>Clear</button>
             {hospitals.length > 0 && (
               <button onClick={(e) => { e.stopPropagation(); exportCSV(hospitals, `hospitals_${hospitals[0]?.state || "all"}_page.csv`); }} style={{ ...control, cursor: "pointer", color: theme.mint, borderColor: theme.mint }}>↓ Export CSV</button>

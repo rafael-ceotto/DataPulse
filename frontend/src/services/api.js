@@ -18,10 +18,11 @@ export async function getToken() {
   return cachedToken;
 }
 
-export async function getHospitals(page = 1, limit = 20, state = "", search = "") {
+export async function getHospitals(page = 1, limit = 20, state = "", search = "", country = "US") {
   const params = new URLSearchParams({
     page: page.toString(),
     limit: limit.toString(),
+    country,
   });
   if (state) params.append("state", state);
   if (search) params.append("search", search);

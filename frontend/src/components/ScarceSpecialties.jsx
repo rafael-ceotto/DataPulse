@@ -35,7 +35,7 @@ function StatusDot({ ready, loading, label }) {
   );
 }
 
-export default function ScarceSpecialties() {
+export default function ScarceSpecialties({ country = "US" }) {
   const [open, setOpen] = useState(false);
   const [state, setState] = useState("OH");
   const [data, setData] = useState(null);
@@ -120,10 +120,10 @@ export default function ScarceSpecialties() {
       >
         <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
           <h2 style={{ margin: 0, fontSize: 17, fontWeight: 600, letterSpacing: "-0.01em", color: "#fff" }}>
-            Scarce Specialties
+            {country === "BR" ? "Especialidades Escassas" : "Scarce Specialties"}
           </h2>
           <span style={{ fontFamily: theme.mono, fontSize: 11, color: theme.mint, letterSpacing: "0.06em", textTransform: "uppercase" }}>
-            Public health gaps
+            {country === "BR" ? "Gaps de saúde pública" : "Public health gaps"}
           </span>
         </div>
         <span style={{ fontSize: 20, color: "#6f8a95", transition: "transform .2s", transform: open ? "rotate(180deg)" : "rotate(0deg)" }}>

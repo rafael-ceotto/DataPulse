@@ -10,7 +10,7 @@ const US_STATES = [
   "DC","PR","GU","VI"
 ];
 
-export default function PhysicianAnalysis() {
+export default function PhysicianAnalysis({country = "US"}) {
   const [open, setOpen] = useState(false);
   const [state, setState] = useState("OH");
   const [data, setData] = useState(null);
@@ -65,11 +65,11 @@ export default function PhysicianAnalysis() {
         }}
       >
         <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
-          <h2 style={{ margin: 0, fontSize: 17, fontWeight: 600, letterSpacing: "-0.01em", color: "#fff" }}>
-            Physician & Hospital Analysis
+          <h2 style={{ margin: 0, fontSize: 17, fontWeight: 600, letterSpacing: "-0.01em", color: "#fff", }}>
+            {country === "BR" ? "Análise de Médicos e Hospitais" : "Physician & Hospital Analysis"}
           </h2>
           <span style={{ fontFamily: theme.mono, fontSize: 11, color: theme.mint, letterSpacing: "0.06em", textTransform: "uppercase" }}>
-            By state
+            {country === "BR" ? "Por estado" : "By state"}
           </span>
         </div>
         <span style={{ fontSize: 20, color: "#6f8a95", transition: "transform .2s", transform: open ? "rotate(180deg)" : "rotate(0deg)" }}>

@@ -11,13 +11,6 @@ import PipelineAnalytics from "./components/PipelineAnalytics";
 import HospitalsNearMe from "./components/HospitalsNearMe";
 import { theme } from "./theme";
 
-const TABS = [
-  { id: "hospitals", label: "Hospitals" },
-  { id: "analytics", label: "Analytics" },
-  { id: "pipeline", label: "Pipeline" },
-  { id: "physicians", label: "Physicians" },
-];
-
 const COUNTRIES = {
   US: {
     name: "United States",
@@ -125,6 +118,13 @@ export default function App() {
   const ciColor = ciStatus === "success" ? theme.mint : ciStatus === "failure" ? "#ff6b6b" : "#6f8a95";
   const ciLabel = ciStatus === "success" ? "CI passing" : ciStatus === "failure" ? "CI failing" : "CI unknown";
 
+  const TABS = [
+  { id: "hospitals", label: country === "BR" ? "Hospitais" : "Hospitals" },
+  { id: "analytics", label: "Analytics" },
+  { id: "pipeline", label: "Pipeline" },
+  { id: "physicians", label: country === "BR" ? "Médicos" : "Physicians" },
+];
+
   return (
     <div style={{ minHeight: "100vh", background: "#f4f6f8", color: theme.ink, fontFamily: theme.sans }}>
       <style>{`
@@ -225,8 +225,8 @@ export default function App() {
           {activeTab === "pipeline" && <PipelineRuns />}
           {activeTab === "physicians" && (
             <>
-              <PhysicianAnalysis />
-              <ScarceSpecialties />
+              <PhysicianAnalysis country={country}/>
+              <ScarceSpecialties country={country}/>
             </>
           )}
         </div>

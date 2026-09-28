@@ -55,7 +55,37 @@ const US_CITIES = [
   { label: "Wyoming — Cheyenne", lat: 41.1400, lng: -104.8202 },
 ];
 
-export default function HospitalsNearMe() {
+const BR_CITIES = [
+  { label: "Acre — Rio Branco", lat: -9.9754, lng: -67.8249 },
+  { label: "Alagoas — Maceió", lat: -9.6658, lng: -35.7350 },
+  { label: "Amapá — Macapá", lat: 0.0349, lng: -51.0694 },
+  { label: "Amazonas — Manaus", lat: -3.1190, lng: -60.0217 },
+  { label: "Bahia — Salvador", lat: -12.9714, lng: -38.5014 },
+  { label: "Ceará — Fortaleza", lat: -3.7172, lng: -38.5433 },
+  { label: "Distrito Federal — Brasília", lat: -15.7801, lng: -47.9292 },
+  { label: "Espírito Santo — Vitória", lat: -20.2976, lng: -40.2958 },
+  { label: "Goiás — Goiânia", lat: -16.6869, lng: -49.2648 },
+  { label: "Maranhão — São Luís", lat: -2.5297, lng: -44.3028 },
+  { label: "Mato Grosso — Cuiabá", lat: -15.5961, lng: -56.0963 },
+  { label: "Mato Grosso do Sul — Campo Grande", lat: -20.4697, lng: -54.6201 },
+  { label: "Minas Gerais — Belo Horizonte", lat: -19.9167, lng: -43.9345 },
+  { label: "Pará — Belém", lat: -1.4558, lng: -48.5044 },
+  { label: "Paraíba — João Pessoa", lat: -7.1195, lng: -34.8450 },
+  { label: "Paraná — Curitiba", lat: -25.4284, lng: -49.2733 },
+  { label: "Pernambuco — Recife", lat: -8.0476, lng: -34.8770 },
+  { label: "Piauí — Teresina", lat: -5.0892, lng: -42.8019 },
+  { label: "Rio de Janeiro — Rio de Janeiro", lat: -22.9068, lng: -43.1729 },
+  { label: "Rio Grande do Norte — Natal", lat: -5.7945, lng: -35.2110 },
+  { label: "Rio Grande do Sul — Porto Alegre", lat: -30.0346, lng: -51.2177 },
+  { label: "Rondônia — Porto Velho", lat: -8.7612, lng: -63.9004 },
+  { label: "Roraima — Boa Vista", lat: 2.8235, lng: -60.6758 },
+  { label: "Santa Catarina — Florianópolis", lat: -27.5954, lng: -48.5480 },
+  { label: "São Paulo — São Paulo", lat: -23.5505, lng: -46.6333 },
+  { label: "Sergipe — Aracaju", lat: -10.9472, lng: -37.0731 },
+  { label: "Tocantins — Palmas", lat: -10.2491, lng: -48.3243 },
+];
+
+export default function HospitalsNearMe({ country = "US" }) {
   const [open, setOpen] = useState(false);
   const [loading, setLoading] = useState(false);
   const [hospitals, setHospitals] = useState([]);
@@ -65,6 +95,18 @@ export default function HospitalsNearMe() {
   const [locationStatus, setLocationStatus] = useState(null);
   const [testCity, setTestCity] = useState("");
   const [currentCoords, setCurrentCoords] = useState(null);
+
+  const CITIES = country === "BR" ? BR_CITIES : US_CITIES;
+
+  useEffect(() => {
+    setHospitals([]);
+    setCurrentCoords(null);
+    setLocationStatus(null);
+    setTestCity("");
+    setError(null);
+    setMinRating("");
+    setRadius(25);
+  }, [country]);
 
   useEffect(() => {
     if (!currentCoords) return;
@@ -80,7 +122,7 @@ export default function HospitalsNearMe() {
     setLocationStatus(`Searching near ${label}...`);
 
     try {
-      const params = new URLSearchParams({ lat, lng, radius: activeRadius, limit: 50 });
+      const params = new URLSearchParams({ lat, lng, radius: activeRadius, limit: 50, country });
       if (minRating) params.append("min_rating", minRating);
       const res = await fetch(`/api/v1/hospitals/nearby?${params}`);
       const data = await res.json();
@@ -115,7 +157,7 @@ export default function HospitalsNearMe() {
         await fetchHospitals(latitude, longitude, `${latitude.toFixed(4)}, ${longitude.toFixed(4)}`);
       },
       () => {
-        setError("Could not get your location. Please allow location access or use a test city.");
+        setError("Could not get your location. Please allow location access or use a city below.");
         setLocationStatus(null);
         setLoading(false);
       }
@@ -126,7 +168,7 @@ export default function HospitalsNearMe() {
     const value = e.target.value;
     setTestCity(value);
     if (!value) return;
-    const city = US_CITIES.find(c => c.label === value);
+    const city = CITIES.find(c => c.label === value);
     if (city) await fetchHospitals(city.lat, city.lng, city.label);
   }
 
@@ -153,6 +195,8 @@ export default function HospitalsNearMe() {
     cursor: "pointer",
   };
 
+  const isBR = country === "BR";
+
   return (
     <section style={{ marginTop: 24 }}>
       <div
@@ -172,7 +216,7 @@ export default function HospitalsNearMe() {
       >
         <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
           <h2 style={{ margin: 0, fontSize: 17, fontWeight: 600, letterSpacing: "-0.01em", color: "#fff" }}>
-            Hospitals Near Me
+            {isBR ? "Hospitais Próximos" : "Hospitals Near Me"}
           </h2>
           <span style={{ fontFamily: theme.mono, fontSize: 11, color: theme.mint, letterSpacing: "0.06em", textTransform: "uppercase" }}>
             Geolocation
@@ -195,22 +239,26 @@ export default function HospitalsNearMe() {
           <div style={{ display: "flex", gap: 12, flexWrap: "wrap", alignItems: "flex-end", marginBottom: 20 }}>
             <div>
               <div style={{ fontFamily: theme.mono, fontSize: 10.5, color: "#6f8a95", letterSpacing: "0.07em", textTransform: "uppercase", marginBottom: 6 }}>
-                Radius (miles)
+                {isBR ? "Raio (km)" : "Radius (miles)"}
               </div>
               <select value={radius} onChange={(e) => setRadius(Number(e.target.value))} style={selectStyle}>
-                {[10, 25, 50, 100].map(r => <option key={r} value={r}>{r} miles</option>)}
+                {[10, 25, 50, 100].map(r => (
+                  <option key={r} value={r}>{r} {isBR ? "km" : "miles"}</option>
+                ))}
               </select>
             </div>
 
-            <div>
-              <div style={{ fontFamily: theme.mono, fontSize: 10.5, color: "#6f8a95", letterSpacing: "0.07em", textTransform: "uppercase", marginBottom: 6 }}>
-                Min Rating
+            {!isBR && (
+              <div>
+                <div style={{ fontFamily: theme.mono, fontSize: 10.5, color: "#6f8a95", letterSpacing: "0.07em", textTransform: "uppercase", marginBottom: 6 }}>
+                  Min Rating
+                </div>
+                <select value={minRating} onChange={(e) => setMinRating(e.target.value)} style={selectStyle}>
+                  <option value="">Any rating</option>
+                  {[1, 2, 3, 4, 5].map(r => <option key={r} value={r}>{"★".repeat(r)} ({r}+)</option>)}
+                </select>
               </div>
-              <select value={minRating} onChange={(e) => setMinRating(e.target.value)} style={selectStyle}>
-                <option value="">Any rating</option>
-                {[1, 2, 3, 4, 5].map(r => <option key={r} value={r}>{"★".repeat(r)} ({r}+)</option>)}
-              </select>
-            </div>
+            )}
 
             <button
               onClick={findNearMe}
@@ -227,7 +275,7 @@ export default function HospitalsNearMe() {
                 opacity: loading ? 0.7 : 1,
               }}
             >
-              {loading ? "Searching..." : "📍 Use my location"}
+              {loading ? (isBR ? "Buscando..." : "Searching...") : "📍 " + (isBR ? "Usar minha localização" : "Use my location")}
             </button>
 
             {currentCoords && (
@@ -243,17 +291,17 @@ export default function HospitalsNearMe() {
                   cursor: "pointer",
                 }}
               >
-                ✕ Clear
+                ✕ {isBR ? "Limpar" : "Clear"}
               </button>
             )}
 
             <div>
               <div style={{ fontFamily: theme.mono, fontSize: 10.5, color: "#6f8a95", letterSpacing: "0.07em", textTransform: "uppercase", marginBottom: 6 }}>
-                Or test with a US city
+                {isBR ? "Ou escolha uma cidade" : "Or test with a US city"}
               </div>
               <select value={testCity} onChange={handleTestCity} disabled={loading} style={{ ...selectStyle, minWidth: 220 }}>
-                <option value="">Select a city...</option>
-                {US_CITIES.map(c => <option key={c.label} value={c.label}>{c.label}</option>)}
+                <option value="">{isBR ? "Selecione uma cidade..." : "Select a city..."}</option>
+                {CITIES.map(c => <option key={c.label} value={c.label}>{c.label}</option>)}
               </select>
             </div>
           </div>
@@ -271,7 +319,7 @@ export default function HospitalsNearMe() {
           {hospitals.length > 0 && (
             <>
               <div style={{ fontFamily: theme.mono, fontSize: 10.5, color: "#6f8a95", letterSpacing: "0.07em", textTransform: "uppercase", marginBottom: 14 }}>
-                {hospitals.length} hospitals found within {radius} miles
+                {hospitals.length} {isBR ? "hospitais encontrados" : "hospitals found"} within {radius} {isBR ? "km" : "miles"}
               </div>
               <div style={{ maxHeight: 500, overflowY: "auto", display: "flex", flexDirection: "column", gap: 10 }}>
                 {hospitals.map((h) => (
@@ -303,13 +351,19 @@ export default function HospitalsNearMe() {
                       )}
                     </div>
                     <div style={{ display: "flex", flexDirection: "column", alignItems: "flex-end", gap: 4 }}>
-                      <div style={{ fontFamily: theme.mono, fontSize: 13, fontWeight: 700, color: ratingColor(h.overall_rating) }}>
-                        {ratingStars(h.overall_rating)}
-                      </div>
+                      {!isBR ? (
+                        <div style={{ fontFamily: theme.mono, fontSize: 13, fontWeight: 700, color: ratingColor(h.overall_rating) }}>
+                          {ratingStars(h.overall_rating)}
+                        </div>
+                      ) : (
+                        <div style={{ fontFamily: theme.mono, fontSize: 11, color: "#6f8a95" }}>
+                          CNES
+                        </div>
+                      )}
                       <div style={{ fontFamily: theme.mono, fontSize: 11, color: "#a7b6bf" }}>
-                        {h.distance_miles} mi away
+                        {h.distance_miles} {isBR ? "km" : "mi"} away
                       </div>
-                      {h.emergency_services === "Yes" && (
+                      {(h.emergency_services === "Yes" || h.emergency_services === "Sim") && (
                         <div style={{ fontFamily: theme.mono, fontSize: 10, color: "#ff6b6b", letterSpacing: "0.06em", border: "1px solid #ff6b6b44", borderRadius: 4, padding: "2px 6px" }}>
                           ER
                         </div>
@@ -323,7 +377,7 @@ export default function HospitalsNearMe() {
 
           {!loading && hospitals.length === 0 && !error && (
             <div style={{ color: "#6f8a95", fontSize: 13 }}>
-              Use your location or select a US city to find nearby hospitals.
+              {isBR ? "Use sua localização ou selecione uma cidade para encontrar hospitais próximos." : "Use your location or select a US city to find nearby hospitals."}
             </div>
           )}
         </div>
