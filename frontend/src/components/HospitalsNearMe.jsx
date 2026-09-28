@@ -85,6 +85,19 @@ const BR_CITIES = [
   { label: "Tocantins — Palmas", lat: -10.2491, lng: -48.3243 },
 ];
 
+const GB_CITIES = [
+  { label: "London", lat: 51.5074, lng: -0.1278 },
+  { label: "Manchester", lat: 53.4808, lng: -2.2426 },
+  { label: "Birmingham", lat: 52.4862, lng: -1.8904 },
+  { label: "Leeds", lat: 53.8008, lng: -1.5491 },
+  { label: "Sheffield", lat: 53.3811, lng: -1.4701 },
+  { label: "Liverpool", lat: 53.4084, lng: -2.9916 },
+  { label: "Bristol", lat: 51.4545, lng: -2.5879 },
+  { label: "Edinburgh", lat: 55.9533, lng: -3.1883 },
+  { label: "Glasgow", lat: 55.8642, lng: -4.2518 },
+  { label: "Cardiff", lat: 51.4816, lng: -3.1791 },
+];
+
 export default function HospitalsNearMe({ country = "US" }) {
   const [open, setOpen] = useState(false);
   const [loading, setLoading] = useState(false);
@@ -96,7 +109,10 @@ export default function HospitalsNearMe({ country = "US" }) {
   const [testCity, setTestCity] = useState("");
   const [currentCoords, setCurrentCoords] = useState(null);
 
-  const CITIES = country === "BR" ? BR_CITIES : US_CITIES;
+  const isBR = country === "BR";
+  const isGB = country === "GB";
+  const isUS = country === "US";
+  const CITIES = isBR ? BR_CITIES : isGB ? GB_CITIES : US_CITIES;
 
   useEffect(() => {
     setHospitals([]);
@@ -195,8 +211,6 @@ export default function HospitalsNearMe({ country = "US" }) {
     cursor: "pointer",
   };
 
-  const isBR = country === "BR";
-
   return (
     <section style={{ marginTop: 24 }}>
       <div
@@ -248,7 +262,7 @@ export default function HospitalsNearMe({ country = "US" }) {
               </select>
             </div>
 
-            {!isBR && (
+            {isUS && (
               <div>
                 <div style={{ fontFamily: theme.mono, fontSize: 10.5, color: "#6f8a95", letterSpacing: "0.07em", textTransform: "uppercase", marginBottom: 6 }}>
                   Min Rating
@@ -297,7 +311,7 @@ export default function HospitalsNearMe({ country = "US" }) {
 
             <div>
               <div style={{ fontFamily: theme.mono, fontSize: 10.5, color: "#6f8a95", letterSpacing: "0.07em", textTransform: "uppercase", marginBottom: 6 }}>
-                {isBR ? "Ou escolha uma cidade" : "Or test with a US city"}
+                {isBR ? "Ou escolha uma cidade" : isGB ? "Or test with a UK city" : "Or test with a US city"}
               </div>
               <select value={testCity} onChange={handleTestCity} disabled={loading} style={{ ...selectStyle, minWidth: 220 }}>
                 <option value="">{isBR ? "Selecione uma cidade..." : "Select a city..."}</option>
@@ -351,14 +365,14 @@ export default function HospitalsNearMe({ country = "US" }) {
                       )}
                     </div>
                     <div style={{ display: "flex", flexDirection: "column", alignItems: "flex-end", gap: 4 }}>
-                      {!isBR ? (
+                      {isUS ? (
                         <div style={{ fontFamily: theme.mono, fontSize: 13, fontWeight: 700, color: ratingColor(h.overall_rating) }}>
                           {ratingStars(h.overall_rating)}
                         </div>
+                      ) : isBR ? (
+                        <div style={{ fontFamily: theme.mono, fontSize: 11, color: "#6f8a95" }}>CNES</div>
                       ) : (
-                        <div style={{ fontFamily: theme.mono, fontSize: 11, color: "#6f8a95" }}>
-                          CNES
-                        </div>
+                        <div style={{ fontFamily: theme.mono, fontSize: 11, color: "#6f8a95" }}>NHS</div>
                       )}
                       <div style={{ fontFamily: theme.mono, fontSize: 11, color: "#a7b6bf" }}>
                         {h.distance_miles} {isBR ? "km" : "mi"} away
@@ -377,7 +391,7 @@ export default function HospitalsNearMe({ country = "US" }) {
 
           {!loading && hospitals.length === 0 && !error && (
             <div style={{ color: "#6f8a95", fontSize: 13 }}>
-              {isBR ? "Use sua localização ou selecione uma cidade para encontrar hospitais próximos." : "Use your location or select a US city to find nearby hospitals."}
+              {isBR ? "Use sua localização ou selecione uma cidade para encontrar hospitais próximos." : isGB ? "Use your location or select a UK city to find nearby NHS Trusts." : "Use your location or select a US city to find nearby hospitals."}
             </div>
           )}
         </div>

@@ -24,6 +24,12 @@ const COUNTRIES = {
     description: "7,680 hospitais · Sistema Único de Saúde (SUS)",
     rating_info: "Sem rating nacional único — dados estruturais: leitos, especialidades, equipamentos. Fonte: CNES.",
   },
+  GB: {
+  name: "United Kingdom",
+  source: "NHS / CQC (Care Quality Commission)",
+  description: "247 NHS Trusts · National Health Service · England",
+  rating_info: "Rating: Outstanding / Good / Requires Improvement / Inadequate. Assessed on: Safe · Effective · Caring · Responsive · Well-led.",
+  },
 };
 
 function useCIStatus() {
@@ -175,7 +181,7 @@ export default function App() {
 
         {/* Metric cards */}
         <div style={{ display: "flex", gap: 12, marginTop: 24, flexWrap: "wrap" }}>
-          <MetricCard label="Facilities" value={country === "US" ? "5,419" : "7,680"} accent={theme.mint} />
+          <MetricCard label="Facilities" value={country === "US" ? "5,419" : country === "BR" ? "7,680" : country === "GB" ? "247" : "—"} accent={theme.mint} />
           <MetricCard label="Avg Rating" value={country === "US" ? "3.21 ★" : "No rating"} accent="#f1c40f" />
           <MetricCard label="Completeness" value={country === "US" ? "58.6%" : "Structural data"} accent="#dce5e9" />
           <MetricCard label="CI Status" value={ciLabel} accent={ciColor} />
@@ -211,7 +217,7 @@ export default function App() {
           {activeTab === "hospitals" && (
             <>
               <HospitalsNearMe country={country} />
-              <RatingChart country={country} />
+              {country === "US" && <RatingChart country={country} />}
               <DataQuality country={country} />
               <HospitalList country={country} />
             </>

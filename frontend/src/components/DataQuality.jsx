@@ -7,6 +7,10 @@ export default function DataQuality({ country = "US" }) {
   const [metrics, setMetrics] = useState(null);
   const [loading, setLoading] = useState(false);
 
+  const isBR = country === "BR";
+  const isGB = country === "GB";
+  const isUS = country === "US";
+
   useEffect(() => {
     if (!open) return;
     setMetrics(null);
@@ -23,8 +27,8 @@ export default function DataQuality({ country = "US" }) {
   function MetricCard({ label, value, sub, color = "#dce5e9", alert = false }) {
     return (
       <div style={{
-        background: alert ? "#1a0a0a" : theme.darkInput,
-        border: `1px solid ${alert ? "#c0392b44" : "#1e2d35"}`,
+        background: alert ? "#1a0a0a" : isUS ? theme.darkInput : "#1a2830",
+        border: `1px solid ${alert ? "#c0392b44" : "#2c3b44"}`,
         borderRadius: 12,
         padding: "18px 20px",
         display: "flex",
@@ -66,8 +70,6 @@ export default function DataQuality({ country = "US" }) {
     );
   }
 
-  const isBR = country === "BR";
-
   return (
     <section style={{ marginTop: 24 }}>
       <div
@@ -87,10 +89,10 @@ export default function DataQuality({ country = "US" }) {
       >
         <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
           <h2 style={{ margin: 0, fontSize: 17, fontWeight: 600, letterSpacing: "-0.01em", color: "#fff" }}>
-            {country === "BR" ? "Qualidade dos Dados" : "Data Quality"}
+            {isBR ? "Qualidade dos Dados" : "Data Quality"}
           </h2>
           <span style={{ fontFamily: theme.mono, fontSize: 11, color: theme.mint, letterSpacing: "0.06em", textTransform: "uppercase" }}>
-            {country === "BR" ? "Métricas de saúde" : "Health Metrics"}
+            {isBR ? "Métricas de saúde" : "Health Metrics"}
           </span>
         </div>
         <span style={{ fontSize: 20, color: "#6f8a95", transition: "transform .2s", transform: open ? "rotate(180deg)" : "rotate(0deg)" }}>
@@ -111,15 +113,15 @@ export default function DataQuality({ country = "US" }) {
             <div style={{ textAlign: "center", color: "#6f8a95", padding: 40 }}>Loading...</div>
           ) : metrics ? (
             <div style={{ display: "flex", flexDirection: "column", gap: 20 }}>
-              {!isBR && <ProgressBar pct={metrics.completeness_pct} />}
-              <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(200px, 1fr))", gap: 14 }}>
+              {isUS && <ProgressBar pct={metrics.completeness_pct} />}
+              <div style={{ display: "grid", gridTemplateColumns: isUS ? "repeat(auto-fill, minmax(200px, 1fr))" : "repeat(auto-fit, minmax(200px, max-content))", gap: 14, justifyContent: isUS ? "start" : "center", }}>
                 <MetricCard
-                  label="Total Hospitals"
+                  label={isBR ? "Total de Hospitais" : "Total Hospitals"}
                   value={metrics.total_hospitals?.toLocaleString() ?? "—"}
-                  sub={isBR ? "Estabelecimentos CNES com leitos" : "CMS facilities in dataset"}
+                  sub={isBR ? "Estabelecimentos CNES com leitos" : isGB ? "Active NHS Trusts in England" : "CMS facilities in dataset"}
                   color="#dce5e9"
                 />
-                {!isBR && (
+                {isUS && (
                   <>
                     <MetricCard label="Rated Hospitals" value={metrics.rated_hospitals?.toLocaleString() ?? "—"} sub="Have an overall star rating" color="#2f9e6f" />
                     <MetricCard label="Unrated Hospitals" value={metrics.unrated_hospitals?.toLocaleString() ?? "—"} sub="Missing overall rating" color="#f0a500" alert={metrics.unrated_hospitals > 500} />
@@ -134,11 +136,20 @@ export default function DataQuality({ country = "US" }) {
                     color="#6f8a95"
                   />
                 )}
+                {isGB && (
+                  <MetricCard
+                    label="Rating system"
+                    value="CQC"
+                    sub="Care Quality Commission — no bulk data available without API key"
+                    color="#6f8a95"
+                  />
+                )}
                 <MetricCard
-                  label="Missing Phone"
+                  label={isBR ? "Telefone ausente" : "Missing Phone"}
                   value={metrics.missing_phone?.toLocaleString() ?? "0"}
-                  sub="No telephone number"
+                  sub={isBR ? "Sem número de telefone" : "No telephone number"}
                   color="#6f8a95"
+                  alert={metrics.missing_phone > 0}
                 />
               </div>
             </div>
