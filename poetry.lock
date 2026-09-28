@@ -1151,14 +1151,14 @@ typing-extensions = ">=4.4"
 
 [[package]]
 name = "dbt-core-experimental-parser"
-version = "2.0.0rc1"
+version = "2.0.5"
 description = "Build analytics the way engineers build applications"
 optional = false
 python-versions = ">=3.9"
 groups = ["main"]
 markers = "python_version == \"3.13\""
 files = [
-    {file = "dbt_core_experimental_parser-2.0.0rc1.tar.gz", hash = "sha256:54a29dc7a783e7292800d473ffdcd140ef39bd51af3879ee91f80e8a9d81bb2b"},
+    {file = "dbt_core_experimental_parser-2.0.5.tar.gz", hash = "sha256:b6ad345dc5bf187d8324d2f643ba6aad274eeb51e5c3b7c17780ea62338b069c"},
 ]
 
 [[package]]
