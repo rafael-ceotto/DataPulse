@@ -94,6 +94,14 @@ def fetch_hospital_names(cnes_codes: list) -> dict:
     return names
 
 
+def load_municipios_lookup() -> dict:
+    """Load IBGE municipios lookup from S3."""
+    import json
+    s3 = get_s3_client()
+    obj = s3.get_object(Bucket=S3_BUCKET, Key="brazil/reference/ibge_municipios.json")
+    return json.loads(obj["Body"].read().decode("utf-8"))
+
+
 def process_with_spark(df: pd.DataFrame, names: dict) -> None:
     """Process DATASUS data with PySpark and save as Parquet."""
     print("Starting Spark job...")
@@ -105,13 +113,31 @@ def process_with_spark(df: pd.DataFrame, names: dict) -> None:
         .getOrCreate()
     spark.sparkContext.setLogLevel("WARN")
 
+    # Load IBGE municipios lookup
+    municipios = load_municipios_lookup()
+    print(f"Municipios lookup loaded: {len(municipios)} entries")
+
     # Add enriched data from API
     df['facility_name'] = df['CNES'].apply(lambda x: names.get(str(x), {}).get('facility_name', f"CNES {x}"))
     df['address'] = df['CNES'].apply(lambda x: names.get(str(x), {}).get('address', ''))
-    df['city'] = df['CNES'].apply(lambda x: names.get(str(x), {}).get('city', df.loc[df['CNES'] == x, 'CODUFMUN'].values[0] if len(df.loc[df['CNES'] == x]) > 0 else ''))
     df['telephone_number'] = df['CNES'].apply(lambda x: names.get(str(x), {}).get('telephone_number'))
     df['latitude'] = df['CNES'].apply(lambda x: names.get(str(x), {}).get('latitude'))
     df['longitude'] = df['CNES'].apply(lambda x: names.get(str(x), {}).get('longitude'))
+
+    # City: try API first, then fallback to IBGE lookup by CODUFMUN
+    def resolve_city(row):
+        api_city = names.get(str(row['CNES']), {}).get('city', '')
+        if api_city:
+            return municipios.get(str(api_city), api_city)
+        codufmun = str(row['CODUFMUN'])[:6] if row['CODUFMUN'] else ''
+        return municipios.get(codufmun, codufmun)
+
+    df['city'] = df.apply(resolve_city, axis=1)
+    
+    #Debug
+    sample_cnes = df['CNES'].iloc[0]
+    sample_city = df['city'].iloc[0]
+    print(f"DEBUG - CNES: {sample_cnes}, city after resolve: {sample_city}")
 
     tmp = tempfile.NamedTemporaryFile(delete=False, suffix='.csv')
     df.to_csv(tmp.name, index=False)

@@ -23,8 +23,8 @@ if objects:
     tmp = tempfile.NamedTemporaryFile(delete=False, suffix='.parquet')
     tmp.write(body)
     tmp.close()
-    
+
     con = duckdb.connect()
-    df = con.execute(f"SELECT facility_id, facility_name, address FROM read_parquet('{tmp.name}') LIMIT 5").fetchdf()
+    df = con.execute(f"SELECT facility_id, facility_name, city FROM read_parquet('{tmp.name}') LIMIT 5").fetchdf()
     print(df.to_string())
     os.unlink(tmp.name)

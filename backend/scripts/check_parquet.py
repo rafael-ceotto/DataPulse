@@ -3,11 +3,6 @@ import boto3
 import tempfile
 import os
 
-import duckdb
-import boto3
-import tempfile
-import os
-
 client = boto3.client(
     's3',
     endpoint_url='http://localhost:4566',
