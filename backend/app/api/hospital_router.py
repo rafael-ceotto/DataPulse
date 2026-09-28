@@ -24,6 +24,7 @@ from app.services.physician_analysis_service import (
     get_scarce_specialties,
     get_national_specialty_counts,
 )
+from app.services.nhs_services import ingest_gb_hospitals
 from app.ai.hospital_agent_service import ask_agent
 from app.repositories.pipeline_run_repository import get_pipeline_runs
 from app.core.notion import save_to_notion
@@ -144,6 +145,15 @@ async def run_brazil_pipeline(background_tasks: BackgroundTasks, session: AsyncS
         await invalidate_cache("ai_query:*")
     background_tasks.add_task(run_and_invalidate)
     return {"status": "running", "message": "Brazil pipeline started in background", "country": "BR"}
+
+@router.post("/api/v1/pipeline/run/uk")
+async def run_uk_pipeline(background_tasks: BackgroundTasks, session: AsyncSession = Depends(get_session),current_user: dict = Depends(get_current_user)):
+    async def run_and_invalidate():
+        async with AsyncSessionLocal() as bg_session:
+            await ingest_gb_hospitals(bg_session)
+
+    background_tasks.add_task(run_and_invalidate)
+    return {"status": "running", "message": "UK pipeline started in background", "country": "GB"}
 
 @router.get("/api/v1/hospitals/nearby")
 async def hospitals_nearby(lat:float, lng:float, radius:float=50.0, min_rating:int | None = None, limit: int=20, country: str = "US", session: AsyncSession = Depends(get_session),):

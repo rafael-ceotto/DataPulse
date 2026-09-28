@@ -44,7 +44,7 @@ def normalize_score(country: str, overall_rating: int | None = None, raw_rating_
 def get_rating_systems(country: str) -> str:
     systems = {
         "US": "CMS Star Rating (1-5 stars)",
-        "GB": "CQC (Outstanding / Good / Requires Improvement / Inadequate)",
+        "GB": "CQC Rating System",
         "FR": "HAS Certification",
         "BR": "CNES — structural data only",
         "BE": "SPF Santé publique accreditation",
