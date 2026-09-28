@@ -74,7 +74,7 @@ function MetricCard({ label, value, accent }) {
 function CountrySelector({ country, onChange }) {
   const current = COUNTRIES[country];
   return (
-    <div style={{ marginBottom: 24 }}>
+    <div style={{ marginBottom: 0 }}>
       <div style={{ display: "flex", gap: 8, flexWrap: "wrap", marginBottom: 12 }}>
         {Object.entries(COUNTRIES).map(([code, info]) => (
           <button
@@ -93,7 +93,7 @@ function CountrySelector({ country, onChange }) {
               transition: "all 0.15s",
             }}
           >
-            {info.flag} {info.name}
+            {info.name}
           </button>
         ))}
       </div>
@@ -105,9 +105,9 @@ function CountrySelector({ country, onChange }) {
         display: "flex",
         flexDirection: "column",
         gap: 4,
+        marginBottom: 24,
       }}>
         <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-          <span style={{ fontSize: 20 }}>{current.flag}</span>
           <span style={{ fontSize: 14, fontWeight: 600, color: "#dce5e9" }}>{current.name}</span>
           <span style={{ fontFamily: theme.mono, fontSize: 11, color: "#6f8a95" }}>· {current.source}</span>
         </div>
@@ -167,19 +167,17 @@ export default function App() {
 
       <main style={{ maxWidth: 1400, margin: "0 auto", padding: "32px 40px" }}>
 
+        {/* Country Selector */}
+        <CountrySelector country={country} onChange={setCountry} />
+
         {/* AI Query */}
         <AIQuery country={country} />
 
-        {/* Country Selector */}
-        <div style={{ marginTop: 24 }}>
-          <CountrySelector country={country} onChange={setCountry} />
-        </div>
-
         {/* Metric cards */}
-        <div style={{ display: "flex", gap: 12, flexWrap: "wrap" }}>
+        <div style={{ display: "flex", gap: 12, marginTop: 24, flexWrap: "wrap" }}>
           <MetricCard label="Facilities" value={country === "US" ? "5,419" : "7,680"} accent={theme.mint} />
-          <MetricCard label="Avg Rating" value={country === "US" ? "3.21 ★" : "N/A"} accent="#f1c40f" />
-          <MetricCard label="Completeness" value={country === "US" ? "58.6%" : "0%"} accent="#dce5e9" />
+          <MetricCard label="Avg Rating" value={country === "US" ? "3.21 ★" : "No rating"} accent="#f1c40f" />
+          <MetricCard label="Completeness" value={country === "US" ? "58.6%" : "Structural data"} accent="#dce5e9" />
           <MetricCard label="CI Status" value={ciLabel} accent={ciColor} />
         </div>
 
