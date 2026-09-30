@@ -98,6 +98,19 @@ const GB_CITIES = [
   { label: "Cardiff", lat: 51.4816, lng: -3.1791 },
 ];
 
+const FR_CITIES = [
+  { label: "Paris", lat: 48.8566, lng: 2.3522 },
+  { label: "Marseille", lat: 43.2965, lng: 5.3698 },
+  { label: "Lyon", lat: 45.7640, lng: 4.8357 },
+  { label: "Toulouse", lat: 43.6047, lng: 1.4442 },
+  { label: "Nice", lat: 43.7102, lng: 7.2620 },
+  { label: "Nantes", lat: 47.2184, lng: -1.5536 },
+  { label: "Bordeaux", lat: 44.8378, lng: -0.5792 },
+  { label: "Strasbourg", lat: 48.5734, lng: 7.7521 },
+  { label: "Lille", lat: 50.6292, lng: 3.0573 },
+  { label: "Rennes", lat: 48.1173, lng: -1.6778 },
+];
+
 export default function HospitalsNearMe({ country = "US" }) {
   const [open, setOpen] = useState(false);
   const [loading, setLoading] = useState(false);
@@ -112,7 +125,8 @@ export default function HospitalsNearMe({ country = "US" }) {
   const isBR = country === "BR";
   const isGB = country === "GB";
   const isUS = country === "US";
-  const CITIES = isBR ? BR_CITIES : isGB ? GB_CITIES : US_CITIES;
+  const isFR = country === "FR";
+  const CITIES = isBR ? BR_CITIES : isGB ? GB_CITIES : country === "FR" ? FR_CITIES : US_CITIES;
 
   useEffect(() => {
     setHospitals([]);
@@ -230,7 +244,7 @@ export default function HospitalsNearMe({ country = "US" }) {
       >
         <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
           <h2 style={{ margin: 0, fontSize: 17, fontWeight: 600, letterSpacing: "-0.01em", color: "#fff" }}>
-            {isBR ? "Hospitais Próximos" : "Hospitals Near Me"}
+            {isBR ? "Hospitais Próximos" : isFR ? "Hôpitaux à proximité" : "Hospitals Near Me"}
           </h2>
           <span style={{ fontFamily: theme.mono, fontSize: 11, color: theme.mint, letterSpacing: "0.06em", textTransform: "uppercase" }}>
             Geolocation

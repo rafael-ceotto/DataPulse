@@ -25,12 +25,22 @@ const COUNTRIES = {
     rating_info: "Sem rating nacional único — dados estruturais: leitos, especialidades, equipamentos. Fonte: CNES.",
   },
   GB: {
-  name: "United Kingdom",
-  source: "NHS / CQC (Care Quality Commission)",
-  description: "247 NHS Trusts · National Health Service · England",
-  rating_info: "Rating: Outstanding / Good / Requires Improvement / Inadequate. Assessed on: Safe · Effective · Caring · Responsive · Well-led.",
+    name: "United Kingdom",
+    source: "NHS / CQC (Care Quality Commission)",
+    description: "247 NHS Trusts · National Health Service · England",
+    rating_info: "Rating: Outstanding / Good / Requires Improvement / Inadequate. Assessed on: Safe · Effective · Caring · Responsive · Well-led.",
+  },
+  FR: {
+    name: "France",
+    source: "FINESS / Ministère de la Santé",
+    description: "3,360 hôpitaux · Système de santé français",
+    rating_info: "Certification HAS (Haute Autorité de Santé) — données structurelles FINESS.",
   },
 };
+
+const FACILITIES_COUNT = { US: "5,419", BR: "7,680", GB: "247", FR: "3,360" };
+const TOTAL_GLOBAL = "16,706";
+const LAST_UPDATED = { US: "May 2026", BR: "May 2026", GB: "May 2026", FR: "May 2026" };
 
 function useCIStatus() {
   const [status, setStatus] = useState(null);
@@ -122,13 +132,26 @@ export default function App() {
   const [country, setCountry] = useState("US");
   const ciStatus = useCIStatus();
   const ciColor = ciStatus === "success" ? theme.mint : ciStatus === "failure" ? "#ff6b6b" : "#6f8a95";
-  const ciLabel = ciStatus === "success" ? "CI passing" : ciStatus === "failure" ? "CI failing" : "CI unknown";
+  const isUS = country === "US";
+  const isBR = country === "BR";
+  const isFR = country === "FR";
 
-  const TABS = [
-  { id: "hospitals", label: country === "BR" ? "Hospitais" : "Hospitals" },
+  // Reset to hospitals tab when switching away from US
+  useEffect(() => {
+    if (!isUS) setActiveTab("hospitals");
+  }, [country]);
+
+  const TABS = isUS ? [
+  { id: "hospitals", label: "Hospitals" },
   { id: "analytics", label: "Analytics" },
   { id: "pipeline", label: "Pipeline" },
-  { id: "physicians", label: country === "BR" ? "Médicos" : "Physicians" },
+  { id: "physicians", label: "Physicians" },
+] : isBR ? [
+  { id: "hospitals", label: "Hospitais" },
+] : isFR ? [
+  { id: "hospitals", label: "Hôpitaux" },
+] : [
+  { id: "hospitals", label: "Hospitals" },
 ];
 
   return (
@@ -169,6 +192,13 @@ export default function App() {
             <div style={{ fontSize: 11, color: theme.muted, fontFamily: theme.mono }}>Global Hospital Quality Data</div>
           </div>
         </div>
+        {/* CI Status dot in header */}
+        <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+          <span style={{ width: 8, height: 8, borderRadius: "50%", background: ciColor, display: "block" }} />
+          <span style={{ fontFamily: theme.mono, fontSize: 11, color: "#6f8a95" }}>
+            {ciStatus === "success" ? "CI passing" : ciStatus === "failure" ? "CI failing" : "CI unknown"}
+          </span>
+        </div>
       </header>
 
       <main style={{ maxWidth: 1400, margin: "0 auto", padding: "32px 40px" }}>
@@ -181,10 +211,16 @@ export default function App() {
 
         {/* Metric cards */}
         <div style={{ display: "flex", gap: 12, marginTop: 24, flexWrap: "wrap" }}>
-          <MetricCard label="Facilities" value={country === "US" ? "5,419" : country === "BR" ? "7,680" : country === "GB" ? "247" : "—"} accent={theme.mint} />
-          <MetricCard label="Avg Rating" value={country === "US" ? "3.21 ★" : "No rating"} accent="#f1c40f" />
-          <MetricCard label="Completeness" value={country === "US" ? "58.6%" : "Structural data"} accent="#dce5e9" />
-          <MetricCard label="CI Status" value={ciLabel} accent={ciColor} />
+          <MetricCard label="Facilities" value={FACILITIES_COUNT[country] || "—"} accent={theme.mint} />
+          {isUS ? (
+            <>
+              <MetricCard label="Avg Rating" value="3.21 ★" accent="#f1c40f" />
+              <MetricCard label="Completeness" value="58.6%" accent="#dce5e9" />
+            </>
+          ) : (
+            <MetricCard label="Total Global" value={TOTAL_GLOBAL} accent="#dce5e9" />
+          )}
+          <MetricCard label="Last Updated" value={LAST_UPDATED[country] || "—"} accent="#6f8a95" />
         </div>
 
         {/* Tabs */}
@@ -217,22 +253,22 @@ export default function App() {
           {activeTab === "hospitals" && (
             <>
               <HospitalsNearMe country={country} />
-              {country === "US" && <RatingChart country={country} />}
+              {isUS && <RatingChart country={country} />}
               <DataQuality country={country} />
               <HospitalList country={country} />
             </>
           )}
-          {activeTab === "analytics" && (
+          {activeTab === "analytics" && isUS && (
             <>
               <RatingTrend />
               <PipelineAnalytics />
             </>
           )}
-          {activeTab === "pipeline" && <PipelineRuns />}
+          {activeTab === "pipeline" && isUS && <PipelineRuns />}
           {activeTab === "physicians" && (
             <>
-              <PhysicianAnalysis country={country}/>
-              <ScarceSpecialties country={country}/>
+              <PhysicianAnalysis country={country} />
+              <ScarceSpecialties country={country} />
             </>
           )}
         </div>

@@ -10,6 +10,7 @@ export default function DataQuality({ country = "US" }) {
   const isBR = country === "BR";
   const isGB = country === "GB";
   const isUS = country === "US";
+  const isFR = country === "FR";
 
   useEffect(() => {
     if (!open) return;
@@ -89,10 +90,10 @@ export default function DataQuality({ country = "US" }) {
       >
         <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
           <h2 style={{ margin: 0, fontSize: 17, fontWeight: 600, letterSpacing: "-0.01em", color: "#fff" }}>
-            {isBR ? "Qualidade dos Dados" : "Data Quality"}
+            {isBR ? "Qualidade dos Dados" : isFR ? "Qualité des données" : "Data Quality"}
           </h2>
           <span style={{ fontFamily: theme.mono, fontSize: 11, color: theme.mint, letterSpacing: "0.06em", textTransform: "uppercase" }}>
-            {isBR ? "Métricas de saúde" : "Health Metrics"}
+            {isBR ? "Métricas de saúde" : isFR ? "Métriques de santé" : "Health Metrics"}
           </span>
         </div>
         <span style={{ fontSize: 20, color: "#6f8a95", transition: "transform .2s", transform: open ? "rotate(180deg)" : "rotate(0deg)" }}>

@@ -13,6 +13,7 @@ import { theme } from "../theme";
 
 ChartJS.register(CategoryScale, LinearScale, BarElement, Title, Tooltip, Legend);
 
+
 export default function RatingChart({ country = "US" }) {
   const [data, setData] = useState([]);
   const [open, setOpen] = useState(false);
