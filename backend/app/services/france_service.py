@@ -5,7 +5,7 @@ from app.core.logging import logger
 from app.core.s3 import get_s3_client, BUCKET_NAME
 from app.schemas.hospital import Hospital as HospitalSchema
 from app.repositories.hospital_repository import save_hospitals
-from app.core.country_normalizer import get_rating_system
+from app.core.country_normalizer import get_rating_systems
 
 
 async def ingest_fr_hospitals(session: AsyncSession) -> int:
@@ -17,7 +17,7 @@ async def ingest_fr_hospitals(session: AsyncSession) -> int:
 
     try:
         obj = client.get_object(Bucket=BUCKET_NAME, Key=s3_key)
-        df = pd.read_csv(io.BytesIO(obj["Body"].read()))
+        df = pd.read_csv(io.BytesIO(obj["Body"].read()), keep_default_na=False)
     except Exception as e:
         logger.error("france_csv_not_found", error=str(e))
         raise ValueError("No French hospital data found in S3. Run the France processor first.")
@@ -33,17 +33,17 @@ async def ingest_fr_hospitals(session: AsyncSession) -> int:
                 address=str(row.get("address") or ""),
                 city=str(row.get("city") or ""),
                 state=str(row.get("state") or "France"),
-                zip_code=str(row.get("zip_code") or ""),
+                zip_code=str(row.get("zip_code") or "").zfill(5),
                 hospital_type=str(row.get("hospital_type") or ""),
                 hospital_ownership=str(row.get("hospital_ownership") or ""),
-                emergency_services=str(row.get("emergency_services") or ""),
+                emergency_services="",
                 overall_rating=None,
-                telephone_number=str(row["telephone_number"]) if pd.notna(row.get("telephone_number")) else None,
-                latitude=float(row["latitude"]) if pd.notna(row.get("latitude")) else None,
-                longitude=float(row["longitude"]) if pd.notna(row.get("longitude")) else None,
+                telephone_number=str(row["telephone_number"]) if str(row.get("telephone_number", "")) not in ["nan", "", "None"] else None,
+                latitude=float(row["latitude"]) if str(row.get("latitude", "")) not in ["nan", "", "None"] else None,
+                longitude=float(row["longitude"]) if str(row.get("longitude", "")) not in ["nan", "", "None"] else None,
                 country="FR",
                 normalized_score=None,
-                rating_system=get_rating_system("FR"),
+                rating_system=get_rating_systems("FR"),
                 raw_rating_label=None,
             )
             hospitals.append(hospital)

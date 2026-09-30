@@ -143,7 +143,12 @@ def process_and_upload(hospitals: list[dict], geocodes: dict) -> None:
         })
 
     df = pd.DataFrame(rows)
-    print(f"Total hospitals: {len(df)}")
+    df['emergency_services'] = ""
+    df['telephone_number'] = df['telephone_number'].apply(
+    lambda x: str(int(float(x))) if pd.notna(x) and str(x) not in ["nan", ""] else None)
+    df['zip_code'] = df['zip_code'].apply(lambda x: str(x).zfill(5) if pd.notna(x) and str(x) not in ["nan", ""] else "")
+    print("Sample after fix:")
+    print(df[['emergency_services', 'telephone_number', 'zip_code']].head(3).to_string())
 
     tmp = tempfile.NamedTemporaryFile(delete=False, suffix=".csv")
     df.to_csv(tmp.name, index=False)
