@@ -170,6 +170,21 @@ async def run_france_pipeline(
     background_tasks.add_task(run_and_invalidate)
     return {"status": "running", "message": "France pipeline started in background", "country": "FR"}
 
+@router.post("/api/v1/pipeline/run/belgium")
+async def run_belgium_pipeline(
+    background_tasks: BackgroundTasks,
+    session: AsyncSession = Depends(get_session),
+    current_user: dict = Depends(get_current_user)
+):
+    from app.services.belgium_service import ingest_be_hospitals
+
+    async def run_and_invalidate():
+        async with AsyncSessionLocal() as bg_session:
+            await ingest_be_hospitals(bg_session)
+
+    background_tasks.add_task(run_and_invalidate)
+    return {"status": "running", "message": "Belgium pipeline started in background", "country": "BE"}
+
 @router.get("/api/v1/hospitals/nearby")
 async def hospitals_nearby(lat:float, lng:float, radius:float=50.0, min_rating:int | None = None, limit: int=20, country: str = "US", session: AsyncSession = Depends(get_session),):
     from app.repositories.hospital_repository import get_hospitals_nearby

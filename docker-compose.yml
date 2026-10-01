@@ -278,6 +278,26 @@ services:
     profiles:
       - france
 
+  belgium_processor:
+    build:
+      context: .
+      dockerfile: backend/Dockerfile
+    container_name: datapulse_belgium_processor
+    environment:
+      FLOCI_ENDPOINT_URL: http://floci:4566
+      AWS_ACCESS_KEY_ID: test
+      AWS_SECRET_ACCESS_KEY: test
+      AWS_DEFAULT_REGION: us-east-1
+      S3_BUCKET_NAME: datapulse
+    env_file:
+      - backend/.env
+    command: poetry run python scripts/process_belgium.py
+    depends_on:
+      - floci
+    profiles:
+      - belgium
+  
+
 volumes:
   postgres_data:
   airflow_db_data:
