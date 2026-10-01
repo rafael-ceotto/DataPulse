@@ -10,7 +10,9 @@ export default function DataQuality({ country = "US" }) {
   const isBR = country === "BR";
   const isGB = country === "GB";
   const isUS = country === "US";
+  const isBE = country === "BE";
   const isFR = country === "FR";
+  const isFrench = isFR || isBE;
 
   useEffect(() => {
     if (!open) return;
@@ -71,6 +73,16 @@ export default function DataQuality({ country = "US" }) {
     );
   }
 
+  const totalHospitalsLabel = isBR ? "Total de Hospitais" : isFrench ? "Total des hôpitaux" : "Total Hospitals";
+  const totalHospitalsSub = isBR ? "Estabelecimentos CNES com leitos"
+    : isGB ? "Active NHS Trusts in England"
+    : isFR ? "Établissements FINESS — types 101, 106, 292, 355"
+    : isBE ? "Hôpitaux Wikidata — Belgique"
+    : "CMS facilities in dataset";
+
+  const missingPhoneLabel = isBR ? "Telefone ausente" : isFrench ? "Téléphone manquant" : "Missing Phone";
+  const missingPhoneSub = isBR ? "Sem número de telefone" : isFrench ? "Sans numéro de téléphone" : "No telephone number";
+
   return (
     <section style={{ marginTop: 24 }}>
       <div
@@ -90,10 +102,10 @@ export default function DataQuality({ country = "US" }) {
       >
         <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
           <h2 style={{ margin: 0, fontSize: 17, fontWeight: 600, letterSpacing: "-0.01em", color: "#fff" }}>
-            {isBR ? "Qualidade dos Dados" : isFR ? "Qualité des données" : "Data Quality"}
+            {isBR ? "Qualidade dos Dados" : isFrench ? "Qualité des données" : "Data Quality"}
           </h2>
           <span style={{ fontFamily: theme.mono, fontSize: 11, color: theme.mint, letterSpacing: "0.06em", textTransform: "uppercase" }}>
-            {isBR ? "Métricas de saúde" : isFR ? "Métriques de santé" : "Health Metrics"}
+            {isBR ? "Métricas de saúde" : isFrench ? "Métriques de santé" : "Health Metrics"}
           </span>
         </div>
         <span style={{ fontSize: 20, color: "#6f8a95", transition: "transform .2s", transform: open ? "rotate(180deg)" : "rotate(0deg)" }}>
@@ -111,15 +123,22 @@ export default function DataQuality({ country = "US" }) {
           boxShadow: "0 4px 12px rgba(16,26,32,.3)",
         }}>
           {loading ? (
-            <div style={{ textAlign: "center", color: "#6f8a95", padding: 40 }}>Loading...</div>
+            <div style={{ textAlign: "center", color: "#6f8a95", padding: 40 }}>
+              {isFrench ? "Chargement..." : "Loading..."}
+            </div>
           ) : metrics ? (
             <div style={{ display: "flex", flexDirection: "column", gap: 20 }}>
               {isUS && <ProgressBar pct={metrics.completeness_pct} />}
-              <div style={{ display: "grid", gridTemplateColumns: isUS ? "repeat(auto-fill, minmax(200px, 1fr))" : "repeat(auto-fit, minmax(200px, max-content))", gap: 14, justifyContent: isUS ? "start" : "center", }}>
+              <div style={{
+                display: "grid",
+                gridTemplateColumns: isUS ? "repeat(auto-fill, minmax(200px, 1fr))" : "repeat(auto-fit, minmax(200px, max-content))",
+                gap: 14,
+                justifyContent: isUS ? "start" : "center",
+              }}>
                 <MetricCard
-                  label={isBR ? "Total de Hospitais" : "Total Hospitals"}
+                  label={totalHospitalsLabel}
                   value={metrics.total_hospitals?.toLocaleString() ?? "—"}
-                  sub={isBR ? "Estabelecimentos CNES com leitos" : isGB ? "Active NHS Trusts in England" : "CMS facilities in dataset"}
+                  sub={totalHospitalsSub}
                   color="#dce5e9"
                 />
                 {isUS && (
@@ -145,17 +164,27 @@ export default function DataQuality({ country = "US" }) {
                     color="#6f8a95"
                   />
                 )}
+                {isFrench && (
+                  <MetricCard
+                    label="Système de notation"
+                    value="N/A"
+                    sub={isFR ? "HAS Certification — données structurelles uniquement" : "SPF Santé publique — données structurelles uniquement"}
+                    color="#6f8a95"
+                  />
+                )}
                 <MetricCard
-                  label={isBR ? "Telefone ausente" : "Missing Phone"}
+                  label={missingPhoneLabel}
                   value={metrics.missing_phone?.toLocaleString() ?? "0"}
-                  sub={isBR ? "Sem número de telefone" : "No telephone number"}
+                  sub={missingPhoneSub}
                   color="#6f8a95"
                   alert={metrics.missing_phone > 0}
                 />
               </div>
             </div>
           ) : (
-            <div style={{ textAlign: "center", color: "#6f8a95", padding: 40 }}>No data available.</div>
+            <div style={{ textAlign: "center", color: "#6f8a95", padding: 40 }}>
+              {isFrench ? "Aucune donnée disponible." : "No data available."}
+            </div>
           )}
         </div>
       )}

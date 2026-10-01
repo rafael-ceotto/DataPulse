@@ -111,6 +111,14 @@ const FR_CITIES = [
   { label: "Rennes", lat: 48.1173, lng: -1.6778 },
 ];
 
+const BE_CITIES = [
+  { label: "Brussels", lat: 50.8503, lng: 4.3517 },
+  { label: "Antwerp", lat: 51.2194, lng: 4.4025 },
+  { label: "Ghent", lat: 51.0543, lng: 3.7174 },
+  { label: "Bruges", lat: 51.2093, lng: 3.2247 },
+  { label: "Liège", lat: 50.6326, lng: 5.5797 },
+];
+
 export default function HospitalsNearMe({ country = "US" }) {
   const [open, setOpen] = useState(false);
   const [loading, setLoading] = useState(false);
@@ -126,7 +134,10 @@ export default function HospitalsNearMe({ country = "US" }) {
   const isGB = country === "GB";
   const isUS = country === "US";
   const isFR = country === "FR";
-  const CITIES = isBR ? BR_CITIES : isGB ? GB_CITIES : country === "FR" ? FR_CITIES : US_CITIES;
+  const isBE = country === "BE";
+  const isFrench = isFR || isBE;
+
+  const CITIES = isBR ? BR_CITIES : isGB ? GB_CITIES : isFR ? FR_CITIES : isBE ? BE_CITIES : US_CITIES;
 
   useEffect(() => {
     setHospitals([]);
@@ -244,7 +255,7 @@ export default function HospitalsNearMe({ country = "US" }) {
       >
         <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
           <h2 style={{ margin: 0, fontSize: 17, fontWeight: 600, letterSpacing: "-0.01em", color: "#fff" }}>
-            {isBR ? "Hospitais Próximos" : isFR ? "Hôpitaux à proximité" : "Hospitals Near Me"}
+            {isBR ? "Hospitais Próximos" : isFrench ? "Hôpitaux à proximité" : "Hospitals Near Me"}
           </h2>
           <span style={{ fontFamily: theme.mono, fontSize: 11, color: theme.mint, letterSpacing: "0.06em", textTransform: "uppercase" }}>
             Geolocation
@@ -267,11 +278,11 @@ export default function HospitalsNearMe({ country = "US" }) {
           <div style={{ display: "flex", gap: 12, flexWrap: "wrap", alignItems: "flex-end", marginBottom: 20 }}>
             <div>
               <div style={{ fontFamily: theme.mono, fontSize: 10.5, color: "#6f8a95", letterSpacing: "0.07em", textTransform: "uppercase", marginBottom: 6 }}>
-                {isBR ? "Raio (km)" : "Radius (miles)"}
+                {isBR ? "Raio (km)" : isFrench ? "Rayon (km)" : "Radius (miles)"}
               </div>
               <select value={radius} onChange={(e) => setRadius(Number(e.target.value))} style={selectStyle}>
                 {[10, 25, 50, 100].map(r => (
-                  <option key={r} value={r}>{r} {isBR ? "km" : "miles"}</option>
+                  <option key={r} value={r}>{r} {isBR || isFrench ? "km" : "miles"}</option>
                 ))}
               </select>
             </div>
@@ -303,7 +314,9 @@ export default function HospitalsNearMe({ country = "US" }) {
                 opacity: loading ? 0.7 : 1,
               }}
             >
-              {loading ? (isBR ? "Buscando..." : "Searching...") : "📍 " + (isBR ? "Usar minha localização" : "Use my location")}
+              {loading
+                ? (isBR ? "Buscando..." : isFrench ? "Recherche..." : "Searching...")
+                : "📍 " + (isBR ? "Usar minha localização" : isFrench ? "Utiliser ma position" : "Use my location")}
             </button>
 
             {currentCoords && (
@@ -319,16 +332,16 @@ export default function HospitalsNearMe({ country = "US" }) {
                   cursor: "pointer",
                 }}
               >
-                ✕ {isBR ? "Limpar" : "Clear"}
+                ✕ {isBR ? "Limpar" : isFrench ? "Effacer" : "Clear"}
               </button>
             )}
 
             <div>
               <div style={{ fontFamily: theme.mono, fontSize: 10.5, color: "#6f8a95", letterSpacing: "0.07em", textTransform: "uppercase", marginBottom: 6 }}>
-                {isBR ? "Ou escolha uma cidade" : isGB ? "Or test with a UK city" : "Or test with a US city"}
+                {isBR ? "Ou escolha uma cidade" : isGB ? "Or test with a UK city" : isFrench ? "Ou choisissez une ville" : "Or test with a US city"}
               </div>
               <select value={testCity} onChange={handleTestCity} disabled={loading} style={{ ...selectStyle, minWidth: 220 }}>
-                <option value="">{isBR ? "Selecione uma cidade..." : "Select a city..."}</option>
+                <option value="">{isBR ? "Selecione uma cidade..." : isFrench ? "Sélectionnez une ville..." : "Select a city..."}</option>
                 {CITIES.map(c => <option key={c.label} value={c.label}>{c.label}</option>)}
               </select>
             </div>
@@ -347,7 +360,7 @@ export default function HospitalsNearMe({ country = "US" }) {
           {hospitals.length > 0 && (
             <>
               <div style={{ fontFamily: theme.mono, fontSize: 10.5, color: "#6f8a95", letterSpacing: "0.07em", textTransform: "uppercase", marginBottom: 14 }}>
-                {hospitals.length} {isBR ? "hospitais encontrados" : "hospitals found"} within {radius} {isBR ? "km" : "miles"}
+                {hospitals.length} {isBR ? "hospitais encontrados" : isFrench ? "hôpitaux trouvés" : "hospitals found"} within {radius} {isBR || isFrench ? "km" : "miles"}
               </div>
               <div style={{ maxHeight: 500, overflowY: "auto", display: "flex", flexDirection: "column", gap: 10 }}>
                 {hospitals.map((h) => (
@@ -385,11 +398,13 @@ export default function HospitalsNearMe({ country = "US" }) {
                         </div>
                       ) : isBR ? (
                         <div style={{ fontFamily: theme.mono, fontSize: 11, color: "#6f8a95" }}>CNES</div>
+                      ) : isFrench ? (
+                        <div style={{ fontFamily: theme.mono, fontSize: 11, color: "#6f8a95" }}>FINESS</div>
                       ) : (
                         <div style={{ fontFamily: theme.mono, fontSize: 11, color: "#6f8a95" }}>NHS</div>
                       )}
                       <div style={{ fontFamily: theme.mono, fontSize: 11, color: "#a7b6bf" }}>
-                        {h.distance_miles} {isBR ? "km" : "mi"} away
+                        {h.distance_miles} {isBR || isFrench ? "km" : "mi"} away
                       </div>
                       {(h.emergency_services === "Yes" || h.emergency_services === "Sim") && (
                         <div style={{ fontFamily: theme.mono, fontSize: 10, color: "#ff6b6b", letterSpacing: "0.06em", border: "1px solid #ff6b6b44", borderRadius: 4, padding: "2px 6px" }}>
@@ -405,7 +420,13 @@ export default function HospitalsNearMe({ country = "US" }) {
 
           {!loading && hospitals.length === 0 && !error && (
             <div style={{ color: "#6f8a95", fontSize: 13 }}>
-              {isBR ? "Use sua localização ou selecione uma cidade para encontrar hospitais próximos." : isGB ? "Use your location or select a UK city to find nearby NHS Trusts." : "Use your location or select a US city to find nearby hospitals."}
+              {isBR
+                ? "Use sua localização ou selecione uma cidade para encontrar hospitais próximos."
+                : isGB
+                ? "Use your location or select a UK city to find nearby NHS Trusts."
+                : isFrench
+                ? "Utilisez votre position ou sélectionnez une ville pour trouver des hôpitaux à proximité."
+                : "Use your location or select a US city to find nearby hospitals."}
             </div>
           )}
         </div>

@@ -336,5 +336,10 @@ async def save_insight_to_notion(body: NotionSaveRequest, current_user: dict = D
 async def ai_stats(current_user: dict = Depends(get_current_user)):
     return await get_user_stats(current_user["username"])
 
+@router.get("/api/v1/hospitals/stats/count")
+async def hospitals_count(session: AsyncSession = Depends(get_session)):
+    from app.repositories.hospital_repository import get_total_count
+    total = await get_total_count(session)
+    return {"total": total}
 
     

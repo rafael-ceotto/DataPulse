@@ -36,11 +36,16 @@ const COUNTRIES = {
     description: "3,360 hôpitaux · Système de santé français",
     rating_info: "Certification HAS (Haute Autorité de Santé) — données structurelles FINESS.",
   },
+  BE: {
+    name: "Belgium",
+    source: "Wikidata / SPF Santé publique",
+    description: "111 hôpitaux · Royaume de Belgique",
+    rating_info: "Agrément SPF Santé publique — données structurelles Wikidata.",
+  },
 };
 
-const FACILITIES_COUNT = { US: "5,419", BR: "7,680", GB: "247", FR: "3,360" };
-const TOTAL_GLOBAL = "16,706";
-const LAST_UPDATED = { US: "May 2026", BR: "May 2026", GB: "May 2026", FR: "May 2026" };
+const FACILITIES_COUNT = { US: "5,419", BR: "7,680", GB: "247", FR: "3,360", BE: "111" };
+const LAST_UPDATED = { US: "Oct 2026", BR: "Oct 2026", GB: "Oct 2026", FR: "Oct 2026", BE: "Oct 2026" };
 
 function useCIStatus() {
   const [status, setStatus] = useState(null);
@@ -59,6 +64,17 @@ function useCIStatus() {
     return () => clearInterval(id);
   }, []);
   return status;
+}
+
+function useTotalGlobal() {
+  const [total, setTotal] = useState("—");
+  useEffect(() => {
+    fetch("/api/v1/hospitals/stats/count")
+      .then((r) => r.json())
+      .then((data) => setTotal(data.total.toLocaleString()))
+      .catch(() => {});
+  }, []);
+  return total;
 }
 
 function MetricCard({ label, value, accent }) {
@@ -132,27 +148,33 @@ export default function App() {
   const [country, setCountry] = useState("US");
   const ciStatus = useCIStatus();
   const ciColor = ciStatus === "success" ? theme.mint : ciStatus === "failure" ? "#ff6b6b" : "#6f8a95";
+  const totalGlobal = useTotalGlobal();
   const isUS = country === "US";
   const isBR = country === "BR";
   const isFR = country === "FR";
+  const isBE = country === "BE";
+  const isFrench = isFR || isBE;
 
-  // Reset to hospitals tab when switching away from US
+  const facilityLabel = isBR ? "Instalações" : isFrench ? "Établissements" : "Facilities";
+  const totalLabel = isBR ? "Total Global" : isFrench ? "Total mondial" : "Total Global";
+  const updatedLabel = isBR ? "Última atualização" : isFrench ? "Mise à jour" : "Last Updated";
+
   useEffect(() => {
     if (!isUS) setActiveTab("hospitals");
   }, [country]);
 
   const TABS = isUS ? [
-  { id: "hospitals", label: "Hospitals" },
-  { id: "analytics", label: "Analytics" },
-  { id: "pipeline", label: "Pipeline" },
-  { id: "physicians", label: "Physicians" },
-] : isBR ? [
-  { id: "hospitals", label: "Hospitais" },
-] : isFR ? [
-  { id: "hospitals", label: "Hôpitaux" },
-] : [
-  { id: "hospitals", label: "Hospitals" },
-];
+    { id: "hospitals", label: "Hospitals" },
+    { id: "analytics", label: "Analytics" },
+    { id: "pipeline", label: "Pipeline" },
+    { id: "physicians", label: "Physicians" },
+  ] : isBR ? [
+    { id: "hospitals", label: "Hospitais" },
+  ] : isFrench ? [
+    { id: "hospitals", label: "Hôpitaux" },
+  ] : [
+    { id: "hospitals", label: "Hospitals" },
+  ];
 
   return (
     <div style={{ minHeight: "100vh", background: "#f4f6f8", color: theme.ink, fontFamily: theme.sans }}>
@@ -192,7 +214,6 @@ export default function App() {
             <div style={{ fontSize: 11, color: theme.muted, fontFamily: theme.mono }}>Global Hospital Quality Data</div>
           </div>
         </div>
-        {/* CI Status dot in header */}
         <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
           <span style={{ width: 8, height: 8, borderRadius: "50%", background: ciColor, display: "block" }} />
           <span style={{ fontFamily: theme.mono, fontSize: 11, color: "#6f8a95" }}>
@@ -211,16 +232,16 @@ export default function App() {
 
         {/* Metric cards */}
         <div style={{ display: "flex", gap: 12, marginTop: 24, flexWrap: "wrap" }}>
-          <MetricCard label="Facilities" value={FACILITIES_COUNT[country] || "—"} accent={theme.mint} />
+          <MetricCard label={facilityLabel} value={FACILITIES_COUNT[country] || "—"} accent={theme.mint} />
           {isUS ? (
             <>
               <MetricCard label="Avg Rating" value="3.21 ★" accent="#f1c40f" />
               <MetricCard label="Completeness" value="58.6%" accent="#dce5e9" />
             </>
           ) : (
-            <MetricCard label="Total Global" value={TOTAL_GLOBAL} accent="#dce5e9" />
+            <MetricCard label={totalLabel} value={totalGlobal} accent="#dce5e9" />
           )}
-          <MetricCard label="Last Updated" value={LAST_UPDATED[country] || "—"} accent="#6f8a95" />
+          <MetricCard label={updatedLabel} value={LAST_UPDATED[country] || "—"} accent="#6f8a95" />
         </div>
 
         {/* Tabs */}

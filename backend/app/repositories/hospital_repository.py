@@ -183,3 +183,7 @@ async def get_hospitals_nearby(session: AsyncSession, lat: float, lng: float, ra
         for h, distance in rows
         if distance <= radius_miles
     ]
+    
+async def get_total_count(session: AsyncSession) -> int:
+    result = await session.execute(select(func.count(HospitalModel.facility_id)))
+    return result.scalar()

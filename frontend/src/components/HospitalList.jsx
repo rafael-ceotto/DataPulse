@@ -36,6 +36,8 @@ function HospitalCard({ hospital, expanded, onExpand, onClose, onInfectionsLoade
   const isBR = country === "BR";
   const isGB = country === "GB";
   const isFR = country === "FR";
+  const isBE = country === "BE";
+  const isFrench = isFR || isBE;
   const isUS = country === "US";
 
   useEffect(() => {
@@ -56,7 +58,7 @@ function HospitalCard({ hospital, expanded, onExpand, onClose, onInfectionsLoade
   const better = infections.filter(i => i.compared_to_national === "Better than the National Benchmark");
   const average = infections.length - worse.length - better.length;
 
-  const zipLabel = isBR ? "CEP" : isFR ? "Code Postal" : isGB ? "Postcode" : "ZIP";
+  const zipLabel = isBR ? "CEP" : isFrench ? "Code Postal" : isGB ? "Postcode" : "ZIP";
 
   const expandedFields = isBR ? [
     { label: "Código CNES", value: hospital.facility_id },
@@ -66,7 +68,7 @@ function HospitalCard({ hospital, expanded, onExpand, onClose, onInfectionsLoade
     { label: "Tipo", value: hospital.hospital_type },
     { label: "Natureza", value: hospital.hospital_ownership },
     { label: "Urgência/Emergência", value: hospital.emergency_services },
-  ] : isFR ? [
+  ] : isFrench ? [
     { label: "Code FINESS", value: hospital.facility_id },
     { label: "Adresse", value: hospital.address },
     { label: "Code Postal", value: hospital.zip_code },
@@ -172,7 +174,7 @@ function HospitalCard({ hospital, expanded, onExpand, onClose, onInfectionsLoade
             </div>
           )}
 
-          {isFR && (
+          {isFrench && (
             <div style={{ borderTop: `1px solid ${theme.border}`, paddingTop: 14 }}>
               <div style={{ fontFamily: theme.mono, fontSize: 11, color: "#6f8a95" }}>
                 Données d'infection non disponibles via FINESS.
@@ -197,7 +199,7 @@ function HospitalCard({ hospital, expanded, onExpand, onClose, onInfectionsLoade
         {isUS && <Stars rating={hospital.overall_rating ?? 0} />}
         {isBR && <span style={{ fontFamily: theme.mono, fontSize: 11, color: "#6f8a95" }}>CNES</span>}
         {isGB && <span style={{ fontFamily: theme.mono, fontSize: 11, color: "#6f8a95" }}>NHS</span>}
-        {isFR && <span style={{ fontFamily: theme.mono, fontSize: 11, color: "#6f8a95" }}>FINESS</span>}
+        {isFrench && <span style={{ fontFamily: theme.mono, fontSize: 11, color: "#6f8a95" }}>FINESS</span>}
       </div>
     </article>
   );
@@ -237,6 +239,8 @@ export default function HospitalList({ country = "US" }) {
   const isBR = country === "BR";
   const isFR = country === "FR";
   const isGB = country === "GB";
+  const isBE = country === "BE";
+  const isFrench = isFR || isBE;
 
   useEffect(() => {
     if (!open) return;
@@ -288,8 +292,9 @@ export default function HospitalList({ country = "US" }) {
     country === "BR" ? "7,680 instalações" :
     country === "GB" ? "247 NHS Trusts" :
     country === "FR" ? "3,360 hôpitaux" : "—";
+    country === "BE" ? "111 hôpitaux" : "—";
 
-  const browseLabel = isBR ? "Explorar Hospitais" : isFR ? "Explorer les hôpitaux" : "Browse Hospitals";
+  const browseLabel = isBR ? "Explorar Hospitais" : isFrench ? "Explorer les hôpitaux" : "Browse Hospitals";
 
   return (
     <section style={{ marginTop: 24 }}>
@@ -331,9 +336,9 @@ export default function HospitalList({ country = "US" }) {
           boxShadow: "0 4px 12px rgba(16,26,32,.3)",
         }}>
           <div style={{ display: "flex", gap: 10, flexWrap: "wrap", marginBottom: 20 }}>
-            <input type="text" value={search} onChange={(e) => { setSearch(e.target.value); setPage(1); }} placeholder={isBR ? "Buscar por nome do hospital..." : isFR ? "Rechercher par nom d'hôpital..." : "Search by hospital name..."} style={{ ...control, flex: "1 1 220px" }} />
-            <input type="text" value={stateFilter} onChange={(e) => { setStateFilter(e.target.value.toUpperCase()); setPage(1); }} placeholder={isBR ? "Filtrar por estado (ex: SP)" : isFR ? "Filtrer par région..." : "Filter by state (e.g. TX)"} style={{ ...control, width: 180 }} />
-            <button onClick={(e) => { e.stopPropagation(); handleClear(); }} style={{ ...control, cursor: "pointer", color: "#a7b6bf" }}>{isBR ? "Limpar" : isFR ? "Effacer" : "Clear"}</button>
+            <input type="text" value={search} onChange={(e) => { setSearch(e.target.value); setPage(1); }} placeholder={isBR ? "Buscar por nome do hospital..." : isFrench ? "Rechercher par nom d'hôpital..." : "Search by hospital name..."} style={{ ...control, flex: "1 1 220px" }} />
+            <input type="text" value={stateFilter} onChange={(e) => { setStateFilter(e.target.value.toUpperCase()); setPage(1); }} placeholder={isBR ? "Filtrar por estado (ex: SP)" : isFrench ? "Filtrer par région..." : "Filter by state (e.g. TX)"} style={{ ...control, width: 180 }} />
+            <button onClick={(e) => { e.stopPropagation(); handleClear(); }} style={{ ...control, cursor: "pointer", color: "#a7b6bf" }}>{isBR ? "Limpar" : isFrench ? "Effacer" : "Clear"}</button>
             {hospitals.length > 0 && (
               <button onClick={(e) => { e.stopPropagation(); exportCSV(hospitals, `hospitals_${hospitals[0]?.state || "all"}_page.csv`); }} style={{ ...control, cursor: "pointer", color: theme.mint, borderColor: theme.mint }}>↓ Export CSV</button>
             )}
@@ -365,16 +370,16 @@ export default function HospitalList({ country = "US" }) {
 
           {hospitals.length === 0 && (
             <div style={{ background: theme.darkInput, border: `1px dashed #2c3b44`, borderRadius: 14, padding: "48px 24px", textAlign: "center", color: "#6f8a95", fontSize: 14.5 }}>
-              {isBR ? "Nenhum hospital encontrado." : isFR ? "Aucun hôpital trouvé." : "No hospitals found."}
+              {isBR ? "Nenhum hospital encontrado." : isFrench ? "Aucun hôpital trouvé." : "No hospitals found."}
             </div>
           )}
 
           <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 16, flexWrap: "wrap", marginTop: 24 }}>
-            <div style={{ fontFamily: theme.mono, fontSize: 12, color: "#6f8a95" }}>{isBR ? "Página" : isFR ? "Page" : "Page"} {page}</div>
+            <div style={{ fontFamily: theme.mono, fontSize: 12, color: "#6f8a95" }}>{isBR ? "Página" : isFrench ? "Page" : "Page"} {page}</div>
             <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
-              <button onClick={() => setPage((p) => Math.max(1, p - 1))} disabled={page === 1} style={{ ...control, borderRadius: 9, cursor: "pointer", fontSize: 13.5 }}>{isBR ? "Anterior" : isFR ? "Précédent" : "Prev"}</button>
+              <button onClick={() => setPage((p) => Math.max(1, p - 1))} disabled={page === 1} style={{ ...control, borderRadius: 9, cursor: "pointer", fontSize: 13.5 }}>{isBR ? "Anterior" : isFrench ? "Précédent" : "Prev"}</button>
               <button style={pageBtn(true)}>{page}</button>
-              <button onClick={() => setPage((p) => p + 1)} disabled={hospitals.length < limit} style={{ ...control, borderRadius: 9, cursor: "pointer", fontSize: 13.5 }}>{isBR ? "Próximo" : isFR ? "Suivant" : "Next"}</button>
+              <button onClick={() => setPage((p) => p + 1)} disabled={hospitals.length < limit} style={{ ...control, borderRadius: 9, cursor: "pointer", fontSize: 13.5 }}>{isBR ? "Próximo" : isFrench ? "Suivant" : "Next"}</button>
             </div>
           </div>
         </div>
