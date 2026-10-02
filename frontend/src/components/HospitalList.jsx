@@ -291,7 +291,7 @@ export default function HospitalList({ country = "US" }) {
   const facilityCount = country === "US" ? "5,419 facilities" :
     country === "BR" ? "7,680 instalações" :
     country === "GB" ? "247 NHS Trusts" :
-    country === "FR" ? "3,360 hôpitaux" : "—";
+    country === "FR" ? "3,360 hôpitaux" :
     country === "BE" ? "111 hôpitaux" : "—";
 
   const browseLabel = isBR ? "Explorar Hospitais" : isFrench ? "Explorer les hôpitaux" : "Browse Hospitals";

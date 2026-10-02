@@ -26,20 +26,11 @@ def normalize_score(country: str, overall_rating: int | None = None, raw_rating_
         }
         return mapping.get(raw_rating_label.lower())
     
-    elif country == "BR":
-        #DATASUS CNES has no single national rating
-        return None
-    
-    elif country == "BE":
-        if raw_rating_label is None:
-            return None
-        return 100.0 if raw_rating_label.lower() == "accredited" else 50.0
-    
-    elif country == "IT":
-        #ISTAT data is by region, not by hospital
+    elif country in ("BR", "BE", "CA", "AU", "DE", "MT", "PT", "ES", "IT"):
         return None
     
     return None
+
 
 def get_rating_systems(country: str) -> str:
     systems = {
@@ -49,8 +40,15 @@ def get_rating_systems(country: str) -> str:
         "BR": "CNES — structural data only",
         "BE": "SPF Santé publique accreditation",
         "IT": "SSN / ISTAT regional data",
+        "CA": "CIHI (Canadian Institute for Health Information)",
+        "AU": "ACSQHC — structural data only",
+        "DE": "Qualitätsbericht — structural data only",
+        "MT": "Malta Health — structural data only",
+        "PT": "SNS — structural data only",
+        "ES": "SNS España — structural data only",
     }
     return systems.get(country, "Unknown")
+
 
 COUNTRY_LABELS = {
     "US": {
@@ -64,22 +62,29 @@ COUNTRY_LABELS = {
         "flag": "🇧🇷",
         "name": "Brasil",
         "source": "DATASUS / Ministério da Saúde",
-        "description": "7,000+ hospitais · Sistema Único de Saúde (SUS)",
+        "description": "7,680 hospitais · Sistema Único de Saúde (SUS)",
         "rating_info": "Sem rating nacional único — dados estruturais: leitos, especialidades, equipamentos. Fonte: CNES.",
     },
     "GB": {
         "flag": "🇬🇧",
         "name": "United Kingdom",
         "source": "NHS / CQC (Care Quality Commission)",
-        "description": "1,200+ hospitals · National Health Service",
+        "description": "247 NHS Trusts · National Health Service · England",
         "rating_info": "Rating: Outstanding / Good / Requires Improvement / Inadequate. Assessed on: Safe · Effective · Caring · Responsive · Well-led.",
     },
     "FR": {
         "flag": "🇫🇷",
         "name": "France",
-        "source": "HAS (Haute Autorité de Santé)",
-        "description": "3,000+ hôpitaux · Système de santé français",
-        "rating_info": "Certification / Avec recommandations / Non-certification. Données via data.gouv.fr.",
+        "source": "FINESS / Ministère de la Santé",
+        "description": "3,360 hôpitaux · Système de santé français",
+        "rating_info": "Certification HAS (Haute Autorité de Santé) — données structurelles FINESS.",
+    },
+    "BE": {
+        "flag": "🇧🇪",
+        "name": "Belgique / België",
+        "source": "Wikidata / SPF Santé publique",
+        "description": "111 hôpitaux · Royaume de Belgique",
+        "rating_info": "Agrément SPF Santé publique — données structurelles Wikidata.",
     },
     "IT": {
         "flag": "🇮🇹",
@@ -88,12 +93,47 @@ COUNTRY_LABELS = {
         "description": "1,000+ ospedali · Sistema sanitario regionale",
         "rating_info": "Dati aggregati per regione — dettaglio individuale limitato.",
     },
-    "BE": {
-        "flag": "🇧🇪",
-        "name": "Belgique / België",
-        "source": "SPF Santé publique / data.gov.be",
-        "description": "160 hôpitaux · Service public fédéral",
-        "rating_info": "101 hôpitaux généraux + 59 psychiatriques. Système d'accréditation fédérale.",
+    "CA": {
+        "flag": "🇨🇦",
+        "name": "Canada",
+        "source": "Wikidata / CIHI",
+        "description": "432 hospitals · Canadian health system",
+        "rating_info": "No single national rating — structural data from Wikidata.",
+    },
+    "AU": {
+        "flag": "🇦🇺",
+        "name": "Australia",
+        "source": "ACSQHC / MyHospitals",
+        "description": "1,300+ hospitals · Australian health system",
+        "rating_info": "Australian Commission on Safety and Quality in Health Care.",
+    },
+    "DE": {
+        "flag": "🇩🇪",
+        "name": "Deutschland",
+        "source": "Qualitätsbericht / GBE-Bund",
+        "description": "1,900+ Krankenhäuser · Deutsches Gesundheitssystem",
+        "rating_info": "Qualitätsbericht — mandatory quality report per hospital.",
+    },
+    "MT": {
+        "flag": "🇲🇹",
+        "name": "Malta",
+        "source": "Malta Health / Wikidata",
+        "description": "10+ hospitals · Maltese health system",
+        "rating_info": "Structural data only.",
+    },
+    "PT": {
+        "flag": "🇵🇹",
+        "name": "Portugal",
+        "source": "SNS (Serviço Nacional de Saúde)",
+        "description": "200+ hospitais · Sistema Nacional de Saúde",
+        "rating_info": "Dados estruturais SNS — portal transparência.sns.gov.pt.",
+    },
+    "ES": {
+        "flag": "🇪🇸",
+        "name": "España",
+        "source": "SNS (Sistema Nacional de Salud)",
+        "description": "800+ hospitales · Sistema Nacional de Salud",
+        "rating_info": "Datos estructurales — Ministerio de Sanidad.",
     },
 }
 
