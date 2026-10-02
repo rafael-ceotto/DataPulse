@@ -11,6 +11,17 @@ import PipelineAnalytics from "./components/PipelineAnalytics";
 import HospitalsNearMe from "./components/HospitalsNearMe";
 import { theme } from "./theme";
 
+const CONTINENTS = {
+  Americas: {
+    label: "Americas",
+    countries: ["US", "BR", "CA"],
+  },
+  Europe: {
+    label: "Europe",
+    countries: ["GB", "FR", "BE"],
+  },
+};
+
 const COUNTRIES = {
   US: {
     name: "United States",
@@ -23,6 +34,12 @@ const COUNTRIES = {
     source: "DATASUS / Ministério da Saúde",
     description: "7,680 hospitais · Sistema Único de Saúde (SUS)",
     rating_info: "Sem rating nacional único — dados estruturais: leitos, especialidades, equipamentos. Fonte: CNES.",
+  },
+  CA: {
+    name: "Canada",
+    source: "Wikidata / CIHI",
+    description: "432 hospitals · Canadian health system",
+    rating_info: "No single national rating — structural data from Wikidata.",
   },
   GB: {
     name: "United Kingdom",
@@ -44,8 +61,8 @@ const COUNTRIES = {
   },
 };
 
-const FACILITIES_COUNT = { US: "5,419", BR: "7,680", GB: "247", FR: "3,360", BE: "111" };
-const LAST_UPDATED = { US: "Oct 2026", BR: "Oct 2026", GB: "Oct 2026", FR: "Oct 2026", BE: "Oct 2026" };
+const FACILITIES_COUNT = { US: "5,419", BR: "7,680", CA: "432", GB: "247", FR: "3,360", BE: "111" };
+const LAST_UPDATED = { US: "Oct 2026", BR: "Oct 2026", CA: "Oct 2026", GB: "Oct 2026", FR: "Oct 2026", BE: "Oct 2026" };
 
 function useCIStatus() {
   const [status, setStatus] = useState(null);
@@ -97,31 +114,90 @@ function MetricCard({ label, value, accent }) {
 }
 
 function CountrySelector({ country, onChange }) {
+  const [activeContinent, setActiveContinent] = useState(null);
+  const [visibleCountries, setVisibleCountries] = useState([]);
+
   const current = COUNTRIES[country];
+
+  function handleContinentClick(key) {
+    if (activeContinent === key) {
+      // Fecha
+      setActiveContinent(null);
+      setTimeout(() => setVisibleCountries([]), 300);
+      return;
+    }
+    // Troca continente — fecha primeiro, depois abre
+    setActiveContinent(null);
+    setVisibleCountries([]);
+    setTimeout(() => {
+      setActiveContinent(key);
+      setVisibleCountries(CONTINENTS[key].countries);
+      onChange(CONTINENTS[key].countries[0]);
+    }, 250);
+  }
+
+  const isOpen = activeContinent !== null && visibleCountries.length > 0;
+
   return (
     <div style={{ marginBottom: 0 }}>
-      <div style={{ display: "flex", gap: 8, flexWrap: "wrap", marginBottom: 12 }}>
-        {Object.entries(COUNTRIES).map(([code, info]) => (
+      {/* Continent selector — centered */}
+      <div style={{ display: "flex", gap: 10, justifyContent: "center", marginBottom: 8 }}>
+        {Object.entries(CONTINENTS).map(([key, val]) => (
           <button
-            key={code}
-            onClick={() => onChange(code)}
+            key={key}
+            onClick={() => handleContinentClick(key)}
             style={{
-              background: country === code ? "#0F6F8C" : "#16222a",
-              border: `1px solid ${country === code ? "#0F6F8C" : "#1e2d35"}`,
+              background: activeContinent === key ? "#0F6F8C" : "#1e3a4a",
+              border: `1px solid ${activeContinent === key ? "#0F6F8C" : "#2a5a72"}`,
               borderRadius: 10,
-              padding: "8px 16px",
-              fontSize: 14,
-              color: country === code ? "#fff" : "#6f8a95",
+              padding: "9px 22px",
+              fontSize: 13,
+              color: activeContinent === key ? "#fff" : "#a0c4d4",
               cursor: "pointer",
               fontFamily: theme.sans,
-              fontWeight: country === code ? 600 : 400,
-              transition: "all 0.15s",
+              fontWeight: activeContinent === key ? 600 : 500,
+              transition: "all 0.2s ease",
+              letterSpacing: "0.02em",
             }}
           >
-            {info.name}
+            {val.label}
           </button>
         ))}
       </div>
+
+      {/* Country selector — smooth open/close */}
+      <div style={{
+        overflow: "hidden",
+        maxHeight: isOpen ? "60px" : "0px",
+        opacity: isOpen ? 1 : 0,
+        transition: "max-height 0.3s ease, opacity 0.3s ease",
+        marginBottom: isOpen ? 12 : 0,
+      }}>
+        <div style={{ display: "flex", gap: 8, flexWrap: "wrap", justifyContent: "center", paddingTop: 4 }}>
+          {visibleCountries.map((code) => (
+            <button
+              key={code}
+              onClick={() => onChange(code)}
+              style={{
+                background: country === code ? "#1a3a4a" : "#16222a",
+                border: `1px solid ${country === code ? "#2a7a9a" : "#2a4a5a"}`,
+                borderRadius: 10,
+                padding: "6px 16px",
+                fontSize: 13,
+                color: country === code ? "#dce5e9" : "#7ab4c8",
+                cursor: "pointer",
+                fontFamily: theme.sans,
+                fontWeight: country === code ? 600 : 400,
+                transition: "all 0.15s",
+              }}
+            >
+              {COUNTRIES[code]?.name}
+            </button>
+          ))}
+        </div>
+      </div>
+
+      {/* Country info */}
       <div style={{
         background: "#16222a",
         border: `1px solid #1e2d35`,
