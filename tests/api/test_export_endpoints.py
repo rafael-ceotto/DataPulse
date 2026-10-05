@@ -45,7 +45,7 @@ async def test_export_hospitals_missing_state(client, auth_token):
         "/api/v1/hospitals/export",
         headers={"Authorization": f"Bearer {auth_token}"},
     )
-    assert response.status_code == 422
+    assert response.status_code == 400
 
 
 async def test_data_quality_requires_auth(client):
