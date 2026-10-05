@@ -339,10 +339,13 @@ export default function HospitalList({ country = "US" }) {
     : "Search by hospital name...";
 
   const filterPlaceholder = isBR ? "Filtrar por estado (ex: SP)"
-    : isFrench ? "Filtrer par région..."
-    : isES ? "Filtrar por región..."
+    : isFrench ? "Filtrer par ville (ex: Bruxelles)..."
+    : isES ? "Filtrar por ciudad..."
     : isPT ? "Filtrar por cidade..."
-    : isIT ? "Filtra per città..."
+    : isIT ? "Filtra per città (es: Roma)..."
+    : country === "CA" ? "Filter by city (e.g. Toronto)..."
+    : country === "GB" ? "Filter by borough (e.g. Bexley)..."
+    : country === "MT" ? "Filter by city (e.g. Valletta)..."
     : "Filter by state (e.g. TX)";
 
   const clearLabel = isBR || isPT ? "Limpar"
@@ -414,7 +417,13 @@ export default function HospitalList({ country = "US" }) {
         }}>
           <div style={{ display: "flex", gap: 10, flexWrap: "wrap", marginBottom: 20 }}>
             <input type="text" value={search} onChange={(e) => { setSearch(e.target.value); setPage(1); }} placeholder={searchPlaceholder} style={{ ...control, flex: "1 1 220px" }} />
-            <input type="text" value={stateFilter} onChange={(e) => { setStateFilter(e.target.value.toUpperCase()); setPage(1); }} placeholder={filterPlaceholder} style={{ ...control, width: 180 }} />
+            <input type="text" value={stateFilter} onChange={(e) => { 
+              const val = country === "US" || country === "BR" ? e.target.value.toUpperCase() : e.target.value;
+              setStateFilter(val);
+              setPage(1);                 
+            }} 
+            placeholder={filterPlaceholder} 
+            style={{ ...control, width: 180 }} />
             <button onClick={(e) => { e.stopPropagation(); handleClear(); }} style={{ ...control, cursor: "pointer", color: "#a7b6bf" }}>{clearLabel}</button>
             {hospitals.length > 0 && (
               <button onClick={(e) => { e.stopPropagation(); exportCSV(hospitals, `hospitals_${hospitals[0]?.state || "all"}_page.csv`); }} style={{ ...control, cursor: "pointer", color: theme.mint, borderColor: theme.mint }}>↓ Export CSV</button>

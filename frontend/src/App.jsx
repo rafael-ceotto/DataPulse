@@ -87,7 +87,7 @@ const COUNTRIES = {
 };
 
 const FACILITIES_COUNT = { US: "5,419", BR: "7,680", CA: "432", GB: "247", FR: "3,360", BE: "111", PT: "131", ES: "861", IT: "343", MT: "11" };
-const LAST_UPDATED = { US: "Oct 2026", BR: "Oct 2026", CA: "Oct 2026", GB: "Oct 2026", FR: "Oct 2026", BE: "Oct 2026", PT: "Oct 2026", ES: "Oct 2026", IT: "Oct 2026", MT: "Oct 2026" };
+const LAST_UPDATED = { US: "Oct 2026", BR: "Out 2026", CA: "Oct 2026", GB: "Oct 2026", FR: "Oct 2026", BE: "Oct 2026", PT: "Oct 2026", ES: "Oct 2026", IT: "Oct 2026", MT: "Oct 2026" };
 
 function useCIStatus() {
   const [status, setStatus] = useState(null);
@@ -113,8 +113,11 @@ function useTotalGlobal() {
   useEffect(() => {
     fetch("/api/v1/hospitals/stats/count")
       .then((r) => r.json())
-      .then((data) => setTotal(data.total.toLocaleString()))
-      .catch(() => {});
+      .then((data) => {
+        
+        setTotal(data.total.toLocaleString());
+      })
+      .catch((e) => console.error("total global error:", e));
   }, []);
   return total;
 }
