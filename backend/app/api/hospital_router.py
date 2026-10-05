@@ -231,6 +231,21 @@ async def run_spain_pipeline(
     background_tasks.add_task(run_and_invalidate)
     return {"status": "running", "message": "Spain pipeline started in background", "country": "ES"}
 
+@router.post("/api/v1/pipeline/run/malta")
+async def run_malta_pipeline(
+    background_tasks: BackgroundTasks,
+    session: AsyncSession = Depends(get_session),
+    current_user: dict = Depends(get_current_user)
+):
+    from app.services.malta_service import ingest_mt_hospitals
+
+    async def run_and_invalidate():
+        async with AsyncSessionLocal() as bg_session:
+            await ingest_mt_hospitals(bg_session)
+
+    background_tasks.add_task(run_and_invalidate)
+    return {"status": "running", "message": "Malta pipeline started in background", "country": "MT"}
+
 
 @router.get("/api/v1/hospitals/nearby")
 async def hospitals_nearby(lat:float, lng:float, radius:float=50.0, min_rating:int | None = None, limit: int=20, country: str = "US", session: AsyncSession = Depends(get_session),):
