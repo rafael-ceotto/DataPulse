@@ -143,6 +143,20 @@ const CA_CITIES = [
   { label: "Ottawa", lat: 45.4215, lng: -75.6972 },
 ];
 
+const IT_CITIES = [
+  { label: "Roma", lat: 41.9028, lng: 12.4964 },
+  { label: "Milano", lat: 45.4654, lng: 9.1859 },
+  { label: "Napoli", lat: 40.8518, lng: 14.2681 },
+  { label: "Torino", lat: 45.0703, lng: 7.6869 },
+  { label: "Firenze", lat: 43.7696, lng: 11.2558 },
+];
+
+const MT_CITIES = [
+  { label: "Valletta", lat: 35.8997, lng: 14.5147 },
+  { label: "Sliema", lat: 35.9133, lng: 14.5019 },
+  { label: "Birkirkara", lat: 35.8969, lng: 14.4611 },
+];
+
 export default function HospitalsNearMe({ country = "US" }) {
   const [open, setOpen] = useState(false);
   const [loading, setLoading] = useState(false);
@@ -162,6 +176,8 @@ export default function HospitalsNearMe({ country = "US" }) {
   const isPT = country === "PT";
   const isES = country === "ES";
   const isCA = country === "CA";
+  const isIT = country === "IT";
+  const isMT = country === "MT";
   const isFrench = isFR || isBE;
   const isIberian = isPT || isES;
 
@@ -172,6 +188,8 @@ export default function HospitalsNearMe({ country = "US" }) {
     : isPT ? PT_CITIES
     : isES ? ES_CITIES
     : isCA ? CA_CITIES
+    : isIT ? IT_CITIES
+    : isMT ? MT_CITIES
     : US_CITIES;
 
   useEffect(() => {
@@ -271,32 +289,37 @@ export default function HospitalsNearMe({ country = "US" }) {
     cursor: "pointer",
   };
 
-  const useKm = isBR || isFrench || isIberian;
+  const useKm = isBR || isFrench || isIberian || isIT;
 
   const titleLabel = isBR ? "Hospitais Próximos"
     : isFrench ? "Hôpitaux à proximité"
     : isPT ? "Hospitais Próximos"
     : isES ? "Hospitales Cercanos"
+    : isIT ? "Ospedali Vicini"
     : "Hospitals Near Me";
 
   const radiusLabel = isBR || isPT ? "Raio (km)"
     : isFrench ? "Rayon (km)"
     : isES ? "Radio (km)"
+    : isIT ? "Raggio (km)"
     : "Radius (miles)";
 
   const searchingLabel = isBR || isPT ? "Buscando..."
     : isFrench ? "Recherche..."
     : isES ? "Buscando..."
+    : isIT ? "Ricerca..."
     : "Searching...";
 
   const locationBtnLabel = isBR || isPT ? "Usar minha localização"
     : isFrench ? "Utiliser ma position"
     : isES ? "Usar mi ubicación"
+    : isIT ? "Usa la mia posizione"
     : "Use my location";
 
   const clearLabel = isBR || isPT ? "Limpar"
     : isFrench ? "Effacer"
     : isES ? "Limpiar"
+    : isIT ? "Cancella"    
     : "Clear";
 
   const cityDropdownLabel = isBR || isPT ? "Ou escolha uma cidade"
@@ -304,22 +327,27 @@ export default function HospitalsNearMe({ country = "US" }) {
     : isGB ? "Or test with a UK city"
     : isES ? "O elige una ciudad"
     : isCA ? "Or test with a Canadian city"
+    : isIT ? "O scegli una città"
+    : isMT ? "Or test with a Maltese city"
     : "Or test with a US city";
 
   const cityPlaceholder = isBR || isPT ? "Selecione uma cidade..."
     : isFrench ? "Sélectionnez une ville..."
     : isES ? "Seleccione una ciudad..."
+    : isIT ? "Seleziona una città..."
     : "Select a city...";
 
   const foundLabel = isBR || isPT ? "hospitais encontrados"
     : isFrench ? "hôpitaux trouvés"
     : isES ? "hospitales encontrados"
+    : isIT ? "ospedali trovati"
     : "hospitals found";
 
   const emptyLabel = isBR || isPT ? "Use sua localização ou selecione uma cidade para encontrar hospitais próximos."
     : isGB ? "Use your location or select a UK city to find nearby NHS Trusts."
     : isFrench ? "Utilisez votre position ou sélectionnez une ville pour trouver des hôpitaux à proximité."
     : isES ? "Use su ubicación o seleccione una ciudad para encontrar hospitales cercanos."
+    : isIT ? "Usa la tua posizione o seleziona una città per trovare ospedali vicini."
     : "Use your location or select a US city to find nearby hospitals.";
 
   const sourceBadge = isUS ? null
@@ -328,6 +356,7 @@ export default function HospitalsNearMe({ country = "US" }) {
     : isGB ? "NHS"
     : isPT ? "SNS"
     : isES ? "SNS"
+    : isIT ? "SSN"
     : "Wikidata";
 
   return (

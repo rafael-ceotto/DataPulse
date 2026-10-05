@@ -15,6 +15,8 @@ export default function DataQuality({ country = "US" }) {
   const isPT = country === "PT";
   const isES = country === "ES";
   const isCA = country === "CA";
+  const isIT = country === "IT";
+  const isMT = country === "MT";
   const isFrench = isFR || isBE;
 
   useEffect(() => {
@@ -79,6 +81,7 @@ export default function DataQuality({ country = "US" }) {
   const totalHospitalsLabel = isBR || isPT ? "Total de Hospitais"
     : isFrench ? "Total des hôpitaux"
     : isES ? "Total de hospitales"
+    : isIT ? "Totale ospedali"
     : "Total Hospitals";
 
   const totalHospitalsSub = isBR ? "Estabelecimentos CNES com leitos"
@@ -88,36 +91,44 @@ export default function DataQuality({ country = "US" }) {
     : isPT ? "Hospitais Wikidata — Portugal"
     : isES ? "Hospitales Wikidata — España"
     : isCA ? "Hospitals Wikidata — Canada"
+    : isIT ? "Ospedali Wikidata — Italia"
+    : isMT ? "Hospitals Wikidata — Malta"
     : "CMS facilities in dataset";
 
   const missingPhoneLabel = isBR || isPT ? "Telefone ausente"
     : isFrench ? "Téléphone manquant"
     : isES ? "Teléfono ausente"
+    : isIT ? "Telefono mancante"
     : "Missing Phone";
 
   const missingPhoneSub = isBR || isPT ? "Sem número de telefone"
     : isFrench ? "Sans numéro de téléphone"
     : isES ? "Sin número de teléfono"
+    : isIT ? "Senza numero di telefono"    
     : "No telephone number";
 
   const titleLabel = isBR || isPT ? "Qualidade dos Dados"
     : isFrench ? "Qualité des données"
     : isES ? "Calidad de los datos"
+    : isIT ? "Qualità dei dati"
     : "Data Quality";
 
   const badgeLabel = isBR || isPT ? "Métricas de saúde"
     : isFrench ? "Métriques de santé"
     : isES ? "Métricas de salud"
+    : isIT ? "Metriche sanitarie"
     : "Health Metrics";
 
   const loadingLabel = isFrench ? "Chargement..."
     : isPT ? "Carregando..."
     : isES ? "Cargando..."
+    : isIT ? "Caricamento..."
     : "Loading...";
 
   const noDataLabel = isFrench ? "Aucune donnée disponible."
     : isPT ? "Sem dados disponíveis."
     : isES ? "No hay datos disponibles."
+    : isIT ? "Nessun dato disponibile."
     : "No data available.";
 
   return (
@@ -205,6 +216,12 @@ export default function DataQuality({ country = "US" }) {
                 )}
                 {isCA && (
                   <MetricCard label="Rating system" value="N/A" sub="CIHI — structural data only (Wikidata)" color="#6f8a95" />
+                )}
+                {isIT && (
+                  <MetricCard label="Sistema di valutazione" value="N/A" sub="SSN — dati strutturali solo (Wikidata)" color="#6f8a95" />
+                )}
+                {isMT && (
+                  <MetricCard label="Rating system" value="N/A" sub="Malta Health — structural data only (Wikidata)" color="#6f8a95" />
                 )}
                 <MetricCard
                   label={missingPhoneLabel}

@@ -18,7 +18,7 @@ const CONTINENTS = {
   },
   Europe: {
     label: "Europe",
-    countries: ["GB", "FR", "BE", "PT", "ES"],
+    countries: ["GB", "FR", "BE", "PT", "ES", "IT", "MT"],
   },
 };
 
@@ -71,10 +71,22 @@ const COUNTRIES = {
     description: "861 hospitales · Sistema Nacional de Salud",
     rating_info: "Datos estructurales — sin rating nacional único. Fuente: Wikidata.",
   },
+  IT: {
+    name: "Italia",
+    source: "Wikidata / SSN",
+    description: "343 ospedali · Servizio Sanitario Nazionale",
+    rating_info: "Dati strutturali — senza rating nazionale unico. Fonte: Wikidata.",
+  },
+  MT: {
+    name: "Malta",
+    source: "Wikidata / Malta Health",
+    description: "11 hospitals · Maltese health system",
+    rating_info: "Structural data only — Wikidata.",
+  },
 };
 
-const FACILITIES_COUNT = { US: "5,419", BR: "7,680", CA: "432", GB: "247", FR: "3,360", BE: "111", PT: "131", ES: "861" };
-const LAST_UPDATED = { US: "Oct 2026", BR: "Oct 2026", CA: "Oct 2026", GB: "Oct 2026", FR: "Oct 2026", BE: "Oct 2026", PT: "Oct 2026", ES: "Oct 2026" };
+const FACILITIES_COUNT = { US: "5,419", BR: "7,680", CA: "432", GB: "247", FR: "3,360", BE: "111", PT: "131", ES: "861", IT: "343", MT: "11" };
+const LAST_UPDATED = { US: "Oct 2026", BR: "Oct 2026", CA: "Oct 2026", GB: "Oct 2026", FR: "Oct 2026", BE: "Oct 2026", PT: "Oct 2026", ES: "Oct 2026", IT: "Oct 2026", MT: "Oct 2026" };
 
 function useCIStatus() {
   const [status, setStatus] = useState(null);
@@ -133,12 +145,10 @@ function CountrySelector({ country, onChange }) {
 
   function handleContinentClick(key) {
     if (activeContinent === key) {
-      // Fecha
       setActiveContinent(null);
       setTimeout(() => setVisibleCountries([]), 300);
       return;
     }
-    // Troca continente — fecha primeiro, depois abre
     setActiveContinent(null);
     setVisibleCountries([]);
     setTimeout(() => {
@@ -152,7 +162,6 @@ function CountrySelector({ country, onChange }) {
 
   return (
     <div style={{ marginBottom: 0 }}>
-      {/* Continent selector — centered */}
       <div style={{ display: "flex", gap: 10, justifyContent: "center", marginBottom: 8 }}>
         {Object.entries(CONTINENTS).map(([key, val]) => (
           <button
@@ -177,7 +186,6 @@ function CountrySelector({ country, onChange }) {
         ))}
       </div>
 
-      {/* Country selector — smooth open/close */}
       <div style={{
         overflow: "hidden",
         maxHeight: isOpen ? "60px" : "0px",
@@ -209,7 +217,6 @@ function CountrySelector({ country, onChange }) {
         </div>
       </div>
 
-      {/* Country info */}
       <div style={{
         background: "#16222a",
         border: `1px solid #1e2d35`,
@@ -243,30 +250,47 @@ export default function App() {
   const isBE = country === "BE";
   const isES = country === "ES";
   const isPT = country === "PT";
+  const isIT = country === "IT";
   const isFrench = isFR || isBE;
 
-  const facilityLabel = isBR ? "Instalações" : isFrench ? "Établissements" : isPT ? "Instalações" : isES ? "Instalaciones" : "Facilities";
-  const totalLabel = isBR ? "Total Global" : isFrench ? "Total mondial" : isPT ? "Total Global" : isES ? "Total mundial" : "Total Global";
-  const updatedLabel = isBR ? "Última atualização" : isFrench ? "Mise à jour" : isPT ? "Última atualização" : isES ? "Última actualización" : "Last Updated";
+  const facilityLabel = isBR || isPT ? "Instalações"
+    : isFrench ? "Établissements"
+    : isES ? "Instalaciones"
+    : isIT ? "Strutture"
+    : "Facilities";
+
+  const totalLabel = isBR || isPT ? "Total Global"
+    : isFrench ? "Total mondial"
+    : isES ? "Total mundial"
+    : isIT ? "Totale mondiale"
+    : "Total Global";
+
+  const updatedLabel = isBR || isPT ? "Última atualização"
+    : isFrench ? "Mise à jour"
+    : isES ? "Última actualización"
+    : isIT ? "Ultimo aggiornamento"
+    : "Last Updated";
 
   useEffect(() => {
     if (!isUS) setActiveTab("hospitals");
   }, [country]);
 
   const TABS = isUS ? [
-  { id: "hospitals", label: "Hospitals" },
-  { id: "analytics", label: "Analytics" },
-  { id: "pipeline", label: "Pipeline" },
-  { id: "physicians", label: "Physicians" },
-] : isBR || isPT ? [
-  { id: "hospitals", label: "Hospitais" },
-] : isFrench ? [
-  { id: "hospitals", label: "Hôpitaux" },
-] : isES ? [
-  { id: "hospitals", label: "Hospitales" },
-] : [
-  { id: "hospitals", label: "Hospitals" },
-];
+    { id: "hospitals", label: "Hospitals" },
+    { id: "analytics", label: "Analytics" },
+    { id: "pipeline", label: "Pipeline" },
+    { id: "physicians", label: "Physicians" },
+  ] : isBR || isPT ? [
+    { id: "hospitals", label: "Hospitais" },
+  ] : isFrench ? [
+    { id: "hospitals", label: "Hôpitaux" },
+  ] : isES ? [
+    { id: "hospitals", label: "Hospitales" },
+  ] : isIT ? [
+    { id: "hospitals", label: "Ospedali" },
+  ] : [
+    { id: "hospitals", label: "Hospitals" },
+  ];
 
   return (
     <div style={{ minHeight: "100vh", background: "#f4f6f8", color: theme.ink, fontFamily: theme.sans }}>
@@ -278,7 +302,6 @@ export default function App() {
         @keyframes pulse { 0% { opacity:1; } 50% { opacity:0.4; } 100% { opacity:1; } }
       `}</style>
 
-      {/* Header */}
       <header style={{
         borderBottom: `1px solid #e6eaec`,
         padding: "16px 40px",
@@ -315,14 +338,9 @@ export default function App() {
       </header>
 
       <main style={{ maxWidth: 1400, margin: "0 auto", padding: "32px 40px" }}>
-
-        {/* Country Selector */}
         <CountrySelector country={country} onChange={setCountry} />
-
-        {/* AI Query */}
         <AIQuery country={country} />
 
-        {/* Metric cards */}
         <div style={{ display: "flex", gap: 12, marginTop: 24, flexWrap: "wrap" }}>
           <MetricCard label={facilityLabel} value={FACILITIES_COUNT[country] || "—"} accent={theme.mint} />
           {isUS ? (
@@ -336,7 +354,6 @@ export default function App() {
           <MetricCard label={updatedLabel} value={LAST_UPDATED[country] || "—"} accent="#6f8a95" />
         </div>
 
-        {/* Tabs */}
         <div style={{ display: "flex", gap: 4, marginTop: 36, borderRadius: 12, padding: "4px", width: "fit-content" }}>
           {TABS.map((tab) => (
             <button
@@ -361,7 +378,6 @@ export default function App() {
           ))}
         </div>
 
-        {/* Tab content */}
         <div style={{ marginTop: 24 }}>
           {activeTab === "hospitals" && (
             <>

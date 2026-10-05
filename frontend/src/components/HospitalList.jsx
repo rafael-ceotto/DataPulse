@@ -40,6 +40,8 @@ function HospitalCard({ hospital, expanded, onExpand, onClose, onInfectionsLoade
   const isPT = country === "PT";
   const isES = country === "ES";
   const isCA = country === "CA";
+  const isIT = country === "IT";
+  const isMT = country === "MT";
   const isFrench = isFR || isBE;
   const isUS = country === "US";
 
@@ -65,6 +67,7 @@ function HospitalCard({ hospital, expanded, onExpand, onClose, onInfectionsLoade
     : isFrench ? "Code Postal"
     : isGB ? "Postcode"
     : isES ? "Código Postal"
+    : isIT ? "CAP"
     : "ZIP";
 
   const sourceBadge = isBR ? "CNES"
@@ -72,14 +75,15 @@ function HospitalCard({ hospital, expanded, onExpand, onClose, onInfectionsLoade
     : isFrench ? "FINESS"
     : isPT ? "SNS"
     : isES ? "SNS"
-    : isCA ? "Wikidata"
+    : isIT ? "SSN"
+    : isCA || isMT ? "Wikidata"
     : null;
 
   const noInfectionMsg = isBR || isPT ? "Dados de infecção hospitalar não disponíveis."
     : isFrench ? "Données d'infection non disponibles."
     : isGB ? "CQC infection data requires authentication — not available in bulk."
     : isES ? "Datos de infección no disponibles."
-    : isCA ? "No infection data available for Canadian hospitals."
+    : isIT ? "Dati sulle infezioni ospedaliere non disponibili."
     : "No infection data available.";
 
   const expandedFields = isBR ? [
@@ -101,6 +105,12 @@ function HospitalCard({ hospital, expanded, onExpand, onClose, onInfectionsLoade
     { label: "Dirección", value: hospital.address },
     { label: "Código Postal", value: hospital.zip_code },
     { label: "Teléfono", value: hospital.telephone_number },
+    { label: "Tipo", value: hospital.hospital_type },
+  ] : isIT ? [
+    { label: "ID Ospedale", value: hospital.facility_id },
+    { label: "Indirizzo", value: hospital.address },
+    { label: "CAP", value: hospital.zip_code },
+    { label: "Telefono", value: hospital.telephone_number },
     { label: "Tipo", value: hospital.hospital_type },
   ] : isFrench ? [
     { label: "Code FINESS", value: hospital.facility_id },
@@ -256,6 +266,7 @@ export default function HospitalList({ country = "US" }) {
   const isBE = country === "BE";
   const isPT = country === "PT";
   const isES = country === "ES";
+  const isIT = country === "IT";
   const isFrench = isFR || isBE;
 
   useEffect(() => {
@@ -311,46 +322,55 @@ export default function HospitalList({ country = "US" }) {
     country === "BE" ? "111 hôpitaux" :
     country === "CA" ? "432 hospitals" :
     country === "PT" ? "131 hospitais" :
-    country === "ES" ? "861 hospitales" : "—";
+    country === "ES" ? "861 hospitales" :
+    country === "IT" ? "343 ospedali" :
+    country === "MT" ? "11 hospitals" : "—";
 
   const browseLabel = isBR || isPT ? "Explorar Hospitais"
     : isFrench ? "Explorer les hôpitaux"
     : isES ? "Explorar hospitales"
+    : isIT ? "Esplora ospedali"
     : "Browse Hospitals";
 
   const searchPlaceholder = isBR || isPT ? "Buscar por nome do hospital..."
     : isFrench ? "Rechercher par nom d'hôpital..."
     : isES ? "Buscar por nombre del hospital..."
+    : isIT ? "Cerca per nome dell'ospedale..."
     : "Search by hospital name...";
 
   const filterPlaceholder = isBR ? "Filtrar por estado (ex: SP)"
     : isFrench ? "Filtrer par région..."
     : isES ? "Filtrar por región..."
     : isPT ? "Filtrar por cidade..."
+    : isIT ? "Filtra per città..."
     : "Filter by state (e.g. TX)";
 
   const clearLabel = isBR || isPT ? "Limpar"
     : isFrench ? "Effacer"
     : isES ? "Limpiar"
+    : isIT ? "Cancella"
     : "Clear";
 
   const noResultsLabel = isBR || isPT ? "Nenhum hospital encontrado."
     : isFrench ? "Aucun hôpital trouvé."
     : isES ? "No se encontraron hospitales."
+    : isIT ? "Nessun ospedale trovato."
     : "No hospitals found.";
 
-  const pageLabel = isBR || isPT ? "Página"
-    : isFrench || isES ? "Página"
+  const pageLabel = isBR || isPT || isES ? "Página"
+    : isFrench ? "Page"
+    : isIT ? "Pagina"
     : "Page";
 
-  const prevLabel = isBR || isPT ? "Anterior"
+  const prevLabel = isBR || isPT || isES ? "Anterior"
     : isFrench ? "Précédent"
-    : isES ? "Anterior"
+    : isIT ? "Precedente"
     : "Prev";
 
   const nextLabel = isBR || isPT ? "Próximo"
     : isFrench ? "Suivant"
     : isES ? "Siguiente"
+    : isIT ? "Successivo"
     : "Next";
 
   return (
@@ -401,7 +421,7 @@ export default function HospitalList({ country = "US" }) {
             )}
             {stateFilter && hospitals.length > 0 && (
               <button onClick={(e) => { e.stopPropagation(); exportStateCSV(); }} disabled={exportingState} style={{ ...control, cursor: exportingState ? "wait" : "pointer", color: "#a78bfa", borderColor: "#a78bfa", opacity: exportingState ? 0.7 : 1 }}>
-                {exportingState ? (isBR || isPT ? "Exportando..." : isES ? "Exportando..." : "Exporting...") : `↓ Export All ${stateFilter}`}
+                {exportingState ? (isBR || isPT || isIT ? "Exportando..." : isES ? "Exportando..." : "Exporting...") : `↓ Export All ${stateFilter}`}
               </button>
             )}
             {selectedList.length > 0 && (
