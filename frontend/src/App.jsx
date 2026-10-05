@@ -9,6 +9,7 @@ import RatingTrend from "./components/RatingTrend";
 import DataQuality from "./components/DataQuality";
 import PipelineAnalytics from "./components/PipelineAnalytics";
 import HospitalsNearMe from "./components/HospitalsNearMe";
+import CountryOnboardingModal from "./components/CountryOnboardingModal";
 import { theme } from "./theme";
 
 const CONTINENTS = {
@@ -239,6 +240,7 @@ function CountrySelector({ country, onChange }) {
 }
 
 export default function App() {
+  const [showOnboarding, setShowOnboarding] = useState(true);
   const [activeTab, setActiveTab] = useState("hospitals");
   const [country, setCountry] = useState("US");
   const ciStatus = useCIStatus();
@@ -252,6 +254,11 @@ export default function App() {
   const isPT = country === "PT";
   const isIT = country === "IT";
   const isFrench = isFR || isBE;
+
+  function handleOnboardingConfirm(code) {
+    setCountry(code);
+    setShowOnboarding(false);
+  }
 
   const facilityLabel = isBR || isPT ? "Instalações"
     : isFrench ? "Établissements"
@@ -294,6 +301,9 @@ export default function App() {
 
   return (
     <div style={{ minHeight: "100vh", background: "#f4f6f8", color: theme.ink, fontFamily: theme.sans }}>
+      {showOnboarding && (
+        <CountryOnboardingModal onConfirm={handleOnboardingConfirm} initialCountry={showOnboarding === "reopen" ? country : null} />
+      )}
       <style>{`
         @import url('https://fonts.googleapis.com/css2?family=Instrument+Sans:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500&display=swap');
         body { margin: 0; background: #f4f6f8; }
@@ -329,16 +339,29 @@ export default function App() {
             <div style={{ fontSize: 11, color: theme.muted, fontFamily: theme.mono }}>Global Hospital Quality Data</div>
           </div>
         </div>
-        <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
-          <span style={{ width: 8, height: 8, borderRadius: "50%", background: ciColor, display: "block" }} />
-          <span style={{ fontFamily: theme.mono, fontSize: 11, color: "#6f8a95" }}>
-            {ciStatus === "success" ? "CI passing" : ciStatus === "failure" ? "CI failing" : "CI unknown"}
-          </span>
+        <div style={{ display: "flex", alignItems: "center", gap: 6 }}>          
+          <button
+            onClick={() => setShowOnboarding("reopen")}
+            style={{
+              background: "#16222a",
+              border: "1px solid #1e2d35",
+              borderRadius: 8,
+              padding: "6px 14px",
+              fontSize: 12,
+              color: "#a0c4d4",
+              cursor: "pointer",
+              fontFamily: theme.mono,
+              letterSpacing: "0.04em",
+              marginLeft: 12,
+            }}
+          >
+            🌍 {COUNTRIES[country]?.name || "Change country"}
+          </button>
         </div>
       </header>
 
       <main style={{ maxWidth: 1400, margin: "0 auto", padding: "32px 40px" }}>
-        <CountrySelector country={country} onChange={setCountry} />
+        
         <AIQuery country={country} />
 
         <div style={{ display: "flex", gap: 12, marginTop: 24, flexWrap: "wrap" }}>
