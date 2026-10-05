@@ -119,6 +119,30 @@ const BE_CITIES = [
   { label: "Liège", lat: 50.6326, lng: 5.5797 },
 ];
 
+const PT_CITIES = [
+  { label: "Lisboa", lat: 38.7223, lng: -9.1393 },
+  { label: "Porto", lat: 41.1579, lng: -8.6291 },
+  { label: "Braga", lat: 41.5454, lng: -8.4265 },
+  { label: "Coimbra", lat: 40.2033, lng: -8.4103 },
+  { label: "Faro", lat: 37.0194, lng: -7.9304 },
+];
+
+const ES_CITIES = [
+  { label: "Madrid", lat: 40.4168, lng: -3.7038 },
+  { label: "Barcelona", lat: 41.3851, lng: 2.1734 },
+  { label: "Valencia", lat: 39.4699, lng: -0.3763 },
+  { label: "Sevilla", lat: 37.3891, lng: -5.9845 },
+  { label: "Bilbao", lat: 43.2630, lng: -2.9350 },
+];
+
+const CA_CITIES = [
+  { label: "Toronto", lat: 43.6532, lng: -79.3832 },
+  { label: "Montreal", lat: 45.5017, lng: -73.5673 },
+  { label: "Vancouver", lat: 49.2827, lng: -123.1207 },
+  { label: "Calgary", lat: 51.0447, lng: -114.0719 },
+  { label: "Ottawa", lat: 45.4215, lng: -75.6972 },
+];
+
 export default function HospitalsNearMe({ country = "US" }) {
   const [open, setOpen] = useState(false);
   const [loading, setLoading] = useState(false);
@@ -135,9 +159,20 @@ export default function HospitalsNearMe({ country = "US" }) {
   const isUS = country === "US";
   const isFR = country === "FR";
   const isBE = country === "BE";
+  const isPT = country === "PT";
+  const isES = country === "ES";
+  const isCA = country === "CA";
   const isFrench = isFR || isBE;
+  const isIberian = isPT || isES;
 
-  const CITIES = isBR ? BR_CITIES : isGB ? GB_CITIES : isFR ? FR_CITIES : isBE ? BE_CITIES : US_CITIES;
+  const CITIES = isBR ? BR_CITIES
+    : isGB ? GB_CITIES
+    : isFR ? FR_CITIES
+    : isBE ? BE_CITIES
+    : isPT ? PT_CITIES
+    : isES ? ES_CITIES
+    : isCA ? CA_CITIES
+    : US_CITIES;
 
   useEffect(() => {
     setHospitals([]);
@@ -236,6 +271,65 @@ export default function HospitalsNearMe({ country = "US" }) {
     cursor: "pointer",
   };
 
+  const useKm = isBR || isFrench || isIberian;
+
+  const titleLabel = isBR ? "Hospitais Próximos"
+    : isFrench ? "Hôpitaux à proximité"
+    : isPT ? "Hospitais Próximos"
+    : isES ? "Hospitales Cercanos"
+    : "Hospitals Near Me";
+
+  const radiusLabel = isBR || isPT ? "Raio (km)"
+    : isFrench ? "Rayon (km)"
+    : isES ? "Radio (km)"
+    : "Radius (miles)";
+
+  const searchingLabel = isBR || isPT ? "Buscando..."
+    : isFrench ? "Recherche..."
+    : isES ? "Buscando..."
+    : "Searching...";
+
+  const locationBtnLabel = isBR || isPT ? "Usar minha localização"
+    : isFrench ? "Utiliser ma position"
+    : isES ? "Usar mi ubicación"
+    : "Use my location";
+
+  const clearLabel = isBR || isPT ? "Limpar"
+    : isFrench ? "Effacer"
+    : isES ? "Limpiar"
+    : "Clear";
+
+  const cityDropdownLabel = isBR || isPT ? "Ou escolha uma cidade"
+    : isFrench ? "Ou choisissez une ville"
+    : isGB ? "Or test with a UK city"
+    : isES ? "O elige una ciudad"
+    : isCA ? "Or test with a Canadian city"
+    : "Or test with a US city";
+
+  const cityPlaceholder = isBR || isPT ? "Selecione uma cidade..."
+    : isFrench ? "Sélectionnez une ville..."
+    : isES ? "Seleccione una ciudad..."
+    : "Select a city...";
+
+  const foundLabel = isBR || isPT ? "hospitais encontrados"
+    : isFrench ? "hôpitaux trouvés"
+    : isES ? "hospitales encontrados"
+    : "hospitals found";
+
+  const emptyLabel = isBR || isPT ? "Use sua localização ou selecione uma cidade para encontrar hospitais próximos."
+    : isGB ? "Use your location or select a UK city to find nearby NHS Trusts."
+    : isFrench ? "Utilisez votre position ou sélectionnez une ville pour trouver des hôpitaux à proximité."
+    : isES ? "Use su ubicación o seleccione una ciudad para encontrar hospitales cercanos."
+    : "Use your location or select a US city to find nearby hospitals.";
+
+  const sourceBadge = isUS ? null
+    : isBR ? "CNES"
+    : isFrench ? "FINESS"
+    : isGB ? "NHS"
+    : isPT ? "SNS"
+    : isES ? "SNS"
+    : "Wikidata";
+
   return (
     <section style={{ marginTop: 24 }}>
       <div
@@ -255,7 +349,7 @@ export default function HospitalsNearMe({ country = "US" }) {
       >
         <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
           <h2 style={{ margin: 0, fontSize: 17, fontWeight: 600, letterSpacing: "-0.01em", color: "#fff" }}>
-            {isBR ? "Hospitais Próximos" : isFrench ? "Hôpitaux à proximité" : "Hospitals Near Me"}
+            {titleLabel}
           </h2>
           <span style={{ fontFamily: theme.mono, fontSize: 11, color: theme.mint, letterSpacing: "0.06em", textTransform: "uppercase" }}>
             Geolocation
@@ -278,11 +372,11 @@ export default function HospitalsNearMe({ country = "US" }) {
           <div style={{ display: "flex", gap: 12, flexWrap: "wrap", alignItems: "flex-end", marginBottom: 20 }}>
             <div>
               <div style={{ fontFamily: theme.mono, fontSize: 10.5, color: "#6f8a95", letterSpacing: "0.07em", textTransform: "uppercase", marginBottom: 6 }}>
-                {isBR ? "Raio (km)" : isFrench ? "Rayon (km)" : "Radius (miles)"}
+                {radiusLabel}
               </div>
               <select value={radius} onChange={(e) => setRadius(Number(e.target.value))} style={selectStyle}>
                 {[10, 25, 50, 100].map(r => (
-                  <option key={r} value={r}>{r} {isBR || isFrench ? "km" : "miles"}</option>
+                  <option key={r} value={r}>{r} {useKm ? "km" : "miles"}</option>
                 ))}
               </select>
             </div>
@@ -314,9 +408,7 @@ export default function HospitalsNearMe({ country = "US" }) {
                 opacity: loading ? 0.7 : 1,
               }}
             >
-              {loading
-                ? (isBR ? "Buscando..." : isFrench ? "Recherche..." : "Searching...")
-                : "📍 " + (isBR ? "Usar minha localização" : isFrench ? "Utiliser ma position" : "Use my location")}
+              {loading ? searchingLabel : "📍 " + locationBtnLabel}
             </button>
 
             {currentCoords && (
@@ -332,16 +424,16 @@ export default function HospitalsNearMe({ country = "US" }) {
                   cursor: "pointer",
                 }}
               >
-                ✕ {isBR ? "Limpar" : isFrench ? "Effacer" : "Clear"}
+                ✕ {clearLabel}
               </button>
             )}
 
             <div>
               <div style={{ fontFamily: theme.mono, fontSize: 10.5, color: "#6f8a95", letterSpacing: "0.07em", textTransform: "uppercase", marginBottom: 6 }}>
-                {isBR ? "Ou escolha uma cidade" : isGB ? "Or test with a UK city" : isFrench ? "Ou choisissez une ville" : "Or test with a US city"}
+                {cityDropdownLabel}
               </div>
               <select value={testCity} onChange={handleTestCity} disabled={loading} style={{ ...selectStyle, minWidth: 220 }}>
-                <option value="">{isBR ? "Selecione uma cidade..." : isFrench ? "Sélectionnez une ville..." : "Select a city..."}</option>
+                <option value="">{cityPlaceholder}</option>
                 {CITIES.map(c => <option key={c.label} value={c.label}>{c.label}</option>)}
               </select>
             </div>
@@ -360,7 +452,7 @@ export default function HospitalsNearMe({ country = "US" }) {
           {hospitals.length > 0 && (
             <>
               <div style={{ fontFamily: theme.mono, fontSize: 10.5, color: "#6f8a95", letterSpacing: "0.07em", textTransform: "uppercase", marginBottom: 14 }}>
-                {hospitals.length} {isBR ? "hospitais encontrados" : isFrench ? "hôpitaux trouvés" : "hospitals found"} within {radius} {isBR || isFrench ? "km" : "miles"}
+                {hospitals.length} {foundLabel} within {radius} {useKm ? "km" : "miles"}
               </div>
               <div style={{ maxHeight: 500, overflowY: "auto", display: "flex", flexDirection: "column", gap: 10 }}>
                 {hospitals.map((h) => (
@@ -396,15 +488,11 @@ export default function HospitalsNearMe({ country = "US" }) {
                         <div style={{ fontFamily: theme.mono, fontSize: 13, fontWeight: 700, color: ratingColor(h.overall_rating) }}>
                           {ratingStars(h.overall_rating)}
                         </div>
-                      ) : isBR ? (
-                        <div style={{ fontFamily: theme.mono, fontSize: 11, color: "#6f8a95" }}>CNES</div>
-                      ) : isFrench ? (
-                        <div style={{ fontFamily: theme.mono, fontSize: 11, color: "#6f8a95" }}>FINESS</div>
-                      ) : (
-                        <div style={{ fontFamily: theme.mono, fontSize: 11, color: "#6f8a95" }}>NHS</div>
-                      )}
+                      ) : sourceBadge ? (
+                        <div style={{ fontFamily: theme.mono, fontSize: 11, color: "#6f8a95" }}>{sourceBadge}</div>
+                      ) : null}
                       <div style={{ fontFamily: theme.mono, fontSize: 11, color: "#a7b6bf" }}>
-                        {h.distance_miles} {isBR || isFrench ? "km" : "mi"} away
+                        {h.distance_miles} {useKm ? "km" : "mi"} away
                       </div>
                       {(h.emergency_services === "Yes" || h.emergency_services === "Sim") && (
                         <div style={{ fontFamily: theme.mono, fontSize: 10, color: "#ff6b6b", letterSpacing: "0.06em", border: "1px solid #ff6b6b44", borderRadius: 4, padding: "2px 6px" }}>
@@ -419,15 +507,7 @@ export default function HospitalsNearMe({ country = "US" }) {
           )}
 
           {!loading && hospitals.length === 0 && !error && (
-            <div style={{ color: "#6f8a95", fontSize: 13 }}>
-              {isBR
-                ? "Use sua localização ou selecione uma cidade para encontrar hospitais próximos."
-                : isGB
-                ? "Use your location or select a UK city to find nearby NHS Trusts."
-                : isFrench
-                ? "Utilisez votre position ou sélectionnez une ville pour trouver des hôpitaux à proximité."
-                : "Use your location or select a US city to find nearby hospitals."}
-            </div>
+            <div style={{ color: "#6f8a95", fontSize: 13 }}>{emptyLabel}</div>
           )}
         </div>
       )}

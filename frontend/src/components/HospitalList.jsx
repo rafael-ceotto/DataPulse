@@ -37,6 +37,9 @@ function HospitalCard({ hospital, expanded, onExpand, onClose, onInfectionsLoade
   const isGB = country === "GB";
   const isFR = country === "FR";
   const isBE = country === "BE";
+  const isPT = country === "PT";
+  const isES = country === "ES";
+  const isCA = country === "CA";
   const isFrench = isFR || isBE;
   const isUS = country === "US";
 
@@ -58,7 +61,26 @@ function HospitalCard({ hospital, expanded, onExpand, onClose, onInfectionsLoade
   const better = infections.filter(i => i.compared_to_national === "Better than the National Benchmark");
   const average = infections.length - worse.length - better.length;
 
-  const zipLabel = isBR ? "CEP" : isFrench ? "Code Postal" : isGB ? "Postcode" : "ZIP";
+  const zipLabel = isBR || isPT ? "CEP"
+    : isFrench ? "Code Postal"
+    : isGB ? "Postcode"
+    : isES ? "Código Postal"
+    : "ZIP";
+
+  const sourceBadge = isBR ? "CNES"
+    : isGB ? "NHS"
+    : isFrench ? "FINESS"
+    : isPT ? "SNS"
+    : isES ? "SNS"
+    : isCA ? "Wikidata"
+    : null;
+
+  const noInfectionMsg = isBR || isPT ? "Dados de infecção hospitalar não disponíveis."
+    : isFrench ? "Données d'infection non disponibles."
+    : isGB ? "CQC infection data requires authentication — not available in bulk."
+    : isES ? "Datos de infección no disponibles."
+    : isCA ? "No infection data available for Canadian hospitals."
+    : "No infection data available.";
 
   const expandedFields = isBR ? [
     { label: "Código CNES", value: hospital.facility_id },
@@ -68,6 +90,18 @@ function HospitalCard({ hospital, expanded, onExpand, onClose, onInfectionsLoade
     { label: "Tipo", value: hospital.hospital_type },
     { label: "Natureza", value: hospital.hospital_ownership },
     { label: "Urgência/Emergência", value: hospital.emergency_services },
+  ] : isPT ? [
+    { label: "ID Hospital", value: hospital.facility_id },
+    { label: "Morada", value: hospital.address },
+    { label: "Código Postal", value: hospital.zip_code },
+    { label: "Telefone", value: hospital.telephone_number },
+    { label: "Tipo", value: hospital.hospital_type },
+  ] : isES ? [
+    { label: "ID Hospital", value: hospital.facility_id },
+    { label: "Dirección", value: hospital.address },
+    { label: "Código Postal", value: hospital.zip_code },
+    { label: "Teléfono", value: hospital.telephone_number },
+    { label: "Tipo", value: hospital.hospital_type },
   ] : isFrench ? [
     { label: "Code FINESS", value: hospital.facility_id },
     { label: "Adresse", value: hospital.address },
@@ -142,7 +176,7 @@ function HospitalCard({ hospital, expanded, onExpand, onClose, onInfectionsLoade
             ))}
           </div>
 
-          {isUS && (
+          {isUS ? (
             <div style={{ borderTop: `1px solid ${theme.border}`, paddingTop: 14 }}>
               <div style={{ fontFamily: theme.mono, fontSize: 10.5, color: theme.faint, letterSpacing: "0.06em", textTransform: "uppercase", marginBottom: 10 }}>
                 Healthcare-Associated Infections
@@ -164,28 +198,10 @@ function HospitalCard({ hospital, expanded, onExpand, onClose, onInfectionsLoade
                 </div>
               )}
             </div>
-          )}
-
-          {isBR && (
+          ) : (
             <div style={{ borderTop: `1px solid ${theme.border}`, paddingTop: 14 }}>
               <div style={{ fontFamily: theme.mono, fontSize: 11, color: "#6f8a95" }}>
-                Dados de infecção hospitalar não disponíveis para o Brasil no CNES.
-              </div>
-            </div>
-          )}
-
-          {isFrench && (
-            <div style={{ borderTop: `1px solid ${theme.border}`, paddingTop: 14 }}>
-              <div style={{ fontFamily: theme.mono, fontSize: 11, color: "#6f8a95" }}>
-                Données d'infection non disponibles via FINESS.
-              </div>
-            </div>
-          )}
-
-          {isGB && (
-            <div style={{ borderTop: `1px solid ${theme.border}`, paddingTop: 14 }}>
-              <div style={{ fontFamily: theme.mono, fontSize: 11, color: "#6f8a95" }}>
-                CQC infection data requires authentication — not available in bulk.
+                {noInfectionMsg}
               </div>
             </div>
           )}
@@ -196,10 +212,8 @@ function HospitalCard({ hospital, expanded, onExpand, onClose, onInfectionsLoade
         <span style={{ fontFamily: theme.mono, fontSize: 12, color: theme.faint, letterSpacing: "0.04em" }}>
           {zipLabel} {hospital.zip_code}
         </span>
-        {isUS && <Stars rating={hospital.overall_rating ?? 0} />}
-        {isBR && <span style={{ fontFamily: theme.mono, fontSize: 11, color: "#6f8a95" }}>CNES</span>}
-        {isGB && <span style={{ fontFamily: theme.mono, fontSize: 11, color: "#6f8a95" }}>NHS</span>}
-        {isFrench && <span style={{ fontFamily: theme.mono, fontSize: 11, color: "#6f8a95" }}>FINESS</span>}
+        {isUS ? <Stars rating={hospital.overall_rating ?? 0} /> :
+          sourceBadge ? <span style={{ fontFamily: theme.mono, fontSize: 11, color: "#6f8a95" }}>{sourceBadge}</span> : null}
       </div>
     </article>
   );
@@ -240,6 +254,8 @@ export default function HospitalList({ country = "US" }) {
   const isFR = country === "FR";
   const isGB = country === "GB";
   const isBE = country === "BE";
+  const isPT = country === "PT";
+  const isES = country === "ES";
   const isFrench = isFR || isBE;
 
   useEffect(() => {
@@ -293,9 +309,49 @@ export default function HospitalList({ country = "US" }) {
     country === "GB" ? "247 NHS Trusts" :
     country === "FR" ? "3,360 hôpitaux" :
     country === "BE" ? "111 hôpitaux" :
-    country === "CA" ? "432 hospitals" : "—";
+    country === "CA" ? "432 hospitals" :
+    country === "PT" ? "131 hospitais" :
+    country === "ES" ? "861 hospitales" : "—";
 
-  const browseLabel = isBR ? "Explorar Hospitais" : isFrench ? "Explorer les hôpitaux" : "Browse Hospitals";
+  const browseLabel = isBR || isPT ? "Explorar Hospitais"
+    : isFrench ? "Explorer les hôpitaux"
+    : isES ? "Explorar hospitales"
+    : "Browse Hospitals";
+
+  const searchPlaceholder = isBR || isPT ? "Buscar por nome do hospital..."
+    : isFrench ? "Rechercher par nom d'hôpital..."
+    : isES ? "Buscar por nombre del hospital..."
+    : "Search by hospital name...";
+
+  const filterPlaceholder = isBR ? "Filtrar por estado (ex: SP)"
+    : isFrench ? "Filtrer par région..."
+    : isES ? "Filtrar por región..."
+    : isPT ? "Filtrar por cidade..."
+    : "Filter by state (e.g. TX)";
+
+  const clearLabel = isBR || isPT ? "Limpar"
+    : isFrench ? "Effacer"
+    : isES ? "Limpiar"
+    : "Clear";
+
+  const noResultsLabel = isBR || isPT ? "Nenhum hospital encontrado."
+    : isFrench ? "Aucun hôpital trouvé."
+    : isES ? "No se encontraron hospitales."
+    : "No hospitals found.";
+
+  const pageLabel = isBR || isPT ? "Página"
+    : isFrench || isES ? "Página"
+    : "Page";
+
+  const prevLabel = isBR || isPT ? "Anterior"
+    : isFrench ? "Précédent"
+    : isES ? "Anterior"
+    : "Prev";
+
+  const nextLabel = isBR || isPT ? "Próximo"
+    : isFrench ? "Suivant"
+    : isES ? "Siguiente"
+    : "Next";
 
   return (
     <section style={{ marginTop: 24 }}>
@@ -337,15 +393,15 @@ export default function HospitalList({ country = "US" }) {
           boxShadow: "0 4px 12px rgba(16,26,32,.3)",
         }}>
           <div style={{ display: "flex", gap: 10, flexWrap: "wrap", marginBottom: 20 }}>
-            <input type="text" value={search} onChange={(e) => { setSearch(e.target.value); setPage(1); }} placeholder={isBR ? "Buscar por nome do hospital..." : isFrench ? "Rechercher par nom d'hôpital..." : "Search by hospital name..."} style={{ ...control, flex: "1 1 220px" }} />
-            <input type="text" value={stateFilter} onChange={(e) => { setStateFilter(e.target.value.toUpperCase()); setPage(1); }} placeholder={isBR ? "Filtrar por estado (ex: SP)" : isFrench ? "Filtrer par région..." : "Filter by state (e.g. TX)"} style={{ ...control, width: 180 }} />
-            <button onClick={(e) => { e.stopPropagation(); handleClear(); }} style={{ ...control, cursor: "pointer", color: "#a7b6bf" }}>{isBR ? "Limpar" : isFrench ? "Effacer" : "Clear"}</button>
+            <input type="text" value={search} onChange={(e) => { setSearch(e.target.value); setPage(1); }} placeholder={searchPlaceholder} style={{ ...control, flex: "1 1 220px" }} />
+            <input type="text" value={stateFilter} onChange={(e) => { setStateFilter(e.target.value.toUpperCase()); setPage(1); }} placeholder={filterPlaceholder} style={{ ...control, width: 180 }} />
+            <button onClick={(e) => { e.stopPropagation(); handleClear(); }} style={{ ...control, cursor: "pointer", color: "#a7b6bf" }}>{clearLabel}</button>
             {hospitals.length > 0 && (
               <button onClick={(e) => { e.stopPropagation(); exportCSV(hospitals, `hospitals_${hospitals[0]?.state || "all"}_page.csv`); }} style={{ ...control, cursor: "pointer", color: theme.mint, borderColor: theme.mint }}>↓ Export CSV</button>
             )}
             {stateFilter && hospitals.length > 0 && (
               <button onClick={(e) => { e.stopPropagation(); exportStateCSV(); }} disabled={exportingState} style={{ ...control, cursor: exportingState ? "wait" : "pointer", color: "#a78bfa", borderColor: "#a78bfa", opacity: exportingState ? 0.7 : 1 }}>
-                {exportingState ? (isBR ? "Exportando..." : "Exporting...") : `↓ Export All ${stateFilter}`}
+                {exportingState ? (isBR || isPT ? "Exportando..." : isES ? "Exportando..." : "Exporting...") : `↓ Export All ${stateFilter}`}
               </button>
             )}
             {selectedList.length > 0 && (
@@ -371,16 +427,16 @@ export default function HospitalList({ country = "US" }) {
 
           {hospitals.length === 0 && (
             <div style={{ background: theme.darkInput, border: `1px dashed #2c3b44`, borderRadius: 14, padding: "48px 24px", textAlign: "center", color: "#6f8a95", fontSize: 14.5 }}>
-              {isBR ? "Nenhum hospital encontrado." : isFrench ? "Aucun hôpital trouvé." : "No hospitals found."}
+              {noResultsLabel}
             </div>
           )}
 
           <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 16, flexWrap: "wrap", marginTop: 24 }}>
-            <div style={{ fontFamily: theme.mono, fontSize: 12, color: "#6f8a95" }}>{isBR ? "Página" : isFrench ? "Page" : "Page"} {page}</div>
+            <div style={{ fontFamily: theme.mono, fontSize: 12, color: "#6f8a95" }}>{pageLabel} {page}</div>
             <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
-              <button onClick={() => setPage((p) => Math.max(1, p - 1))} disabled={page === 1} style={{ ...control, borderRadius: 9, cursor: "pointer", fontSize: 13.5 }}>{isBR ? "Anterior" : isFrench ? "Précédent" : "Prev"}</button>
+              <button onClick={() => setPage((p) => Math.max(1, p - 1))} disabled={page === 1} style={{ ...control, borderRadius: 9, cursor: "pointer", fontSize: 13.5 }}>{prevLabel}</button>
               <button style={pageBtn(true)}>{page}</button>
-              <button onClick={() => setPage((p) => p + 1)} disabled={hospitals.length < limit} style={{ ...control, borderRadius: 9, cursor: "pointer", fontSize: 13.5 }}>{isBR ? "Próximo" : isFrench ? "Suivant" : "Next"}</button>
+              <button onClick={() => setPage((p) => p + 1)} disabled={hospitals.length < limit} style={{ ...control, borderRadius: 9, cursor: "pointer", fontSize: 13.5 }}>{nextLabel}</button>
             </div>
           </div>
         </div>

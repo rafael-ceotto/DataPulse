@@ -18,7 +18,7 @@ const CONTINENTS = {
   },
   Europe: {
     label: "Europe",
-    countries: ["GB", "FR", "BE"],
+    countries: ["GB", "FR", "BE", "PT", "ES"],
   },
 };
 
@@ -59,10 +59,22 @@ const COUNTRIES = {
     description: "111 hôpitaux · Royaume de Belgique",
     rating_info: "Agrément SPF Santé publique — données structurelles Wikidata.",
   },
+  PT: {
+    name: "Portugal",
+    source: "Wikidata / SNS",
+    description: "131 hospitais · Serviço Nacional de Saúde",
+    rating_info: "Dados estruturais — sem rating nacional único. Fonte: Wikidata.",
+  },
+  ES: {
+    name: "España",
+    source: "Wikidata / SNS España",
+    description: "861 hospitales · Sistema Nacional de Salud",
+    rating_info: "Datos estructurales — sin rating nacional único. Fuente: Wikidata.",
+  },
 };
 
-const FACILITIES_COUNT = { US: "5,419", BR: "7,680", CA: "432", GB: "247", FR: "3,360", BE: "111" };
-const LAST_UPDATED = { US: "Oct 2026", BR: "Oct 2026", CA: "Oct 2026", GB: "Oct 2026", FR: "Oct 2026", BE: "Oct 2026" };
+const FACILITIES_COUNT = { US: "5,419", BR: "7,680", CA: "432", GB: "247", FR: "3,360", BE: "111", PT: "131", ES: "861" };
+const LAST_UPDATED = { US: "Oct 2026", BR: "Oct 2026", CA: "Oct 2026", GB: "Oct 2026", FR: "Oct 2026", BE: "Oct 2026", PT: "Oct 2026", ES: "Oct 2026" };
 
 function useCIStatus() {
   const [status, setStatus] = useState(null);
@@ -229,28 +241,32 @@ export default function App() {
   const isBR = country === "BR";
   const isFR = country === "FR";
   const isBE = country === "BE";
+  const isES = country === "ES";
+  const isPT = country === "PT";
   const isFrench = isFR || isBE;
 
-  const facilityLabel = isBR ? "Instalações" : isFrench ? "Établissements" : "Facilities";
-  const totalLabel = isBR ? "Total Global" : isFrench ? "Total mondial" : "Total Global";
-  const updatedLabel = isBR ? "Última atualização" : isFrench ? "Mise à jour" : "Last Updated";
+  const facilityLabel = isBR ? "Instalações" : isFrench ? "Établissements" : isPT ? "Instalações" : isES ? "Instalaciones" : "Facilities";
+  const totalLabel = isBR ? "Total Global" : isFrench ? "Total mondial" : isPT ? "Total Global" : isES ? "Total mundial" : "Total Global";
+  const updatedLabel = isBR ? "Última atualização" : isFrench ? "Mise à jour" : isPT ? "Última atualização" : isES ? "Última actualización" : "Last Updated";
 
   useEffect(() => {
     if (!isUS) setActiveTab("hospitals");
   }, [country]);
 
   const TABS = isUS ? [
-    { id: "hospitals", label: "Hospitals" },
-    { id: "analytics", label: "Analytics" },
-    { id: "pipeline", label: "Pipeline" },
-    { id: "physicians", label: "Physicians" },
-  ] : isBR ? [
-    { id: "hospitals", label: "Hospitais" },
-  ] : isFrench ? [
-    { id: "hospitals", label: "Hôpitaux" },
-  ] : [
-    { id: "hospitals", label: "Hospitals" },
-  ];
+  { id: "hospitals", label: "Hospitals" },
+  { id: "analytics", label: "Analytics" },
+  { id: "pipeline", label: "Pipeline" },
+  { id: "physicians", label: "Physicians" },
+] : isBR || isPT ? [
+  { id: "hospitals", label: "Hospitais" },
+] : isFrench ? [
+  { id: "hospitals", label: "Hôpitaux" },
+] : isES ? [
+  { id: "hospitals", label: "Hospitales" },
+] : [
+  { id: "hospitals", label: "Hospitals" },
+];
 
   return (
     <div style={{ minHeight: "100vh", background: "#f4f6f8", color: theme.ink, fontFamily: theme.sans }}>

@@ -12,6 +12,9 @@ export default function DataQuality({ country = "US" }) {
   const isUS = country === "US";
   const isBE = country === "BE";
   const isFR = country === "FR";
+  const isPT = country === "PT";
+  const isES = country === "ES";
+  const isCA = country === "CA";
   const isFrench = isFR || isBE;
 
   useEffect(() => {
@@ -73,15 +76,49 @@ export default function DataQuality({ country = "US" }) {
     );
   }
 
-  const totalHospitalsLabel = isBR ? "Total de Hospitais" : isFrench ? "Total des hôpitaux" : "Total Hospitals";
+  const totalHospitalsLabel = isBR || isPT ? "Total de Hospitais"
+    : isFrench ? "Total des hôpitaux"
+    : isES ? "Total de hospitales"
+    : "Total Hospitals";
+
   const totalHospitalsSub = isBR ? "Estabelecimentos CNES com leitos"
     : isGB ? "Active NHS Trusts in England"
     : isFR ? "Établissements FINESS — types 101, 106, 292, 355"
     : isBE ? "Hôpitaux Wikidata — Belgique"
+    : isPT ? "Hospitais Wikidata — Portugal"
+    : isES ? "Hospitales Wikidata — España"
+    : isCA ? "Hospitals Wikidata — Canada"
     : "CMS facilities in dataset";
 
-  const missingPhoneLabel = isBR ? "Telefone ausente" : isFrench ? "Téléphone manquant" : "Missing Phone";
-  const missingPhoneSub = isBR ? "Sem número de telefone" : isFrench ? "Sans numéro de téléphone" : "No telephone number";
+  const missingPhoneLabel = isBR || isPT ? "Telefone ausente"
+    : isFrench ? "Téléphone manquant"
+    : isES ? "Teléfono ausente"
+    : "Missing Phone";
+
+  const missingPhoneSub = isBR || isPT ? "Sem número de telefone"
+    : isFrench ? "Sans numéro de téléphone"
+    : isES ? "Sin número de teléfono"
+    : "No telephone number";
+
+  const titleLabel = isBR || isPT ? "Qualidade dos Dados"
+    : isFrench ? "Qualité des données"
+    : isES ? "Calidad de los datos"
+    : "Data Quality";
+
+  const badgeLabel = isBR || isPT ? "Métricas de saúde"
+    : isFrench ? "Métriques de santé"
+    : isES ? "Métricas de salud"
+    : "Health Metrics";
+
+  const loadingLabel = isFrench ? "Chargement..."
+    : isPT ? "Carregando..."
+    : isES ? "Cargando..."
+    : "Loading...";
+
+  const noDataLabel = isFrench ? "Aucune donnée disponible."
+    : isPT ? "Sem dados disponíveis."
+    : isES ? "No hay datos disponibles."
+    : "No data available.";
 
   return (
     <section style={{ marginTop: 24 }}>
@@ -102,10 +139,10 @@ export default function DataQuality({ country = "US" }) {
       >
         <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
           <h2 style={{ margin: 0, fontSize: 17, fontWeight: 600, letterSpacing: "-0.01em", color: "#fff" }}>
-            {isBR ? "Qualidade dos Dados" : isFrench ? "Qualité des données" : "Data Quality"}
+            {titleLabel}
           </h2>
           <span style={{ fontFamily: theme.mono, fontSize: 11, color: theme.mint, letterSpacing: "0.06em", textTransform: "uppercase" }}>
-            {isBR ? "Métricas de saúde" : isFrench ? "Métriques de santé" : "Health Metrics"}
+            {badgeLabel}
           </span>
         </div>
         <span style={{ fontSize: 20, color: "#6f8a95", transition: "transform .2s", transform: open ? "rotate(180deg)" : "rotate(0deg)" }}>
@@ -123,9 +160,7 @@ export default function DataQuality({ country = "US" }) {
           boxShadow: "0 4px 12px rgba(16,26,32,.3)",
         }}>
           {loading ? (
-            <div style={{ textAlign: "center", color: "#6f8a95", padding: 40 }}>
-              {isFrench ? "Chargement..." : "Loading..."}
-            </div>
+            <div style={{ textAlign: "center", color: "#6f8a95", padding: 40 }}>{loadingLabel}</div>
           ) : metrics ? (
             <div style={{ display: "flex", flexDirection: "column", gap: 20 }}>
               {isUS && <ProgressBar pct={metrics.completeness_pct} />}
@@ -149,20 +184,10 @@ export default function DataQuality({ country = "US" }) {
                   </>
                 )}
                 {isBR && (
-                  <MetricCard
-                    label="Sistema de rating"
-                    value="N/A"
-                    sub="CNES não possui rating nacional único"
-                    color="#6f8a95"
-                  />
+                  <MetricCard label="Sistema de rating" value="N/A" sub="CNES não possui rating nacional único" color="#6f8a95" />
                 )}
                 {isGB && (
-                  <MetricCard
-                    label="Rating system"
-                    value="CQC"
-                    sub="Care Quality Commission — no bulk data available without API key"
-                    color="#6f8a95"
-                  />
+                  <MetricCard label="Rating system" value="CQC" sub="Care Quality Commission — no bulk data available without API key" color="#6f8a95" />
                 )}
                 {isFrench && (
                   <MetricCard
@@ -171,6 +196,15 @@ export default function DataQuality({ country = "US" }) {
                     sub={isFR ? "HAS Certification — données structurelles uniquement" : "SPF Santé publique — données structurelles uniquement"}
                     color="#6f8a95"
                   />
+                )}
+                {isPT && (
+                  <MetricCard label="Sistema de avaliação" value="N/A" sub="SNS — dados estruturais apenas (Wikidata)" color="#6f8a95" />
+                )}
+                {isES && (
+                  <MetricCard label="Sistema de evaluación" value="N/A" sub="SNS España — datos estructurales únicamente (Wikidata)" color="#6f8a95" />
+                )}
+                {isCA && (
+                  <MetricCard label="Rating system" value="N/A" sub="CIHI — structural data only (Wikidata)" color="#6f8a95" />
                 )}
                 <MetricCard
                   label={missingPhoneLabel}
@@ -182,9 +216,7 @@ export default function DataQuality({ country = "US" }) {
               </div>
             </div>
           ) : (
-            <div style={{ textAlign: "center", color: "#6f8a95", padding: 40 }}>
-              {isFrench ? "Aucune donnée disponible." : "No data available."}
-            </div>
+            <div style={{ textAlign: "center", color: "#6f8a95", padding: 40 }}>{noDataLabel}</div>
           )}
         </div>
       )}
