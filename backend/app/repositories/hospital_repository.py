@@ -218,3 +218,18 @@ async def get_hospitals_nearby(
 async def get_total_count(session: AsyncSession) -> int:
     result = await session.execute(select(func.count(HospitalModel.facility_id)))
     return result.scalar()
+
+async def get_all_hospitals_by_filter(
+    session: AsyncSession,
+    state: str | None = None,
+    city: str | None = None,
+    country: str = "US",
+) -> list[HospitalModel]:
+    query = select(HospitalModel).where(HospitalModel.country == country)
+    if city:
+        query = query.where(HospitalModel.city.ilike(f"%{city}%"))
+    elif state:
+        query = query.where(HospitalModel.state == state)
+    query = query.order_by(HospitalModel.facility_name)
+    result = await session.execute(query)
+    return result.scalars().all()

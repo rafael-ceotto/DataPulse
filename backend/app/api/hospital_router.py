@@ -14,7 +14,7 @@ from app.core.cache import get_cache, set_cache, invalidate_cache
 from app.core.auth import get_current_user
 from app.core.config import settings
 from app.services.hospital_service import ingest_hospitals
-from app.repositories.hospital_repository import get_hospitals, get_hospitals_by_id, save_hospitals, get_rating_distribution, get_all_hospitals_by_state, get_data_quality_metrics
+from app.repositories.hospital_repository import get_hospitals, get_hospitals_by_id, save_hospitals, get_rating_distribution, get_all_hospitals_by_state, get_data_quality_metrics, get_all_hospitals_by_filter
 from app.ai.hospital_ai_service import ask_hospital_ai
 from app.services.infection_service import ingest_infections
 from app.repositories.infection_repository import get_infections, get_infections_by_facility
@@ -109,10 +109,17 @@ async def list_hospitals(page: int = 1, limit: int = 20, state: str | None = Non
     return await get_hospitals(session, page, limit, state, search, min_rating, max_rating, country)
 
 @router.get("/api/v1/hospitals/export")
-async def export_hospitals_by_state(state: str, session: AsyncSession = Depends(get_session), current_user: dict = Depends(get_current_user)):
-    if not state:
-        raise HTTPException(status_code=400, detail="State parameter is required")
-    hospitals = await get_all_hospitals_by_state(session, state)
+async def export_hospitals_by_state(
+    session: AsyncSession = Depends(get_session),
+    current_user: dict = Depends(get_current_user),
+    state: str | None = None,
+    city: str | None = None,
+    country: str = "US",
+):
+    if not state and not city:
+        raise HTTPException(status_code=400, detail="State or city parameter is required")
+    
+    hospitals = await get_all_hospitals_by_filter(session, state=state, city=city, country=country)
     return hospitals
 
 @router.get("/api/v1/hospitals/data-quality")

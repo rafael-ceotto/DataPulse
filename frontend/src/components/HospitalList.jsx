@@ -2,6 +2,8 @@ import React, { useEffect, useState } from "react";
 import { theme } from "../theme";
 import { getHospitals, getHospitalInfections } from "../services/api";
 
+const CITY_FILTER_COUNTRIES = ["IT", "ES", "PT", "BE", "CA", "MT", "GB", "FR"];
+
 function Stars({ rating }) {
   return (
     <div style={{ display: "flex", alignItems: "center", gap: 3 }}>
@@ -14,14 +16,26 @@ function Stars({ rating }) {
   );
 }
 
-function exportCSV(hospitals, filename = "hospitals_selected.csv") {
-  const headers = ["Facility ID", "Facility Name", "Address", "City", "State", "ZIP Code", "Type", "Ownership", "Emergency Services", "Overall Rating", "Phone", "HAI Worse", "HAI Better", "HAI Average"];
-  const rows = hospitals.map((h) => [
-    h.facility_id, h.facility_name, h.address, h.city, h.state, h.zip_code,
-    h.hospital_type, h.hospital_ownership, h.emergency_services,
-    h.overall_rating ?? "", h.telephone_number ?? "",
-    h._infections?.worse ?? "", h._infections?.better ?? "", h._infections?.average ?? "",
-  ]);
+function exportCSV(hospitals, filename = "hospitals_selected.csv", country = "US") {
+  const isUS = country === "US";
+
+  const headers = isUS
+    ? ["Facility ID", "Facility Name", "Address", "City", "State", "ZIP Code", "Type", "Ownership", "Emergency Services", "Overall Rating", "Phone", "HAI Worse", "HAI Better", "HAI Average"]
+    : ["Facility ID", "Facility Name", "Address", "City", "State", "ZIP Code", "Type", "Phone"];
+
+  const rows = hospitals.map((h) => isUS
+    ? [
+        h.facility_id, h.facility_name, h.address, h.city, h.state, h.zip_code,
+        h.hospital_type, h.hospital_ownership, h.emergency_services,
+        h.overall_rating ?? "", h.telephone_number ?? "",
+        h._infections?.worse ?? "", h._infections?.better ?? "", h._infections?.average ?? "",
+      ]
+    : [
+        h.facility_id, h.facility_name, h.address, h.city, h.state, h.zip_code,
+        h.hospital_type, h.telephone_number ?? "",
+      ]
+  );
+
   const csv = [headers, ...rows].map((r) => r.map((v) => `"${String(v).replace(/"/g, '""')}"`).join(",")).join("\n");
   const blob = new Blob([csv], { type: "text/csv" });
   const url = URL.createObjectURL(blob);
@@ -302,15 +316,16 @@ export default function HospitalList({ country = "US" }) {
   }
 
   async function exportStateCSV() {
-    if (!stateFilter) return;
-    setExportingState(true);
-    try {
-      const response = await fetch(`/api/v1/hospitals/export?state=${stateFilter}&country=${country}`);
-      const data = await response.json();
-      exportCSV(data, `hospitals_${stateFilter}_all.csv`);
-    } finally {
-      setExportingState(false);
-    }
+  if (!stateFilter) return;
+  setExportingState(true);
+  try {
+    const paramKey = CITY_FILTER_COUNTRIES.includes(country) ? "city" : "state";
+    const response = await fetch(`/api/v1/hospitals/export?${paramKey}=${stateFilter}&country=${country}`);
+    const data = await response.json();
+    exportCSV(data, `hospitals_${stateFilter}_all.csv`, country);
+  } finally {
+    setExportingState(false);
+  }
   }
 
   const selectedList = Object.values(selected);
@@ -426,7 +441,7 @@ export default function HospitalList({ country = "US" }) {
             style={{ ...control, width: 180 }} />
             <button onClick={(e) => { e.stopPropagation(); handleClear(); }} style={{ ...control, cursor: "pointer", color: "#a7b6bf" }}>{clearLabel}</button>
             {hospitals.length > 0 && (
-              <button onClick={(e) => { e.stopPropagation(); exportCSV(hospitals, `hospitals_${hospitals[0]?.state || "all"}_page.csv`); }} style={{ ...control, cursor: "pointer", color: theme.mint, borderColor: theme.mint }}>↓ Export CSV</button>
+              <button onClick={(e) => { e.stopPropagation(); exportCSV(hospitals, `hospitals_${hospitals[0]?.state || "all"}_page.csv`, country); }} style={{ ...control, cursor: "pointer", color: theme.mint, borderColor: theme.mint }}>↓ Export CSV</button>
             )}
             {stateFilter && hospitals.length > 0 && (
               <button onClick={(e) => { e.stopPropagation(); exportStateCSV(); }} disabled={exportingState} style={{ ...control, cursor: exportingState ? "wait" : "pointer", color: "#a78bfa", borderColor: "#a78bfa", opacity: exportingState ? 0.7 : 1 }}>
@@ -434,7 +449,7 @@ export default function HospitalList({ country = "US" }) {
               </button>
             )}
             {selectedList.length > 0 && (
-              <button onClick={(e) => { e.stopPropagation(); exportCSV(selectedList, "hospitals_selected.csv"); }} style={{ ...control, cursor: "pointer", color: "#f0a500", borderColor: "#f0a500" }}>
+              <button onClick={(e) => { e.stopPropagation(); exportCSV(selectedList, "hospitals_selected.csv", country); }} style={{ ...control, cursor: "pointer", color: "#f0a500", borderColor: "#f0a500" }}>
                 ★ Export Selected ({selectedList.length})
               </button>
             )}
