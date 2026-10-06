@@ -49,6 +49,30 @@ function useCountryStats(country) {
   return stats;
 }
 
+function useCountrySummary(country) {
+  const [summary, setSummary] = useState(null);
+  useEffect(() => {
+    setSummary(null);
+    fetch(`/api/v1/ai/country-summary?country=${country}`)
+      .then((r) => r.json())
+      .then((data) => setSummary(data.summary))
+      .catch(() => {});
+  }, [country]);
+  return summary;
+}
+
+function Flag({ code, size = 20 }) {
+  const h = size <= 15 ? 15 : size <= 30 ? 30 : 60;
+  const w = h === 15 ? 20 : h === 30 ? 40 : 80;
+  return (
+    <img
+      src={`https://flagcdn.com/${w}x${h}/${code.toLowerCase()}.png`}
+      alt={code}
+      style={{ width: size * 1.33, height: size, borderRadius: 2, display: "inline-block", verticalAlign: "middle", objectFit: "cover" }}
+    />
+  );
+}
+
 function MetricCard({ icon, label, value, sub, accent }) {
   return (
     <div style={{
@@ -199,9 +223,12 @@ function Sidebar({ country, onChange, activeSection, setActiveSection, isUS, isB
                     fontFamily: theme.mono,
                     fontWeight: country === code ? 700 : 400,
                     transition: "all 0.12s",
+                    display: "flex",
+                    alignItems: "center",
+                    gap: 4,
                   }}
                 >
-                  {code}
+                  <Flag code={code} size={12} /> {code}
                 </button>
               ))}
             </div>
@@ -217,6 +244,7 @@ export default function App() {
   const [activeSection, setActiveSection] = useState("near-me");
   const [country, setCountry] = useState("US");
   const stats = useCountryStats(country);
+  const summary = useCountrySummary(country);
 
   const isUS = country === "US";
   const isBR = country === "BR";
@@ -332,7 +360,7 @@ export default function App() {
             cursor: "pointer", fontFamily: theme.sans,
           }}
         >
-          <span>{COUNTRY_FLAGS[country]}</span>
+          <Flag code={country} size={18} />
           <span style={{ fontWeight: 500 }}>{COUNTRIES[country]?.name}</span>
           <span style={{ color: "#9baab3", fontSize: 11 }}>▾</span>
         </button>
@@ -364,11 +392,13 @@ export default function App() {
           display: "flex",
           flexDirection: "column",
           minWidth: 0,
+          minHeight: 0,
         }}>
           {/* Country hero */}
-          <div style={{ padding: "28px 40px 20px", borderBottom: "1px solid #243d4d" }}>
-          <div style={{ fontSize: 26, fontWeight: 700, color: "#dce5e9", letterSpacing: "-0.02em", marginBottom: 4 }}>
-            {COUNTRY_FLAGS[country]} {current?.name}
+          <div style={{ padding: "28px 40px 20px", borderBottom: "1px solid #243d4d", flexShrink: 0  }}>
+          <div style={{ fontSize: 26, fontWeight: 700, color: "#dce5e9", letterSpacing: "-0.02em", marginBottom: 4, display: "flex", alignItems: "center", gap: 10 }}>
+          <Flag code={country} size={24} />
+          {current?.name}
           </div>
           <div style={{ fontFamily: theme.mono, fontSize: 11, color: "#6f8a95", marginBottom: 20 }}>
             Hospital quality data, one view
@@ -377,14 +407,35 @@ export default function App() {
           </div>
 
           {/* Metric cards */}
-          <div style={{ padding: "20px 40px", display: "flex", gap: 14, flexWrap: "wrap", borderBottom: "1px solid #243d4d", overflow: "hidden" }}>
+          <div style={{ padding: "20px 40px", display: "flex", gap: 14, flexWrap: "wrap", borderBottom: "1px solid #243d4d", overflow: "hidden", flexShrink: 0 }}>
             {metricCards().map((card, i) => (
               <MetricCard key={i} {...card} />
             ))}
           </div>
 
+          {/* Country summary */}
+          {summary && (
+            <div style={{ padding: "20px 40px", borderBottom: "1px solid #243d4d", display: "flex", justifyContent: "center", flexShrink: 0 }}>
+              <div style={{ maxWidth: 800, width: "100%" }}>
+                <div style={{ fontFamily: theme.mono, fontSize: 10, color: "#6f8a95", letterSpacing: "0.07em", textTransform: "uppercase", marginBottom: 10 }}>
+                  Healthcare System Overview
+                </div>
+                <p style={{ fontSize: 14, lineHeight: 1.7, color: "#a0b8c4", margin: 0 }}>
+                  {summary}
+                </p>
+              </div>
+            </div>
+          )}
+          {!summary && (
+            <div style={{ padding: "20px 40px", borderBottom: "1px solid #243d4d" }}>
+              <div style={{ fontFamily: theme.mono, fontSize: 10, color: "#3a5a6a", letterSpacing: "0.07em", textTransform: "uppercase" }}>
+                Loading overview...
+              </div>
+            </div>
+          )}
+
           {/* Content */}
-          <div style={{ padding: "24px 40px", flex: 1, overflowY: "auto", overflowX: "hidden" }}>
+          <div style={{ padding: "24px 40px", flex: 1}}>
             {activeSection === "ask-doc" && null}
             {activeSection === "near-me" && <HospitalsNearMe country={country} />}
             {activeSection === "data-quality" && <DataQuality country={country} />}

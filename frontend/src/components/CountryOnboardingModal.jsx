@@ -1,38 +1,43 @@
 import React, { useState, useEffect } from "react";
 import { theme } from "../theme";
 
+function Flag({ code, size = 20 }) {
+  const h = size <= 15 ? 15 : size <= 30 ? 30 : 60;
+  const w = h === 15 ? 20 : h === 30 ? 40 : 80;
+  return (
+    <img
+      src={`https://flagcdn.com/${w}x${h}/${code.toLowerCase()}.png`}
+      alt={code}
+      style={{ width: size * 1.33, height: size, borderRadius: 2, display: "inline-block", verticalAlign: "middle", objectFit: "cover" }}
+    />
+  );
+}
+
 const CONTINENTS = {
-  Americas: {
-    label: "Americas",
-    countries: ["US", "BR", "CA"],
-  },
-  Europe: {
-    label: "Europe",
-    countries: ["GB", "FR", "BE", "PT", "ES", "IT", "MT"],
-  },
+  Americas: { label: "Americas", countries: ["US", "BR", "CA"] },
+  Europe: { label: "Europe", countries: ["GB", "FR", "BE", "PT", "ES", "IT", "MT"] },
 };
 
 const COUNTRIES = {
-  US: { name: "United States", flag: "🇺🇸", description: "5,419 hospitals" },
-  BR: { name: "Brasil", flag: "🇧🇷", description: "7,680 hospitais" },
-  CA: { name: "Canada", flag: "🇨🇦", description: "432 hospitals" },
-  GB: { name: "United Kingdom", flag: "🇬🇧", description: "247 NHS Trusts" },
-  FR: { name: "France", flag: "🇫🇷", description: "3,360 hôpitaux" },
-  BE: { name: "Belgium", flag: "🇧🇪", description: "111 hôpitaux" },
-  PT: { name: "Portugal", flag: "🇵🇹", description: "131 hospitais" },
-  ES: { name: "España", flag: "🇪🇸", description: "861 hospitales" },
-  IT: { name: "Italia", flag: "🇮🇹", description: "343 ospedali" },
-  MT: { name: "Malta", flag: "🇲🇹", description: "11 hospitals" },
+  US: { name: "United States", description: "5,419 hospitals" },
+  BR: { name: "Brasil", description: "7,680 hospitais" },
+  CA: { name: "Canada", description: "432 hospitals" },
+  GB: { name: "United Kingdom", description: "247 NHS Trusts" },
+  FR: { name: "France", description: "3,360 hôpitaux" },
+  BE: { name: "Belgium", description: "111 hôpitaux" },
+  PT: { name: "Portugal", description: "131 hospitais" },
+  ES: { name: "España", description: "861 hospitales" },
+  IT: { name: "Italia", description: "343 ospedali" },
+  MT: { name: "Malta", description: "11 hospitals" },
 };
 
 const SUPPORTED_COUNTRIES = Object.keys(COUNTRIES);
 
-// IP to country code mapping via ipapi.co
 async function detectCountry() {
   try {
     const r = await fetch("https://freeipapi.com/api/json");
     const data = await r.json();
-    const code = data.countryCode;  // era country_code
+    const code = data.countryCode;
     return SUPPORTED_COUNTRIES.includes(code) ? code : "US";
   } catch {
     return "US";
@@ -48,10 +53,10 @@ export default function CountryOnboardingModal({ onConfirm, initialCountry }) {
 
   useEffect(() => {
     if (initialCountry) {
-    setDetected(initialCountry);
-    setSelected(initialCountry);
-    setLoading(false);
-    return;
+      setDetected(initialCountry);
+      setSelected(initialCountry);
+      setLoading(false);
+      return;
     }
     detectCountry().then((code) => {
       setDetected(code);
@@ -116,7 +121,7 @@ export default function CountryOnboardingModal({ onConfirm, initialCountry }) {
           </div>
         </div>
 
-        {/* Detected country suggestion */}
+        {/* Detected country */}
         {loading ? (
           <div style={{ textAlign: "center", fontFamily: theme.mono, fontSize: 12, color: "#6f8a95" }}>
             Detecting your location...
@@ -131,7 +136,7 @@ export default function CountryOnboardingModal({ onConfirm, initialCountry }) {
             alignItems: "center",
             gap: 12,
           }}>
-            <span style={{ fontSize: 24 }}>{COUNTRIES[detected]?.flag}</span>
+            <Flag code={detected} size={24} />
             <div style={{ flex: 1 }}>
               <div style={{ fontSize: 13, color: "#6f8a95", fontFamily: theme.mono, marginBottom: 2 }}>
                 Detected location
@@ -197,9 +202,13 @@ export default function CountryOnboardingModal({ onConfirm, initialCountry }) {
                     fontFamily: theme.sans,
                     fontWeight: selected === code ? 600 : 400,
                     transition: "all 0.15s",
+                    display: "flex",
+                    alignItems: "center",
+                    gap: 6,
                   }}
                 >
-                  {COUNTRIES[code]?.flag} {COUNTRIES[code]?.name}
+                  <Flag code={code} size={14} />
+                  {COUNTRIES[code]?.name}
                 </button>
               ))}
             </div>
@@ -210,14 +219,14 @@ export default function CountryOnboardingModal({ onConfirm, initialCountry }) {
         {current && (
           <div style={{
             background: "#16222a",
-            border: `1px solid #2a7a9a`,
+            border: "1px solid #2a7a9a",
             borderRadius: 12,
             padding: "12px 16px",
             display: "flex",
             alignItems: "center",
             gap: 12,
           }}>
-            <span style={{ fontSize: 22 }}>{current.flag}</span>
+            <Flag code={selected} size={24} />
             <div>
               <div style={{ fontSize: 14, fontWeight: 600, color: "#dce5e9" }}>{current.name}</div>
               <div style={{ fontFamily: theme.mono, fontSize: 11, color: "#6f8a95" }}>{current.description}</div>

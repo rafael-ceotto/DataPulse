@@ -432,4 +432,17 @@ async def country_stats(country: str = "US", session: AsyncSession = Depends(get
     stats = await get_country_stats(session, country)
     return stats
 
+@router.get("/api/v1/ai/country-summary")
+async def country_summary(country: str = "US"):
+    from app.ai.country_summary_service import generate_country_summary
+    from app.core.cache import get_cache, set_cache
     
+    cache_key = f"country_summary:{country}"
+    cached = await get_cache(cache_key)
+    if cached:
+        return {"country": country, "summary": cached}
+    
+    summary = await generate_country_summary(country)
+    if summary:
+        await set_cache(cache_key, summary, ttl=86400)  # 24 horas
+    return {"country": country, "summary": summary}
