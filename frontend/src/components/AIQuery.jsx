@@ -85,11 +85,15 @@ export default function AIQuery() {
         borderRadius: 18,
         padding: 28,
         boxShadow: "0 18px 40px -24px rgba(16,26,32,.55)",
+        width: "100%",
+        maxWidth: "100%",
+        overflow: "hidden",
+        boxSizing: "border-box",
       }}
     >
       <div style={{ display: "flex", alignItems: "baseline", gap: 12, flexWrap: "wrap", marginBottom: 18 }}>
         <h2 style={{ margin: 0, fontSize: 17, fontWeight: 600, color: "#fff", letterSpacing: "-0.01em" }}>
-          Ask about the data
+          Ask AIDoc
         </h2>
         <span style={{ fontFamily: theme.mono, fontSize: 11, color: theme.mint, letterSpacing: "0.06em", textTransform: "uppercase" }}>
           AI query
@@ -164,7 +168,7 @@ export default function AIQuery() {
               padding: "7px 14px",
               fontSize: 12.5,
               cursor: "pointer",
-              whiteSpace: "nowrap",
+              whiteSpace: "normal",
             }}
           >
             {s === "What states have the highest concentration of 5-star hospitals?" ? "✦ " : ""}{s}
@@ -181,7 +185,7 @@ export default function AIQuery() {
               padding: "7px 14px",
               fontSize: 12.5,
               cursor: "pointer",
-              whiteSpace: "nowrap",
+              whiteSpace: "normal",
               marginLeft: "auto",
             }}
           >
