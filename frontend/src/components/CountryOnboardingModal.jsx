@@ -30,9 +30,9 @@ const SUPPORTED_COUNTRIES = Object.keys(COUNTRIES);
 // IP to country code mapping via ipapi.co
 async function detectCountry() {
   try {
-    const r = await fetch("https://ipapi.co/json/", { timeout: 5000 });
+    const r = await fetch("https://freeipapi.com/api/json");
     const data = await r.json();
-    const code = data.country_code;
+    const code = data.countryCode;  // era country_code
     return SUPPORTED_COUNTRIES.includes(code) ? code : "US";
   } catch {
     return "US";

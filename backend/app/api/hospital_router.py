@@ -426,4 +426,10 @@ async def hospitals_count(session: AsyncSession = Depends(get_session)):
     total = await get_total_count(session)
     return {"total": total}
 
+@router.get("/api/v1/hospitals/stats/country")
+async def country_stats(country: str = "US", session: AsyncSession = Depends(get_session),):
+    from app.repositories.hospital_repository import get_country_stats
+    stats = await get_country_stats(session, country)
+    return stats
+
     

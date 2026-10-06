@@ -233,3 +233,47 @@ async def get_all_hospitals_by_filter(
     query = query.order_by(HospitalModel.facility_name)
     result = await session.execute(query)
     return result.scalars().all()
+
+async def get_country_stats(session: AsyncSession, country: str) -> dict:
+    total_result = await session.execute(
+        select(func.count(HospitalModel.facility_id))
+        .where(HospitalModel.country == country)
+    )
+    total = total_result.scalar()
+    
+    emergency_result = await session.execute(
+        select(func.count(HospitalModel.facility_id))
+        .where(HospitalModel.country == country)
+        .where(HospitalModel.emergency_services.in_(["Yes", "Sim"]))
+    )
+    emergency = emergency_result.scalar()
+    
+    phone_result = await session.execute(
+        select(func.count(HospitalModel.facility_id))
+        .where(HospitalModel.country == country)
+        .where(HospitalModel.telephone_number.isnot(None))
+    )
+    with_phone = phone_result.scalar()
+
+    coords_result = await session.execute(
+        select(func.count(HospitalModel.facility_id))
+        .where(HospitalModel.country == country)
+        .where(HospitalModel.latitude.isnot(None))
+    )
+    with_coords = coords_result.scalar()
+    
+    type_result = await session.execute(
+        select(func.count(func.distinct(HospitalModel.hospital_type)))
+        .where(HospitalModel.country == country)
+        .where(HospitalModel.hospital_type != "")
+    )
+    type_count = type_result.scalar()
+
+    return {
+        "country": country,
+        "total": total,
+        "with_emergency": emergency,
+        "with_phone": with_phone,
+        "with_coords": with_coords,
+        "type_count": type_count,
+    }
