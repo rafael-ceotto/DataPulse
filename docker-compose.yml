@@ -391,6 +391,22 @@ services:
       - floci
     profiles:
       - italy
+
+  enrich_malta:
+    build:
+      context: .
+      dockerfile: backend/Dockerfile
+    container_name: datapulse_enrich_malta
+    environment:
+      DB_URL: postgresql+asyncpg://datapulse:datapulse@db:5432/datapulse
+    env_file:
+      - backend/.env
+    command: poetry run python scripts/enrich_malta.py
+    depends_on:
+      - db
+      - floci
+    profiles:
+      - enrich-malta
   
 
 volumes:
