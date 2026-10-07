@@ -6,13 +6,13 @@ My grandmother went through something similar. When she broke her leg, the ambul
 
 That's why I built DataPulse.
 
-CMS (Centers for Medicare & Medicaid Services) data is public. 5,419 hospitals. Quality ratings, infection records, physician shortages by state. Everything you need to make an informed decision about where to get treated — sitting there, underused. DataPulse makes it actually usable.
+Hospital quality data is public. 18,595 hospitals across 10 countries. Quality ratings, infection records, physician shortages by state. Everything you need to make an informed decision about where to get treated is sitting there, underused. DataPulse makes it actually usable.
 
 ---
 
 ## Stack
 
-- **Backend:** Python, FastAPI, SQLAlchemy, Alembic, PostgreSQL + pgvector, Pydantic, httpx
+- **Backend:** Python, FastAPI, SQLAlchemy, Alembic, PostgreSQL + pgvector, Pydantic V2, httpx
 - **AI:** Groq API (openai/gpt-oss-120b) with tool calling, web search via Tavily, and RAG over CMS documents
 - **Embeddings:** sentence-transformers (all-MiniLM-L6-v2) running locally
 - **Messaging:** SQS via Floci — async AI query processing with job polling
@@ -22,10 +22,28 @@ CMS (Centers for Medicare & Medicaid Services) data is public. 5,419 hospitals. 
 - **Observability:** Prometheus, Grafana, Loki, structlog
 - **Realtime:** Supabase Realtime (WebSocket events for AI queries and pipeline runs)
 - **Infra:** Docker, Docker Compose, GitHub Actions CI/CD
-- **Frontend:** React + Vite + tab navigation (Hospitals, Analytics, Pipeline, Physicians), metric cards, dark collapsibles with white hospital cards, geolocation component with 51 US city presets
+- **Frontend:** React + Vite — light sidebar + dark content layout, geolocation, multi-language support (EN, PT, FR, ES, IT)
 - **Integrations:** Slack, Notion, GitHub
-- **Geolocation:** ZIP code geocoding via US Census lookup (33,792 ZIP codes) (hospital proximity search)
+- **Geolocation:** ZIP code geocoding via US Census lookup (33,792 ZIP codes) + Haversine proximity search
 - **Big Data:** PySpark 3.5 — full 3.3M physician records processed as temporary Docker container, output saved as Parquet to S3
+
+---
+
+## Coverage — 10 Countries, 18,595 Hospitals
+
+| Country | Code | Hospitals | Source |
+|---------|------|-----------|--------|
+| United States | US | 5,419 | CMS (Centers for Medicare & Medicaid Services) |
+| Brasil | BR | 7,680 | DATASUS / Ministério da Saúde |
+| United Kingdom | GB | 247 | NHS ODS |
+| France | FR | 3,360 | FINESS / Ministère de la Santé |
+| Belgium | BE | 111 | Wikidata / SPF Santé publique |
+| Canada | CA | 432 | Wikidata / CIHI |
+| Portugal | PT | 131 | Wikidata / SNS |
+| España | ES | 861 | Wikidata / SNS España |
+| Italia | IT | 343 | Wikidata / SSN |
+| Malta | MT | 11 | Wikidata / Malta Health |
+| **Total** | | **18,595** | |
 
 ---
 
@@ -33,9 +51,17 @@ CMS (Centers for Medicare & Medicaid Services) data is public. 5,419 hospitals. 
 
 ```mermaid
 graph TB
+    subgraph Sources["Data Sources"]
+        CMS[CMS API — US]
+        DATASUS[DATASUS — BR]
+        NHS[NHS ODS — GB]
+        FINESS[FINESS — FR]
+        WIKIDATA[Wikidata SPARQL — BE/CA/PT/ES/IT/MT]
+    end
+
     subgraph Frontend["Frontend (React + Vite)"]
         UI[Dashboard]
-        AIQ[AI Query]
+        AIQ[Ask Doc]
         CSV[Export CSV]
         NOTION_BTN[Save to Notion]
     end
@@ -86,6 +112,10 @@ graph TB
         GHActions[GitHub Actions CI/CD]
     end
 
+    Sources -->|CSV / JSON / SPARQL| Pipeline
+    Pipeline --> S3
+    Pipeline --> PG
+
     AIQ -->|POST job_id| Router
     Router --> Queue
     Queue --> Worker
@@ -98,7 +128,6 @@ graph TB
 
     UI -->|HTTP| Router
     NOTION_BTN -->|HTTP + JWT| Router
-    CSV -->|direct| UI
 
     Router --> Pipeline
     Router --> Auth
@@ -106,11 +135,8 @@ graph TB
     Router --> Redis
 
     DAG --> T1 --> T2 --> T3
-    T1 -->|triggers| Pipeline
     T3 -->|runs| STG --> INT --> MRT
 
-    Pipeline --> PG
-    Pipeline --> S3
     Pipeline --> Groq
     Pipeline --> Slack
     Pipeline --> NotionAPI
@@ -122,7 +148,7 @@ graph TB
     UI -->|polling 60s| GHActions
 ```
 
-The pipeline follows **Medallion Architecture** principles — Bronze (raw CMS data), Silver (validated via Pydantic), Gold (PostgreSQL + dbt), Data Lake (S3 snapshots per run).
+The pipeline follows **Medallion Architecture** principles — Bronze (raw source data), Silver (validated via Pydantic), Gold (PostgreSQL + dbt), Data Lake (S3 snapshots per run).
 
 ---
 
@@ -136,6 +162,25 @@ docker compose up -d
 cd backend
 poetry run python scripts/upload_cms_docs_to_s3.py
 poetry run python scripts/ingest_cms_docs.py
+
+# 3. Run country processors (first time only)
+docker compose --profile belgium run --rm belgium_processor
+docker compose --profile canada run --rm canada_processor
+docker compose --profile portugal run --rm portugal_processor
+docker compose --profile spain run --rm spain_processor
+docker compose --profile italy run --rm italy_processor
+docker compose --profile malta run --rm malta_processor
+
+# 4. Ingest all countries via API
+TOKEN=$(curl -s -X POST http://localhost:8000/api/v1/auth/token \
+  -d "username=admin&password=datapulse2024" | jq -r .access_token)
+
+curl -s -X POST http://localhost:8000/api/v1/pipeline/run/belgium -H "Authorization: Bearer $TOKEN"
+curl -s -X POST http://localhost:8000/api/v1/pipeline/run/canada -H "Authorization: Bearer $TOKEN"
+curl -s -X POST http://localhost:8000/api/v1/pipeline/run/portugal -H "Authorization: Bearer $TOKEN"
+curl -s -X POST http://localhost:8000/api/v1/pipeline/run/spain -H "Authorization: Bearer $TOKEN"
+curl -s -X POST http://localhost:8000/api/v1/pipeline/run/italy -H "Authorization: Bearer $TOKEN"
+curl -s -X POST http://localhost:8000/api/v1/pipeline/run/malta -H "Authorization: Bearer $TOKEN"
 ```
 
 Frontend at `http://localhost` · API at `http://localhost:8000` · Docs at `http://localhost:8000/docs`
@@ -168,14 +213,24 @@ docker compose --profile dbt run --rm dbt
 |--------|----------|-------------|
 | GET | `/health` | Health check |
 | POST | `/api/v1/auth/token` | Returns a JWT |
-| POST | `🔒 /api/v1/pipeline/run` | Triggers hospital data ingestion |
+| POST | `🔒 /api/v1/pipeline/run` | Triggers US hospital data ingestion |
+| POST | `🔒 /api/v1/pipeline/run/belgium` | Triggers Belgium ingestion |
+| POST | `🔒 /api/v1/pipeline/run/canada` | Triggers Canada ingestion |
+| POST | `🔒 /api/v1/pipeline/run/portugal` | Triggers Portugal ingestion |
+| POST | `🔒 /api/v1/pipeline/run/spain` | Triggers Spain ingestion |
+| POST | `🔒 /api/v1/pipeline/run/italy` | Triggers Italy ingestion |
+| POST | `🔒 /api/v1/pipeline/run/malta` | Triggers Malta ingestion |
 | POST | `🔒 /api/v1/pipeline/run/infections` | Triggers infection data ingestion |
 | GET | `🔒 /api/v1/pipeline/runs` | Execution history with AI-generated insights |
-| GET | `/api/v1/hospitals` | Paginated list. Supports `page`, `limit`, `state`, `search`, `min_rating`, `max_rating` |
-| GET | `🔒 /api/v1/hospitals/export` | All hospitals in a state. Requires `state` |
-| GET | `🔒 /api/v1/hospitals/data-quality` | Completeness, unrated, low-rated metrics |
+| GET | `/api/v1/hospitals` | Paginated list. Supports `page`, `limit`, `state`, `city`, `search`, `min_rating`, `max_rating`, `country` |
+| GET | `🔒 /api/v1/hospitals/export` | All hospitals by state or city. Supports `state`, `city`, `country` |
+| GET | `🔒 /api/v1/hospitals/data-quality` | Completeness, unrated, low-rated metrics per country |
 | GET | `/api/v1/hospitals/{facility_id}` | Hospital by ID |
 | GET | `/api/v1/hospitals/metrics/rating-distribution` | Average rating by state |
+| GET | `/api/v1/hospitals/nearby` | Hospitals within radius. Supports `lat`, `lng`, `radius`, `country`, `min_rating` |
+| GET | `/api/v1/hospitals/stats/count` | Total hospital count across all countries |
+| GET | `/api/v1/hospitals/stats/country` | Stats per country (total, emergency, phone, coords, types) |
+| GET | `/api/v1/ai/country-summary` | AI-generated healthcare system summary per country (cached 24h) |
 | GET | `/api/v1/infections` | Infection records. Supports `state`, `compared_to_national` |
 | GET | `/api/v1/infections/{facility_id}` | Infections for a facility |
 | GET | `/api/v1/physicians` | Physician search. Supports `state`, `specialty`, `name` |
@@ -189,7 +244,6 @@ docker compose --profile dbt run --rm dbt
 | GET | `/api/v1/analytics/rating-changes` | States with most change across runs |
 | GET | `/api/v1/analytics/hospital-appearances` | Hospitals missing from some runs |
 | POST | `🔒 /api/v1/analytics/query` | Custom DuckDB SQL query over S3 snapshots |
-| GET | `/api/v1/hospitals/nearby` | Hospitals within radius. Supports `lat`, `lng`, `radius`, `min_rating` |
 
 ---
 
@@ -218,7 +272,9 @@ SUPABASE_ANON_KEY=eyJ...      # required for Realtime
 
 The agent operates in two modes. **SQL mode** for direct questions where "Which hospitals have 5 stars in Ohio?" becomes a SELECT and returns data. **Agent mode** for complex analysis. It pulls data from the database, searches the web, reads CMS documents, and synthesizes a response.
 
-AI queries are processed asynchronously via SQS. The endpoint returns a `job_id` immediately, and the frontend receives the result instantly via Supabase Realtime WebSocket (no polling). Cached queries return synchronously with zero latency and zero cost.
+AI queries are processed asynchronously via SQS. The endpoint returns a `job_id` immediately, and the frontend receives the result instantly via Supabase Realtime WebSocket. Cached queries return synchronously with zero latency and zero cost.
+
+The country summary endpoint generates a 3–4 sentence overview of each country's healthcare system in the country's primary language (Italian for IT, Portuguese for BR and PT, French for FR and BE, Spanish for ES, English for US/CA/GB/MT). Results are cached in Redis for 24 hours.
 
 **Available tools:** `search_hospitals`, `get_top_rated_hospitals`, `get_rating_distribution`, `get_physician_state_analysis`, `get_scarce_specialties`, `get_hospital_infections`, `web_search`, `search_cms_documents`, `get_historical_analytics`
 
@@ -226,7 +282,7 @@ The agent is multilingual. It detects the language of the question and responds 
 
 Each response shows token usage and estimated cost. User-level stats available at `GET /api/v1/ai/stats`.
 
-The agent supports **conversational memory**. Each conversation has a unique ID and the agent remembers context across queries for 24 hours. Users can start a new conversation at any time via the "↺ New conversation" button
+The agent supports **conversational memory**. Each conversation has a unique ID and the agent remembers context across queries for 24 hours. Users can start a new conversation at any time via the "↺ New conversation" button.
 
 ---
 
@@ -237,6 +293,7 @@ The agent supports **conversational memory**. Each conversation has a unique ID 
 - "What scarce specialties does California have?"
 - "Compare South Dakota and Utah infection rates"
 - "How has the average hospital rating changed across pipeline runs?"
+- "Which hospitals near me have emergency services?"
 - "Quais hospitais têm 5 estrelas em Ohio?"
 - "¿Por qué el CMS cambió la metodología de calificación de estrellas en 2026?"
 - "Warum hat das CMS die Stern-Bewertungsmethodik im Jahr 2026 geändert?"
@@ -244,6 +301,10 @@ The agent supports **conversational memory**. Each conversation has a unique ID 
 ---
 
 ## Key technical decisions
+
+**Wikidata SPARQL for 7 of 10 countries** — most countries don't have structured, open hospital APIs. Wikidata covers them all with a consistent SPARQL query — only the country QID changes (Q38 for Italy, Q233 for Malta, etc.). This allowed scaling from 2 to 10 countries in one week.
+
+**City filter instead of state filter for Wikidata countries** — Wikidata countries store a fixed country name in the `state` column (e.g. "Italia"). The `CITY_FILTER_COUNTRIES` set in the repository layer switches the filter to `city ILIKE '%value%'` for BE, CA, IT, MT, PT, ES, GB, FR — keeping the API interface consistent across all countries.
 
 **SQS for async AI queries** — queries go into a Floci SQS queue. A worker processes them without blocking the API. Cached queries bypass the queue entirely.
 
@@ -255,27 +316,25 @@ The agent supports **conversational memory**. Each conversation has a unique ID 
 
 **Floci instead of LocalStack** — LocalStack Community was sunset in March 2026. Floci is the MIT-licensed replacement: no account, no token, ~90MB, starts in ~24ms. Moving to real AWS S3 is a one-line change.
 
-**PySpark for full physician dataset** — the scarce specialties analysis previously sampled 50,000 records from 3.3M. PySpark now processes the full dataset as a temporary container (`docker compose --profile spark run --rm physician_processor`), saves results as Parquet to S3 partitioned by state, and DuckDB reads them in milliseconds. The endpoint falls back to sampling if the Parquet is not available. When DATASUS, NHS and other countries are added, the total volume will exceed 10M records and at that point PySpark stops being a choice and becomes the only viable option.
+**freeipapi.com for IP geolocation** — used in the onboarding modal to detect the user's country. Replaced ipapi.co which blocked requests from localhost due to CORS policy. Falls back to US if the detected country is not in the supported list.
+
+**flagcdn.com for flag images** — emoji flags don't render on Windows. flagcdn.com provides flag images at fixed sizes (20×15, 40×30, 80×60). Used in the header, sidebar, hero, and onboarding modal.
+
+**PySpark for full physician dataset** — the scarce specialties analysis previously sampled 50,000 records from 3.3M. PySpark now processes the full dataset as a temporary container, saves results as Parquet to S3 partitioned by state, and DuckDB reads them in milliseconds.
 
 **JWT-based rate limiting** — each authenticated user has an independent 5/min limit, regardless of IP. Multi-tenant ready.
 
 **Upsert instead of delete+insert** — the pipeline can run as many times as needed without duplicates.
 
-**Conversational memory per session** — each conversation is stored in Redis under `conversation:{username}:{conversation_id}` with a 24h TTL. The agent receives the full history on each query, enabling follow-up questions without repeating context.
+**Conversational memory per session** — each conversation is stored in Redis under `conversation:{username}:{conversation_id}` with a 24h TTL.
 
 **Proactive anomaly detection** — after every pipeline run, the system automatically checks for rating drops, completeness issues, and unusual counts of low-rated hospitals. Alerts go to Slack independently of the insight generation.
 
-**Structured output validation** — every agent response is validated against a Pydantic schema before being returned. Empty explanations, wrong types, or missing fields are caught and logged before reaching the user.
+**Structured output validation** — every agent response is validated against a Pydantic schema before being returned.
 
-**Custom DuckDB query endpoint** — `POST /api/v1/analytics/query` accepts any `SELECT` query from authenticated users. In production with sensitive data, this would require an allowlist of permitted tables and columns, stricter rate limiting, and a full audit log. For DataPulse, the underlying CMS data is public, so the exposure risk is low. In production and most important, with sensitive data, the endpoint should not be used as-is in a system handling PII or regulated data.
+**Supabase Realtime instead of polling** — AI query results are delivered via WebSocket. When the SQS worker finishes processing, it publishes an `ai_query_done` event to Supabase.
 
-**Supabase Realtime instead of polling** — AI query results are delivered via WebSocket. When the SQS worker finishes processing, it publishes an `ai_query_done` event to Supabase. The frontend subscribes to the events table and receives the result instantly, eliminating the 2-second polling loop.
-
-**Prompt caching not supported** — attempted `cache_control: ephemeral` on the system prompt via Groq API. The model `openai/gpt-oss-120b` does not support prompt caching. Feature available only on specific models.
-
-**ZIP code geocoding instead of a geocoding API** — hospital coordinates are derived from ZIP codes using a public US Census lookup table with 33,792 entries. Zero cost, zero external dependency, works offline. Proximity search uses a Haversine approximation in PostgreSQL with an exact distance filter in Python to ensure radius accuracy.
-
-**Tab-based layout with dark collapsibles** — the frontend is organized into four tabs (Hospitals, Analytics, Pipeline, Physicians) with the AI query as the permanent hero element. Collapsibles use a dark theme (#101a20) against a light background (#f4f6f8), while hospital cards use white with dark text for maximum readability and a clinical feel appropriate to the health data domain.
+**ZIP code geocoding instead of a geocoding API** — hospital coordinates are derived from ZIP codes using a public US Census lookup table with 33,792 entries. Zero cost, zero external dependency, works offline.
 
 ---
 
@@ -302,38 +361,38 @@ docker compose build api && docker compose up -d api
 # Rebuild after frontend changes
 docker compose build frontend && docker compose up -d frontend
 
-# Clear Redis cache (AI queries, jobs, rate limits)
+# Clear Redis cache
 docker compose exec redis redis-cli FLUSHALL
 
 # Clear only AI query cache
 docker compose exec redis redis-cli KEYS "ai_query*"
 docker compose exec redis redis-cli DEL "ai_query:<hash>"
 
-# Check S3 contents
-docker run --rm --network datapulse_default \
-  -e AWS_ACCESS_KEY_ID=test -e AWS_SECRET_ACCESS_KEY=test -e AWS_DEFAULT_REGION=us-east-1 \
-  amazon/aws-cli s3 ls s3://datapulse --recursive --endpoint-url http://floci:4566
+# Clear country summary cache
+docker compose exec redis redis-cli DEL "country_summary:IT"
+
+# View API logs
+docker compose logs api --tail=30
+
+# Run pipeline directly
+cd backend
+poetry run python run_pipeline.py
+
+# Run PySpark physician processing job
+docker compose --profile spark build physician_processor
+docker compose --profile spark run --rm physician_processor
 
 # Re-upload CMS PDFs and re-index after Floci restart
 cd backend
 poetry run python scripts/upload_cms_docs_to_s3.py
 poetry run python scripts/ingest_cms_docs.py
-
-# View API logs
-docker compose logs api --tail=30
-
-# Run pipeline directly (bypasses Nginx timeout on slow connections)
-cd backend
-poetry run python run_pipeline.py
-
-# Run PySpark physician processing job (processes full 3.3M records)
-docker compose --profile spark build physician_processor
-docker compose --profile spark run --rm physician_processor
 ```
-
 
 ---
 
 ## What's next
 
-- Geographic scalability — support for non-US health data sources (DATASUS for Brazil, NHS for the UK) with region selection before querying. Would require per-country ingestion pipelines, adapted data schemas, and region-aware agent prompts. It'll take some time to make these adjustments.
+- **Voice integration** — wake word detection ("Hey Doc", "Oi Doc", "Ciao Doc") via Web Speech API. On activation, the agent receives the spoken question with geolocation context and responds in the country's language via Speech Synthesis API. Emergency detection triggers a direct call button to the nearest hospital.
+- **Native app** — Expo + React Native for App Store and Google Play. The FastAPI backend stays unchanged. Voice via expo-speech and expo-av (more robust than Web Speech API on mobile).
+- **Data enrichment** — hospitals from Wikidata countries (BE, CA, IT, MT, PT, ES, GB) are missing phone numbers, addresses, and zip codes. OpenStreetMap Overpass API and country-specific open data portals are the next sources to explore.
+- **Insurance/plans per hospital** — add accepted insurance plans. US: CMS payer data. BR: ANS (Agência Nacional de Saúde Suplementar) open data.
