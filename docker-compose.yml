@@ -408,6 +408,20 @@ services:
     profiles:
       - enrich-malta
   
+  enrich_belgium:
+    build:
+      context: .
+      dockerfile: backend/Dockerfile
+    container_name: datapulse_enrich_belgium
+    environment:
+      DB_URL: postgresql+asyncpg://datapulse:datapulse@db:5432/datapulse
+    env_file:
+      - backend/.env
+    command: poetry run python scripts/enrich_belgium.py
+    depends_on:
+      - db
+    profiles:
+      - enrich-belgium
 
 volumes:
   postgres_data:
