@@ -498,6 +498,36 @@ services:
     profiles:
       - enrich-france
 
+  enrich_france_phones:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile.enrich
+    environment:
+      - DATABASE_URL=postgresql://datapulse:datapulse@db:5432/datapulse
+    volumes:
+      - ./backend:/app
+    depends_on:
+      - db
+    profiles:
+      - enrich-france-phones
+    command: python scripts/enrich_france_phones.py
+
+  enrich_brazil_phones:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile.enrich
+    environment:
+      - DATABASE_URL=postgresql://datapulse:datapulse@db:5432/datapulse
+      - CNES_ZIP_PATH=/data/BASE_DE_DADOS_CNES_202409.ZIP
+    volumes:
+      - ./backend:/app
+      - ./data:/data:ro
+    depends_on:
+      - db
+    profiles:
+      - enrich-brazil-phones
+    command: python scripts/enrich_brazil_phones.py
+
 volumes:
   postgres_data:
   airflow_db_data:

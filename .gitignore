@@ -4,3 +4,5 @@ __pycache__/
 .env
 .DS_Store
 airflow/logs/
+# CNES e outros arquivos grandes de dados - nao subir pro git
+data/
