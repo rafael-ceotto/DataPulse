@@ -483,6 +483,21 @@ services:
     profiles:
       - enrich-spain
 
+  enrich_france:
+    build:
+      context: .
+      dockerfile: backend/Dockerfile
+    container_name: datapulse_enrich_france
+    environment:
+      DB_URL: postgresql+asyncpg://datapulse:datapulse@db:5432/datapulse
+    env_file:
+      - backend/.env
+    command: poetry run python scripts/enrich_france.py
+    depends_on:
+      - db
+    profiles:
+      - enrich-france
+
 volumes:
   postgres_data:
   airflow_db_data:
