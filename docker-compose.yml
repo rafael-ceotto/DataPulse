@@ -467,6 +467,21 @@ services:
       - db
     profiles:
       - enrich-portugal
+  
+  enrich_spain:
+    build:
+      context: .
+      dockerfile: backend/Dockerfile
+    container_name: datapulse_enrich_spain
+    environment:
+      DB_URL: postgresql+asyncpg://datapulse:datapulse@db:5432/datapulse
+    env_file:
+      - backend/.env
+    command: poetry run python scripts/enrich_spain.py
+    depends_on:
+      - db
+    profiles:
+      - enrich-spain
 
 volumes:
   postgres_data:
