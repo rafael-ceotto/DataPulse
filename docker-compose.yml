@@ -528,6 +528,20 @@ services:
       - enrich-brazil-phones
     command: python scripts/enrich_brazil_phones.py
 
+  enrich_osm_phones:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile.enrich
+    environment:
+      - DATABASE_URL=postgresql://datapulse:datapulse@db:5432/datapulse
+    volumes:
+      - ./backend:/app
+    depends_on:
+      - db
+    profiles:
+      - enrich-osm-phones
+    command: python scripts/enrich_osm_phones.py
+
 volumes:
   postgres_data:
   airflow_db_data:
