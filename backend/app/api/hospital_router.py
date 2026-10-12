@@ -25,6 +25,8 @@ from app.services.physician_analysis_service import (
     get_national_specialty_counts,
 )
 from app.services.nhs_services import ingest_gb_hospitals
+from app.services.insurance_service import ingest_enrollments
+from app.repositories.insurance_repository import get_enrollments, get_enrollment_by_facility
 from app.ai.hospital_agent_service import ask_agent
 from app.repositories.pipeline_run_repository import get_pipeline_runs
 from app.core.notion import save_to_notion
@@ -446,3 +448,28 @@ async def country_summary(country: str = "US"):
     if summary:
         await set_cache(cache_key, summary, ttl=86400)  # 24 horas
     return {"country": country, "summary": summary}
+
+@router.post("/api/v1/pipeline/run/enrollment")
+async def run_enrollment_pipeline(background_tasks: BackgroundTasks, current_user: dict = Depends(get_current_user)):
+    async def run_ingestion():
+        async with AsyncSessionLocal() as bg_session:
+            await ingest_enrollments(bg_session)
+    background_tasks.add_task(run_ingestion)
+    return {"status": "running", "message": "Enrollment pipeline started in background"}
+
+@router.get("/api/v1/enrollments")
+async def list_enrollments(
+    state: str | None = None,
+    hospital_type: str | None = None,
+    page: int = 1,
+    limit: int = 20,
+    session: AsyncSession = Depends(get_session)
+):
+    return await get_enrollments(session, state, hospital_type, page, limit)
+
+@router.get("/api/v1/enrollments/{facility_id}")
+async def get_facility_enrollment(facility_id: str, session: AsyncSession = Depends(get_session)):
+    enrollment = await get_enrollment_by_facility(session, facility_id)
+    if enrollment is None:
+        raise HTTPException(status_code=404, detail="No enrollment data found for this facility")
+    return enrollment

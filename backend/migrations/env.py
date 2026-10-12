@@ -9,6 +9,8 @@ from app.core.database import Base
 from app.models.hospital import Hospital
 from app.models.pipeline_run import PipelineRun
 from app.models.infection import HospitalInfection
+from app.models.insurance import HospitalEnrollment
+from app.models.document_chunk import DocumentChunk
 
 settings = Settings()
 config = context.config
