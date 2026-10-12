@@ -79,6 +79,8 @@ async def get_hospitals(
         query = query.where(HospitalModel.overall_rating >= min_rating)
     if max_rating is not None:
         query = query.where(HospitalModel.overall_rating <= max_rating)
+
+    ordered_by_relevance = False
     if search:
         if len(search) < 3:
             query = query.where(HospitalModel.facility_name.ilike(f"%{search}%"))
@@ -88,6 +90,11 @@ async def get_hospitals(
             ).order_by(
                 func.similarity(HospitalModel.facility_name, search).desc()
             )
+            ordered_by_relevance = True
+
+    if not ordered_by_relevance:
+        query = query.order_by(HospitalModel.state, HospitalModel.facility_name)
+
     query = query.offset((page - 1) * limit).limit(limit)
     result = await session.execute(query)
     return result.scalars().all()

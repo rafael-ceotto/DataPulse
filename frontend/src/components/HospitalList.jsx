@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from "react";
 import { theme } from "../theme";
-import { getHospitals, getHospitalInfections, getHospitalEnrollment } from "../services/api";
+import { getHospitals, getHospitalInfections, getHospitalEnrollment, getInsuranceNetwork } from "../services/api";
 
 const CITY_FILTER_COUNTRIES = ["IT", "ES", "PT", "BE", "CA", "MT", "GB", "FR"];
 
@@ -49,6 +49,10 @@ function HospitalCard({ hospital, expanded, onExpand, onClose, onInfectionsLoade
   const [loadingInfections, setLoadingInfections] = useState(false);
   const [enrollment, setEnrollment] = useState(null);
   const [loadingEnrollment, setLoadingEnrollment] = useState(false);
+  const [insuranceNetwork, setInsuranceNetwork] = useState(null);
+  const [loadingInsuranceNetwork, setLoadingInsuranceNetwork] = useState(false);
+  const [insuranceSearch, setInsuranceSearch] = useState("");
+  const [showAllInsurance, setShowAllInsurance] = useState(false);
   const isBR = country === "BR";
   const isGB = country === "GB";
   const isFR = country === "FR";
@@ -82,6 +86,14 @@ function HospitalCard({ hospital, expanded, onExpand, onClose, onInfectionsLoade
       .then(setEnrollment)
       .finally(() => setLoadingEnrollment(false));
   }, [expanded, hospital.facility_id, isUS]);
+
+  useEffect(() => {
+    if (!expanded || !isBR) return;
+    setLoadingInsuranceNetwork(true);
+    getInsuranceNetwork(hospital.facility_id)
+      .then(setInsuranceNetwork)
+      .finally(() => setLoadingInsuranceNetwork(false));
+  }, [expanded, hospital.facility_id, isBR]);
 
   const worse = infections.filter(i => i.compared_to_national === "Worse than the National Benchmark");
   const better = infections.filter(i => i.compared_to_national === "Better than the National Benchmark");
@@ -269,6 +281,87 @@ function HospitalCard({ hospital, expanded, onExpand, onClose, onInfectionsLoade
                 )}
               </div>
             </>
+          ) : isBR ? (
+            <>
+              <div style={{ borderTop: `1px solid ${theme.border}`, paddingTop: 14 }}>
+                <div style={{ fontFamily: theme.mono, fontSize: 11, color: "#6f8a95" }}>
+                  {noInfectionMsg}
+                </div>
+              </div>
+
+              <div style={{ borderTop: `1px solid ${theme.border}`, paddingTop: 14 }}>
+                <div style={{ fontFamily: theme.mono, fontSize: 10.5, color: theme.faint, letterSpacing: "0.06em", textTransform: "uppercase", marginBottom: 10 }}>
+                  Convênios / Rede de Operadoras
+                </div>
+                {loadingInsuranceNetwork && <div style={{ fontSize: 13, color: theme.muted }}>Carregando...</div>}
+                {!loadingInsuranceNetwork && (!insuranceNetwork || insuranceNetwork.length === 0) && (
+                  <div style={{ fontSize: 13, color: theme.muted }}>Nenhum convênio ativo encontrado na base da ANS.</div>
+                )}
+                {!loadingInsuranceNetwork && insuranceNetwork && insuranceNetwork.length > 0 && (() => {
+                  const hasQuery = insuranceSearch.trim().length > 0;
+                  const filtered = insuranceNetwork.filter((e) =>
+                    (e.operator_name ?? "").toLowerCase().includes(insuranceSearch.toLowerCase())
+                  );
+                  const visible = hasQuery ? filtered : (showAllInsurance ? insuranceNetwork : []);
+
+                  return (
+                    <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+                      <div style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
+                        <span style={{
+                          fontFamily: theme.mono, fontSize: 11, padding: "4px 10px", borderRadius: 20,
+                          background: "#2f9e6f22", color: "#2f9e6f", border: "1px solid #2f9e6f55",
+                        }}>
+                          ✓ {insuranceNetwork.length} vínculo{insuranceNetwork.length > 1 ? "s" : ""} ativo{insuranceNetwork.length > 1 ? "s" : ""}
+                        </span>
+                        <input
+                          type="text"
+                          value={insuranceSearch}
+                          onClick={(e) => e.stopPropagation()}
+                          onChange={(e) => { e.stopPropagation(); setInsuranceSearch(e.target.value); }}
+                          placeholder="Buscar convênio..."
+                          style={{
+                            flex: "1 1 140px", fontSize: 12, padding: "5px 10px", borderRadius: 8,
+                            border: `1px solid ${theme.border}`, background: "#f4f6f7",
+                            color: theme.ink, outline: "none",
+                          }}
+                        />
+                        {!hasQuery && (
+                          <button
+                            onClick={(e) => { e.stopPropagation(); setShowAllInsurance((v) => !v); }}
+                            style={{
+                              background: "none", border: "none",
+                              color: theme.accent, fontFamily: theme.mono, fontSize: 11.5,
+                              cursor: "pointer", padding: "4px 0", whiteSpace: "nowrap",
+                            }}
+                          >
+                            {showAllInsurance ? "Ocultar ▲" : "Mostrar todos ▼"}
+                          </button>
+                        )}
+                      </div>
+
+                      {hasQuery && filtered.length === 0 && (
+                        <div style={{ fontSize: 12.5, color: theme.muted }}>Nenhuma operadora encontrada para "{insuranceSearch}".</div>
+                      )}
+
+                      {visible.map((entry) => (
+                        <div key={`${entry.operator_code}-${entry.id}`} style={{
+                          display: "flex", flexDirection: "column", gap: 2,
+                          padding: "8px 10px", borderRadius: 8, background: theme.border,
+                        }}>
+                          <span style={{ fontSize: 12.5, color: theme.ink, fontWeight: 600 }}>
+                            {entry.operator_name ?? `Operadora ${entry.operator_code}`}
+                          </span>
+                          <span style={{ fontFamily: theme.mono, fontSize: 10.5, color: theme.muted }}>
+                            {entry.coverage_type ?? "—"}
+                            {entry.has_emergency_coverage ? " · Urgência/Emergência" : ""}
+                          </span>
+                        </div>
+                      ))}
+                    </div>
+                  );
+                })()}
+              </div>
+            </>
           ) : (
             <div style={{ borderTop: `1px solid ${theme.border}`, paddingTop: 14 }}>
               <div style={{ fontFamily: theme.mono, fontSize: 11, color: "#6f8a95" }}>
@@ -320,7 +413,7 @@ export default function HospitalList({ country = "US" }) {
   const [expandedId, setExpandedId] = useState(null);
   const [selected, setSelected] = useState({});
   const [exportingState, setExportingState] = useState(false);
-  const limit = 6;
+  const limit = 8;
   const isBR = country === "BR";
   const isFR = country === "FR";
   const isGB = country === "GB";

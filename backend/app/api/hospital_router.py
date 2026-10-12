@@ -26,6 +26,8 @@ from app.services.physician_analysis_service import (
 )
 from app.services.nhs_services import ingest_gb_hospitals
 from app.services.insurance_service import ingest_enrollments
+from app.services.insurance_network_br_service import ingest_br_insurance_network
+from app.repositories.insurance_network_br_repository import get_insurance_network_by_facility
 from app.repositories.insurance_repository import get_enrollments, get_enrollment_by_facility
 from app.ai.hospital_agent_service import ask_agent
 from app.repositories.pipeline_run_repository import get_pipeline_runs
@@ -473,3 +475,18 @@ async def get_facility_enrollment(facility_id: str, session: AsyncSession = Depe
     if enrollment is None:
         raise HTTPException(status_code=404, detail="No enrollment data found for this facility")
     return enrollment
+
+@router.post("/api/v1/pipeline/run/insurance-network/br")
+async def run_br_insurance_network_pipeline(background_tasks: BackgroundTasks, current_user: dict = Depends(get_current_user)):
+    async def run_ingestion():
+        async with AsyncSessionLocal() as bg_session:
+            await ingest_br_insurance_network(bg_session)
+    background_tasks.add_task(run_ingestion)
+    return {"status": "running", "message": "Brazil insurance network pipeline started in background (takes ~20 minutes)"}
+
+@router.get("/api/v1/insurance-network/{facility_id}")
+async def get_facility_insurance_network(facility_id: str, session: AsyncSession = Depends(get_session)):
+    entries = await get_insurance_network_by_facility(session, facility_id)
+    if not entries:
+        raise HTTPException(status_code=404, detail="No insurance network data found for this facility")
+    return entries

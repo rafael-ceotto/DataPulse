@@ -117,3 +117,9 @@ export async function getHospitalEnrollment(facilityId){
   if (!response.ok) return null;
   return response.json();
 }
+
+export async function getInsuranceNetwork(facilityId) {
+  const response = await fetch(`${API_URL}/api/v1/insurance-network/${facilityId}`);
+  if (!response.ok) return null;
+  return response.json();
+}
