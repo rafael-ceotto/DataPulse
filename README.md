@@ -239,6 +239,11 @@ docker compose --profile dbt run --rm dbt
 | POST | `🔒 /api/v1/ai/query` | Submit AI query — returns `job_id` |
 | GET | `🔒 /api/v1/ai/query/{job_id}` | Poll for AI query result |
 | GET | `🔒 /api/v1/ai/stats` | Token usage and cost per user |
+| POST | `🔒 /api/v1/pipeline/run/enrollment` | Triggers US Medicare enrollment ingestion |
+| GET | `/api/v1/enrollments` | Medicare enrollment list. Supports `state`, `hospital_type`, pagination |
+| GET | `/api/v1/enrollments/{facility_id}` | Medicare enrollment for a facility (404 if not found) |
+| POST | `🔒 /api/v1/pipeline/run/insurance-network/br` | Triggers Brazil ANS insurance network ingestion (~20 min, 600k+ rows) |
+| GET | `/api/v1/insurance-network/{facility_id}` | Active insurance network entries for a BR facility (404 if none) |
 | POST | `🔒 /api/v1/notion/save` | Save insight to Notion |
 | GET | `/api/v1/analytics/rating-trend` | Avg rating per pipeline run |
 | GET | `/api/v1/analytics/rating-changes` | States with most change across runs |
@@ -264,6 +269,8 @@ PIPELINE_INTERVAL_HOURS=6
 AI_RATE_LIMIT_PER_MINUTE=5
 SUPABASE_URL=https://...      # required for Realtime
 SUPABASE_ANON_KEY=eyJ...      # required for Realtime
+CMS_HOSPITAL_ENROLLMENTS_URL=...   # optional — CMS Hospital Enrollments CSV (dated filename, published monthly)
+ANS_INSURANCE_NETWORK_URL=...      # optional — ANS produtos_e_prestadores_hospitalares.zip (~1.4GB, BR)
 ```
 
 ---
@@ -395,4 +402,3 @@ poetry run python scripts/ingest_cms_docs.py
 - **Voice integration** — wake word detection ("Hey Doc", "Oi Doc", "Ciao Doc") via Web Speech API. On activation, the agent receives the spoken question with geolocation context and responds in the country's language via Speech Synthesis API. Emergency detection triggers a direct call button to the nearest hospital.
 - **Native app** — Expo + React Native for App Store and Google Play. The FastAPI backend stays unchanged. Voice via expo-speech and expo-av (more robust than Web Speech API on mobile).
 - **Data enrichment** — hospitals from Wikidata countries (BE, CA, IT, MT, PT, ES, GB) are missing phone numbers, addresses, and zip codes. OpenStreetMap Overpass API and country-specific open data portals are the next sources to explore.
-- **Insurance/plans per hospital** — add accepted insurance plans. US: CMS payer data. BR: ANS (Agência Nacional de Saúde Suplementar) open data.
