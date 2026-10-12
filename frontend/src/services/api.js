@@ -66,7 +66,7 @@ export async function askAI(question, conversationId = null) {
     }, 120000);
 
     const channel = supabase
-      .channel('ai-query-done')
+      .channel(`ai-query-done-${jobId}`)
       .on('postgres_changes', {
         event: 'INSERT',
         schema: 'public',

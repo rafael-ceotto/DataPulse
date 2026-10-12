@@ -10,6 +10,7 @@ import DataQuality from "./components/DataQuality";
 import PipelineAnalytics from "./components/PipelineAnalytics";
 import HospitalsNearMe from "./components/HospitalsNearMe";
 import CountryOnboardingModal from "./components/CountryOnboardingModal";
+import VoiceAssistant from "./components/VoiceAssistant";
 import { theme } from "./theme";
 
 const CONTINENTS = {
@@ -349,6 +350,8 @@ export default function App() {
             <div style={{ fontSize: 10, color: "#9baab3", fontFamily: theme.mono }}>Global Hospital Quality Data</div>
           </div>
         </button>
+
+        {(isUS || isBR) && <VoiceAssistant country={country} />}
 
         <button
           onClick={() => setShowOnboarding("reopen")}

@@ -59,6 +59,7 @@ export default function AIQuery() {
       const data = await askAI(q, conversationId);
       setAnswer(data);
     } catch (err) {
+      console.error("AI query failed:", err);
       setError("Something went wrong. Try again.");
     } finally {
       setLoading(false);
