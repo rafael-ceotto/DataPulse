@@ -11,7 +11,7 @@ from app.models.pipeline_run import PipelineRun
 from app.models.infection import HospitalInfection
 from app.models.insurance import HospitalEnrollment
 from app.models.document_chunk import DocumentChunk
-from app.models.insurance_br import HospitalInsuranceNetWork
+from app.models.insurance_br import HospitalInsuranceNetwork
 
 settings = Settings()
 config = context.config
