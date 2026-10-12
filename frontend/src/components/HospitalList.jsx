@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from "react";
 import { theme } from "../theme";
-import { getHospitals, getHospitalInfections } from "../services/api";
+import { getHospitals, getHospitalInfections, getHospitalEnrollment } from "../services/api";
 
 const CITY_FILTER_COUNTRIES = ["IT", "ES", "PT", "BE", "CA", "MT", "GB", "FR"];
 
@@ -47,6 +47,8 @@ function exportCSV(hospitals, filename = "hospitals_selected.csv", country = "US
 function HospitalCard({ hospital, expanded, onExpand, onClose, onInfectionsLoaded, country = "US" }) {
   const [infections, setInfections] = useState([]);
   const [loadingInfections, setLoadingInfections] = useState(false);
+  const [enrollment, setEnrollment] = useState(null);
+  const [loadingEnrollment, setLoadingEnrollment] = useState(false);
   const isBR = country === "BR";
   const isGB = country === "GB";
   const isFR = country === "FR";
@@ -72,6 +74,14 @@ function HospitalCard({ hospital, expanded, onExpand, onClose, onInfectionsLoade
       })
       .finally(() => setLoadingInfections(false));
   }, [expanded, hospital.facility_id]);
+
+  useEffect(() => {
+    if (!expanded || !isUS) return;
+    setLoadingEnrollment(true);
+    getHospitalEnrollment(hospital.facility_id)
+      .then(setEnrollment)
+      .finally(() => setLoadingEnrollment(false));
+  }, [expanded, hospital.facility_id, isUS]);
 
   const worse = infections.filter(i => i.compared_to_national === "Worse than the National Benchmark");
   const better = infections.filter(i => i.compared_to_national === "Better than the National Benchmark");
@@ -201,27 +211,64 @@ function HospitalCard({ hospital, expanded, onExpand, onClose, onInfectionsLoade
           </div>
 
           {isUS ? (
-            <div style={{ borderTop: `1px solid ${theme.border}`, paddingTop: 14 }}>
-              <div style={{ fontFamily: theme.mono, fontSize: 10.5, color: theme.faint, letterSpacing: "0.06em", textTransform: "uppercase", marginBottom: 10 }}>
-                Healthcare-Associated Infections
-              </div>
-              {loadingInfections && <div style={{ fontSize: 13, color: theme.muted }}>Loading...</div>}
-              {!loadingInfections && infections.length === 0 && <div style={{ fontSize: 13, color: theme.muted }}>No infection data available.</div>}
-              {!loadingInfections && infections.length > 0 && (
-                <div style={{ display: "flex", gap: 20, flexWrap: "wrap" }}>
-                  {[
-                    { label: "▲ Worse", count: worse.length, color: "#c0392b" },
-                    { label: "▼ Better", count: better.length, color: "#2f9e6f" },
-                    { label: "— Average", count: average, color: "#6f8a95" },
-                  ].map(({ label, count, color }) => (
-                    <div key={label} style={{ display: "flex", alignItems: "center", gap: 6 }}>
-                      <span style={{ fontFamily: theme.mono, fontSize: 16, fontWeight: 700, color }}>{count}</span>
-                      <span style={{ fontFamily: theme.mono, fontSize: 10.5, color, letterSpacing: "0.04em" }}>{label}</span>
-                    </div>
-                  ))}
+            <>
+              <div style={{ borderTop: `1px solid ${theme.border}`, paddingTop: 14 }}>
+                <div style={{ fontFamily: theme.mono, fontSize: 10.5, color: theme.faint, letterSpacing: "0.06em", textTransform: "uppercase", marginBottom: 10 }}>
+                  Healthcare-Associated Infections
                 </div>
-              )}
-            </div>
+                {loadingInfections && <div style={{ fontSize: 13, color: theme.muted }}>Loading...</div>}
+                {!loadingInfections && infections.length === 0 && <div style={{ fontSize: 13, color: theme.muted }}>No infection data available.</div>}
+                {!loadingInfections && infections.length > 0 && (
+                  <div style={{ display: "flex", gap: 20, flexWrap: "wrap" }}>
+                    {[
+                      { label: "▲ Worse", count: worse.length, color: "#c0392b" },
+                      { label: "▼ Better", count: better.length, color: "#2f9e6f" },
+                      { label: "— Average", count: average, color: "#6f8a95" },
+                    ].map(({ label, count, color }) => (
+                      <div key={label} style={{ display: "flex", alignItems: "center", gap: 6 }}>
+                        <span style={{ fontFamily: theme.mono, fontSize: 16, fontWeight: 700, color }}>{count}</span>
+                        <span style={{ fontFamily: theme.mono, fontSize: 10.5, color, letterSpacing: "0.04em" }}>{label}</span>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+
+              <div style={{ borderTop: `1px solid ${theme.border}`, paddingTop: 14 }}>
+                <div style={{ fontFamily: theme.mono, fontSize: 10.5, color: theme.faint, letterSpacing: "0.06em", textTransform: "uppercase", marginBottom: 10 }}>
+                  Medicare Enrollment
+                </div>
+                {loadingEnrollment && <div style={{ fontSize: 13, color: theme.muted }}>Loading...</div>}
+                {!loadingEnrollment && !enrollment && (
+                  <div style={{ fontSize: 13, color: theme.muted }}>Not found in Medicare enrollment dataset.</div>
+                )}
+                {!loadingEnrollment && enrollment && (
+                  <div style={{ display: "flex", flexWrap: "wrap", gap: 8 }}>
+                    <span style={{
+                      fontFamily: theme.mono, fontSize: 11, padding: "4px 10px", borderRadius: 20,
+                      background: "#2f9e6f22", color: "#2f9e6f", border: "1px solid #2f9e6f55",
+                    }}>
+                      ✓ Medicare Enrolled
+                    </span>
+                    {[
+                      { flag: enrollment.is_acute_care, label: "Acute Care" },
+                      { flag: enrollment.is_psychiatric, label: "Psychiatric" },
+                      { flag: enrollment.is_rehabilitation, label: "Rehabilitation" },
+                      { flag: enrollment.is_childrens, label: "Children's" },
+                      { flag: enrollment.is_long_term, label: "Long-Term" },
+                      { flag: enrollment.is_swing_bed, label: "Swing-Bed" },
+                    ].filter(({ flag }) => flag).map(({ label }) => (
+                      <span key={label} style={{
+                        fontFamily: theme.mono, fontSize: 11, padding: "4px 10px", borderRadius: 20,
+                        background: theme.border, color: theme.muted,
+                      }}>
+                        {label}
+                      </span>
+                    ))}
+                  </div>
+                )}
+              </div>
+            </>
           ) : (
             <div style={{ borderTop: `1px solid ${theme.border}`, paddingTop: 14 }}>
               <div style={{ fontFamily: theme.mono, fontSize: 11, color: "#6f8a95" }}>

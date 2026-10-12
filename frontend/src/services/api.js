@@ -111,3 +111,9 @@ export async function saveToNotion(question, explanation, toolsUsed) {
   });
   return response.json();
 }
+
+export async function getHospitalEnrollment(facilityId){
+  const response =  await fetch(`${API_URL}/api/v1/enrollments/${facilityId}`)
+  if (!response.ok) return null;
+  return response.json();
+}
