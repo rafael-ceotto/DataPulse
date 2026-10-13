@@ -71,8 +71,13 @@ async def ingest_hospitals(session: AsyncSession):
                     f"{'(' + ('+' if variation > 0 else '') + str(variation) + ' vs previous)' if variation is not None else '(first run)'}\n"
                     f"*Insight:* {insight}"
                 )
-                await send_slack_alert(slack_message)
-                await commit_insight(avg_rating, insight)
+
+                rating_changed = previous_avg is None or avg_rating != previous_avg
+                if rating_changed:
+                    await send_slack_alert(slack_message)
+                    await commit_insight(avg_rating, insight)
+                else:
+                    logger.info("insight_skipped_no_change", avg_rating=avg_rating)
 
             except Exception as e:
                 logger.error("insight_generation_failed", error=str(e))

@@ -31,7 +31,7 @@ function stripMarkdown(text) {
     .trim();
 }
 
-export default function VoiceAssistant({ country }) {
+export default function VoiceAssistant({ country, onAnswer }) {
   const config = LANG_CONFIG[country];
   const [supported, setSupported] = useState(true);
   const [enabled, setEnabled] = useState(false);
@@ -161,9 +161,11 @@ export default function VoiceAssistant({ country }) {
     (async () => {
       setStatus("processing");
       setAiError(false);
+      onAnswer?.(null);
       try {
-        const data = await askAI(question, conversationIdRef.current);
+        const data = await askAI(question, conversationIdRef.current, country);
         if (cancelled) return;
+        onAnswer?.(data);
         speakAnswer(data.explanation);
       } catch (err) {
         if (cancelled) return;
@@ -219,7 +221,7 @@ export default function VoiceAssistant({ country }) {
   }[status] || label;
 
   return (
-    <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+    <div style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: 10 }}>
       <button
         onClick={() => setEnabled((v) => !v)}
         style={{

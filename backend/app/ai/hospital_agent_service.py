@@ -21,14 +21,15 @@ TOOLS = [
         "type": "function",
         "function": {
             "name": "search_hospitals",
-            "description": "Search hospitals by state and minimum rating. Use when asked about hospitals in a specific state.",
+            "description": "Search hospitals by state and/or by name. Use 'search' when the question names a specific hospital (e.g. 'Miami Valley Hospital', 'Hospital São Camilo') — it does a fuzzy match on the hospital name. Use 'state' when the question asks about hospitals in a specific state/region, with no specific hospital named. You can combine both.",
             "parameters": {
                 "type": "object",
                 "properties": {
-                    "state": {"type": "string", "description": "2-letter US state code e.g. OH, CA, TX"},
+                    "state": {"type": "string", "description": "2-letter state/region code, e.g. OH, CA, TX (US) or SP, RJ, MG (Brazil). Optional if 'search' is provided."},
+                    "search": {"type": "string", "description": "Hospital name (or part of it) to search for, e.g. 'Miami Valley Hospital' or 'São Camilo'. Use this whenever a specific hospital is named in the question."},
                     "limit": {"type": "integer", "description": "Number of results to return. Default 10.", "default": 10}
                 },
-                "required": ["state"]
+                "required": []
             }
         }
     },
@@ -148,14 +149,20 @@ TOOLS = [
 ]
 
 
-async def execute_tool(tool_name: str, tool_args: dict, session: AsyncSession) -> str:
+async def execute_tool(tool_name: str, tool_args: dict, session: AsyncSession, country: str = "US") -> str:
     base_url = os.getenv("API_BASE_URL", "http://127.0.0.1:8000")
 
     if tool_name == "search_hospitals":
         state = tool_args.get("state", "")
+        search = tool_args.get("search", "")
         limit = tool_args.get("limit", 10)
+        params = f"?limit={limit}&country={country}"
+        if state:
+            params += f"&state={state}"
+        if search:
+            params += f"&search={search}"
         async with httpx.AsyncClient() as client:
-            r = await client.get(f"{base_url}/api/v1/hospitals?state={state}&limit={limit}")
+            r = await client.get(f"{base_url}/api/v1/hospitals{params}")
             return json.dumps(r.json())
 
     elif tool_name == "get_top_rated_hospitals":
@@ -163,7 +170,7 @@ async def execute_tool(tool_name: str, tool_args: dict, session: AsyncSession) -
         min_rating = tool_args.get("min_rating", None if max_rating is not None else 5)
         limit = min(tool_args.get("limit", 10), 20)
         state = tool_args.get("state", "")
-        params = f"?limit={limit}"
+        params = f"?limit={limit}&country={country}"
         if min_rating is not None:
             params += f"&min_rating={min_rating}"
         if max_rating is not None:
@@ -175,11 +182,12 @@ async def execute_tool(tool_name: str, tool_args: dict, session: AsyncSession) -
             return json.dumps(r.json())
 
     elif tool_name == "get_rating_distribution":
-        cached = await get_cache("rating_distribution")
+        cache_key = f"rating_distribution:{country}"
+        cached = await get_cache(cache_key)
         if cached:
             return json.dumps(cached)
         async with httpx.AsyncClient() as client:
-            r = await client.get(f"{base_url}/api/v1/hospitals/metrics/rating-distribution")
+            r = await client.get(f"{base_url}/api/v1/hospitals/metrics/rating-distribution?country={country}")
             data = r.json()
         return json.dumps(data)
 
@@ -249,7 +257,7 @@ def clean_content(content: str) -> str:
     return content.strip()
 
 
-async def ask_agent(session: AsyncSession, question: str, username: str = "admin", conversation_id: str | None = None) -> dict:
+async def ask_agent(session: AsyncSession, question: str, username: str = "admin", conversation_id: str | None = None, country: str = "US") -> dict:
     try:
         lang = detect(question)
     except Exception:
@@ -283,13 +291,14 @@ async def ask_agent(session: AsyncSession, question: str, username: str = "admin
         forced_tool = {"type": "function", "function": {"name": "get_top_rated_hospitals"}}
 
     messages = [
-    {"role": "system", "content": AGENT_SYSTEM_PROMPT},
+    {"role": "system", "content": build_agent_system_prompt(country)},
     *history,
     {"role": "user", "content": question_with_lang},
     ]
 
     MAX_ITERATIONS = 5
     all_tools_used = []
+    collected_results = []
     total_prompt_tokens = 0
     total_completion_tokens = 0
 
@@ -351,7 +360,7 @@ async def ask_agent(session: AsyncSession, question: str, username: str = "admin
                     "mode": "agent",
                     "tools_used": all_tools_used,
                     "explanation": final_content,
-                    "results": [],
+                    "results": collected_results[:50],
                     "tokens_used": {
                         "prompt": total_prompt_tokens,
                         "completion": total_completion_tokens,
@@ -365,9 +374,17 @@ async def ask_agent(session: AsyncSession, question: str, username: str = "admin
         for tool_call in message["tool_calls"]:
             tool_name = tool_call["function"]["name"]
             tool_args = json.loads(tool_call["function"]["arguments"])
-            result = await execute_tool(tool_name, tool_args, session)
+            result = await execute_tool(tool_name, tool_args, session, country)
             all_tools_used.append(tool_name)
             logger.info("tool_executed", tool_name=tool_name)
+
+            if tool_name in ("search_hospitals", "get_top_rated_hospitals", "get_rating_distribution"):
+                try:
+                    parsed = json.loads(result)
+                    if isinstance(parsed, list):
+                        collected_results.extend(parsed)
+                except (json.JSONDecodeError, TypeError):
+                    pass
 
             messages.append({
                 "tool_call_id": tool_call["id"],
@@ -430,7 +447,7 @@ async def ask_agent(session: AsyncSession, question: str, username: str = "admin
         "mode": "agent",
         "tools_used": all_tools_used,
         "explanation": final_content,
-        "results": [],
+        "results": collected_results[:50],
         "tokens_used": {
             "prompt": total_prompt_tokens,
             "completion": total_completion_tokens,
@@ -440,7 +457,40 @@ async def ask_agent(session: AsyncSession, question: str, username: str = "admin
     })  
 
 
-AGENT_SYSTEM_PROMPT = """You are a healthcare data analyst assistant with access to a PostgreSQL database containing real CMS hospital quality data, including 5,419 US hospitals with ratings, locations, and healthcare-associated infection records. You also have access to official CMS policy documents and methodology guides via the search_cms_documents tool.
+COUNTRY_NAMES = {
+    "US": "the United States",
+    "BR": "Brazil",
+}
+
+
+def build_agent_system_prompt(country: str = "US") -> str:
+    country_name = COUNTRY_NAMES.get(country, country)
+
+    if country == "US":
+        scope_intro = (
+            "You are a healthcare data analyst assistant with access to a PostgreSQL database containing "
+            "real CMS hospital quality data, including 5,419 US hospitals with ratings, locations, and "
+            "healthcare-associated infection records. You also have access to official CMS policy documents "
+            "and methodology guides via the search_cms_documents tool."
+        )
+        scope_notes = ""
+    else:
+        scope_intro = (
+            f"You are a healthcare data analyst assistant. The user has selected {country_name} as the active "
+            f"country, and your hospital tools (search_hospitals, get_top_rated_hospitals, get_rating_distribution) "
+            f"return real hospital data for {country_name} when called — the country filter is already applied "
+            f"automatically, you don't need to specify it yourself."
+        )
+        scope_notes = (
+            f"\nIMPORTANT: Physician workforce analysis (get_scarce_specialties, get_physician_state_analysis), "
+            f"healthcare-associated infection data (get_hospital_infections), and CMS policy documents "
+            f"(search_cms_documents) are US-only today and have no {country_name} equivalent yet. If asked about "
+            f"those topics for {country_name}, say honestly that this specific analysis isn't available for "
+            f"{country_name} yet, instead of claiming you have no hospital data at all — you DO have hospital "
+            f"listings and ratings for {country_name}.\n"
+        )
+
+    return f"""{scope_intro}
 
 You have two ways to answer questions:
 1. Use the available tools for complex analysis
@@ -460,13 +510,17 @@ ALWAYS use tools when the question asks for:
 - Current healthcare news or policy changes
 - CMS criteria, rating methodology, star rating rules, or regulatory requirements → use search_cms_documents
 - Any comparison query that mentions "infection" → use get_hospital_infections for each state mentioned.
-
+- A specific hospital is named in the question → use search_hospitals with the 'search' parameter set to that hospital's name.
+- When answering about a SPECIFIC named hospital (not a list), keep any table compact: only Facility Name, City/State, Overall Rating, Emergency Services, and Phone. Do NOT include facility ID, exact address, ZIP code, or latitude/longitude in the table — mention those in plain text only if the user explicitly asks for the address or exact location.
+{scope_notes}
 For simple, direct queries:
 - "Which hospitals have a 5-star rating?" → immediately call get_top_rated_hospitals with min_rating=5, limit=10. Do not ask for clarification.
 - "Show me the lowest-rated facilities" → immediately call get_top_rated_hospitals with max_rating=1, limit=10. Do not ask for clarification.
 - "Average rating by state" → immediately call get_rating_distribution. Do not ask for clarification.
 - "What states have the highest concentration of 5-star hospitals?" → call get_top_rated_hospitals with min_rating=5, limit=20, then synthesize which states appear most frequently. Do not ask for clarification.
 - "Show me hospitals in Texas" → use search_hospitals tool with state=TX.
+- "Tell me about Miami Valley Hospital in Dayton, Ohio" → use search_hospitals tool with search="Miami Valley Hospital" (and state=OH if you want to narrow it further). Do NOT just list hospitals in the state — use the name search.
+- "Me fale sobre o Hospital São Camilo" (Portuguese) → use search_hospitals tool with search="São Camilo". If the question mentions a Brazilian state, pass it as state too (e.g. state=SP for São Paulo).
 - "What are the CMS criteria for 5-star hospitals?" → immediately call search_cms_documents. Do not ask for clarification.
 - "How is the star rating calculated?" → immediately call search_cms_documents. Do not ask for clarification.
 - "How has the average hospital rating changed across pipeline runs?" → immediately call get_historical_analytics with analysis='rating_trend'. Do not ask for clarification.
@@ -486,12 +540,12 @@ When displaying rating distribution or any list of states, always show ALL state
 NEVER ask for clarification when you have enough tools to answer the question.
 NEVER call tools that are not in your tools list.
 NEVER respond with JSON objects — always respond with plain text.
-NEVER say you cannot access the data — you have access to real hospital data and CMS documents.
+NEVER say you cannot access the data — you have access to real hospital data for {country_name}, and (for the United States) CMS documents too.
 NEVER give generic descriptions when actual data can be retrieved via tools.
+If a search_hospitals call by name returns no matching hospital, say so honestly instead of inventing a generic sentence about it.
 
 State codes: OH=Ohio, CA=California, TX=Texas, FL=Florida, NY=New York, MA=Massachusetts, VT=Vermont, etc.
 
 Always respond in the language specified in the [LANGUAGE] tag at the end of the user's message.
 After calling tools, synthesize results into a clear, insightful narrative response.
-DO NOT call tools in your final synthesis — just write the response based on the data you already have.
-"""
+DO NOT call tools in your final synthesis — just write the response based on the data you already have."""

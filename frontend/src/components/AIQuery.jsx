@@ -26,7 +26,7 @@ function generateConversationId() {
   return crypto.randomUUID();
 }
 
-export default function AIQuery() {
+export default function AIQuery({ country = "US" }) {
   const [query, setQuery] = useState("");
   const [answer, setAnswer] = useState(null);
   const [loading, setLoading] = useState(false);
@@ -56,7 +56,7 @@ export default function AIQuery() {
     setAnswer(null);
     setSaved(false);
     try {
-      const data = await askAI(q, conversationId);
+      const data = await askAI(q, conversationId, country);
       setAnswer(data);
     } catch (err) {
       console.error("AI query failed:", err);

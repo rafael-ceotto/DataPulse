@@ -37,7 +37,7 @@ export async function getHospitalById(facilityId) {
 
 import {supabase} from './supabase'
 
-export async function askAI(question, conversationId = null) {
+export async function askAI(question, conversationId = null, country = "US") {
   const token = await getToken();
 
   const response = await fetch(`${API_URL}/api/v1/ai/query`, {
@@ -46,7 +46,7 @@ export async function askAI(question, conversationId = null) {
       "Content-Type": "application/json",
       "Authorization": `Bearer ${token}`,
     },
-    body: JSON.stringify({ question, conversation_id: conversationId }),
+    body: JSON.stringify({ question, conversation_id: conversationId, country }),
   });
 
   const data = await response.json();

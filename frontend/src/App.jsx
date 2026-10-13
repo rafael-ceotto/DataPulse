@@ -11,6 +11,8 @@ import PipelineAnalytics from "./components/PipelineAnalytics";
 import HospitalsNearMe from "./components/HospitalsNearMe";
 import CountryOnboardingModal from "./components/CountryOnboardingModal";
 import VoiceAssistant from "./components/VoiceAssistant";
+import ReactMarkdown from "react-markdown";
+import remarkGfm from "remark-gfm";
 import { theme } from "./theme";
 
 const CONTINENTS = {
@@ -246,6 +248,8 @@ export default function App() {
   const [country, setCountry] = useState("US");
   const stats = useCountryStats(country);
   const summary = useCountrySummary(country);
+  const [voiceAnswer, setVoiceAnswer] = useState(null);
+  useEffect(() => { setVoiceAnswer(null); }, [country]);
 
   const isUS = country === "US";
   const isBR = country === "BR";
@@ -351,7 +355,7 @@ export default function App() {
           </div>
         </button>
 
-        {(isUS || isBR) && <VoiceAssistant country={country} />}
+        {(isUS || isBR) && <VoiceAssistant country={country} onAnswer={setVoiceAnswer} />}
 
         <button
           onClick={() => setShowOnboarding("reopen")}
@@ -416,8 +420,53 @@ export default function App() {
             ))}
           </div>
 
-          {/* Country summary */}
-          {summary && (
+          {/* Voice answer or country summary */}
+          {voiceAnswer && (voiceAnswer.explanation || voiceAnswer.results?.length > 0) && (
+            <div style={{ padding: "20px 40px", borderBottom: "1px solid #243d4d", display: "flex", justifyContent: "center", flexShrink: 0 }}>
+              <div style={{ maxWidth: 800, width: "100%" }}>
+                <div style={{ fontFamily: theme.mono, fontSize: 10, color: "#6f8a95", letterSpacing: "0.07em", textTransform: "uppercase", marginBottom: 10 }}>
+                  🎙 Voice Answer
+                </div>
+                                {voiceAnswer.explanation && (
+                  <div style={{ marginBottom: voiceAnswer.results?.length > 0 ? 18 : 0, fontSize: 14, lineHeight: 1.7, color: "#a0b8c4" }}>
+                    <style>{`
+                      .voice-explanation table { border-collapse: collapse; margin: 14px 0; font-size: 13px; width: 100%; }
+                      .voice-explanation th, .voice-explanation td { border: 1px solid #2c3b44; padding: 7px 12px; text-align: left; }
+                      .voice-explanation th { background: #1a2a32; color: #6f8a95; font-family: monospace; font-size: 10.5px; letter-spacing: 0.06em; text-transform: uppercase; }
+                      .voice-explanation td { color: #dce5e9; }
+                      .voice-explanation tr:nth-child(even) td { background: #16262f; }
+                      .voice-explanation h2, .voice-explanation h3 { margin-top: 18px; margin-bottom: 6px; color: #fff; font-size: 14px; }
+                      .voice-explanation ul { padding-left: 20px; }
+                      .voice-explanation p { margin: 8px 0; }
+                      .voice-explanation { overflow-x: auto; }
+                    `}</style>
+                    <div className="voice-explanation">
+                      <ReactMarkdown remarkPlugins={[remarkGfm]}>{voiceAnswer.explanation}</ReactMarkdown>
+                    </div>
+                  </div>
+                )}
+                {voiceAnswer.results?.length > 0 && (
+                  <div style={{ background: "#16262f", border: "1px solid #243d4d", borderRadius: 10, overflow: "hidden", maxHeight: 280, overflowY: "auto" }}>
+                    <div style={{ display: "grid", gridTemplateColumns: "1.6fr 1fr 0.6fr", gap: 12, padding: "10px 14px", background: "#1e3340", fontFamily: theme.mono, fontSize: 10, letterSpacing: "0.07em", textTransform: "uppercase", color: "#6f8a95", position: "sticky", top: 0 }}>
+                      <span>Facility</span>
+                      <span>Location</span>
+                      <span style={{ textAlign: "right" }}>Rating</span>
+                    </div>
+                    {voiceAnswer.results.map((r, i) => (
+                      <div key={i} style={{ display: "grid", gridTemplateColumns: "1.6fr 1fr 0.6fr", gap: 12, padding: "10px 14px", borderTop: "1px solid #243d4d", fontSize: 13, color: "#dce5e9", alignItems: "center" }}>
+                        <span style={{ fontWeight: 500 }}>{r.facility_name ?? r.state ?? Object.values(r)[0]}</span>
+                        <span style={{ color: "#a7b6bf" }}>{r.city && r.state ? `${r.city}, ${r.state}` : r.state ? "Statewide" : "—"}</span>
+                        <span style={{ textAlign: "right", fontFamily: theme.mono, color: theme.mint }}>
+                          {r.overall_rating ?? (r.avg_rating ? parseFloat(r.avg_rating).toFixed(2) : null) ?? (r.average_rating ? parseFloat(r.average_rating).toFixed(2) : null) ?? r.hospital_count ?? r.count ?? "—"}
+                        </span>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+            </div>
+          )}
+          {!voiceAnswer && summary && (
             <div style={{ padding: "20px 40px", borderBottom: "1px solid #243d4d", display: "flex", justifyContent: "center", flexShrink: 0 }}>
               <div style={{ maxWidth: 800, width: "100%" }}>
                 <div style={{ fontFamily: theme.mono, fontSize: 10, color: "#6f8a95", letterSpacing: "0.07em", textTransform: "uppercase", marginBottom: 10 }}>
@@ -429,7 +478,7 @@ export default function App() {
               </div>
             </div>
           )}
-          {!summary && (
+          {!voiceAnswer && !summary && (
             <div style={{ padding: "20px 40px", borderBottom: "1px solid #243d4d" }}>
               <div style={{ fontFamily: theme.mono, fontSize: 10, color: "#3a5a6a", letterSpacing: "0.07em", textTransform: "uppercase" }}>
                 Loading overview...

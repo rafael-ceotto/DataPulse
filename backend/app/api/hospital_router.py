@@ -63,6 +63,7 @@ async def get_session():
 class AIQueryRequest(BaseModel):
     question: str
     conversation_id: str | None = None
+    country: str = "US"
 
 class NotionSaveRequest(BaseModel):
     question: str
@@ -289,13 +290,13 @@ async def get_hospitals_facility_id(facility_id: str, session: AsyncSession = De
 @router.post("/api/v1/ai/query")
 @limiter.limit("5/minute")
 async def ai_query(request: Request, body: AIQueryRequest, session: AsyncSession = Depends(get_session), current_user: dict = Depends(get_current_user)):
-    cache_key = f"ai_query:{hashlib.md5(body.question.lower().encode()).hexdigest()}"
+    cache_key = f"ai_query:{body.country}:{hashlib.md5(body.question.lower().encode()).hexdigest()}"
     cached = await get_cache(cache_key)
     if cached:
         return cached
     job_id = str(uuid.uuid4())
     await create_job(job_id, body.question)
-    await publish_query(job_id, body.question, username=current_user["username"], conversation_id=body.conversation_id)
+    await publish_query(job_id, body.question, username=current_user["username"], conversation_id=body.conversation_id, country=body.country)
 
     return {"job_id": job_id, "status": "queued"}
 

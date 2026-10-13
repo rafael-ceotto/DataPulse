@@ -12,13 +12,14 @@ async def process_message(message: dict) -> None:
     receipt_handle = message["receipt_handle"]
     username = message.get("username", "admin")
     conversation_id = message.get("conversation_id", None)
+    country = message.get("country", "US")
 
     await set_job_processing(job_id)
-    logger.info("agent_worker_processing", job_id=job_id, question=question)
+    logger.info("agent_worker_processing", job_id=job_id, question=question, country=country)
 
     try:
         async with AsyncSessionLocal() as session:
-            result = await ask_agent(session, question, username=username, conversation_id=conversation_id)
+            result = await ask_agent(session, question, username=username, conversation_id=conversation_id, country=country)
         await set_job_done(job_id, result)
         await delete_message(receipt_handle)
 
