@@ -10,61 +10,61 @@ const SUGGESTIONS = {
     { text: "Which hospitals have a 5-star rating?" },
     { text: "Average rating by state" },
     { text: "Show me the lowest-rated facilities" },
-    { text: "What's the best hospital near me?" },
-    { text: "What states have the highest concentration of 5-star hospitals?", highlight: true },
+    { text: "What's the closest hospital near me?", highlight: true },
   ],
   BR: [
-    { text: "Qual hospital mais próximo de mim com emergência?", highlight: true },
-    { text: "Qual hospital mais próximo de Copacabana?" },
-    { text: "Quantos hospitais existem em São Paulo?" },
-    { text: "Mostre hospitais no Rio de Janeiro" },
+    { text: "Quais hospitais têm selo de acreditação?" },
+    { text: "Hospitais com atendimento de emergência em São Paulo" },
+    { text: "Mostre os hospitais com mais leitos" },
+    { text: "Qual hospital mais próximo de mim?", highlight: true },
   ],
   CA: [
-    { text: "What's the closest hospital to me?", highlight: true },
-    { text: "Show me hospitals in Ontario" },
-    { text: "How many hospitals are there in Canada?" },
-    { text: "What hospital is near Toronto?" },
+    { text: "Which hospitals are in Ontario?" },
+    { text: "Show hospitals with emergency services" },
+    { text: "List hospitals by type" },
+    { text: "What's the nearest hospital to me?", highlight: true },
   ],
   GB: [
-    { text: "What's the nearest NHS Trust to me?", highlight: true },
-    { text: "Show me hospitals in London" },
-    { text: "How many NHS Trusts are there?" },
-    { text: "Which hospital is near Manchester?" },
+    { text: "Which hospitals are rated Outstanding by the CQC?" },
+    { text: "Show hospitals rated Good in London" },
+    { text: "List NHS hospitals with emergency services" },
+    { text: "What's the closest hospital near me?", highlight: true },
   ],
   FR: [
+    { text: "Quels hôpitaux ont une certification HAS ?" },
+    { text: "Hôpitaux avec services d'urgence à Paris" },
+    { text: "Liste des hôpitaux par région" },
     { text: "Quel est l'hôpital le plus proche de moi ?", highlight: true },
-    { text: "Montrez-moi les hôpitaux à Paris" },
-    { text: "Combien d'hôpitaux y a-t-il en France ?" },
-    { text: "Quel hôpital est proche de Lyon ?" },
   ],
   BE: [
+    { text: "Quels hôpitaux se trouvent à Bruxelles ?" },
+    { text: "Liste des hôpitaux avec services d'urgence" },
+    { text: "Hôpitaux par type d'établissement" },
     { text: "Quel est l'hôpital le plus proche de moi ?", highlight: true },
-    { text: "Montrez-moi les hôpitaux à Bruxelles" },
-    { text: "Combien d'hôpitaux y a-t-il en Belgique ?" },
-    { text: "Quel hôpital est proche d'Anvers ?" },
   ],
   PT: [
+    { text: "Quais hospitais têm serviço de urgência?" },
+    { text: "Hospitais do SNS em Lisboa" },
+    { text: "Lista de hospitais por região" },
     { text: "Qual é o hospital mais próximo de mim?", highlight: true },
-    { text: "Mostre os hospitais em Lisboa" },
-    { text: "Quantos hospitais existem em Portugal?" },
-    { text: "Qual hospital fica perto do Porto?" },
   ],
   ES: [
+    { text: "¿Qué hospitales tienen servicio de urgencias?" },
+    { text: "Hospitales del SNS en Madrid" },
+    { text: "Lista de hospitales por comunidad autónoma" },
     { text: "¿Cuál es el hospital más cercano a mí?", highlight: true },
-    { text: "Muéstrame los hospitales en Madrid" },
-    { text: "¿Cuántos hospitales hay en España?" },
-    { text: "¿Qué hospital está cerca de Barcelona?" },
   ],
   IT: [
+    { text: "Quali ospedali hanno il pronto soccorso?" },
+    { text: "Ospedali del SSN a Roma" },
+    { text: "Elenco degli ospedali per regione" },
     { text: "Qual è l'ospedale più vicino a me?", highlight: true },
-    { text: "Mostrami gli ospedali a Roma" },
-    { text: "Quanti ospedali ci sono in Italia?" },
-    { text: "Quale ospedale è vicino a Milano?" },
   ],
   MT: [
-    { text: "What's the closest hospital to me?", highlight: true },
-    { text: "Show me hospitals in Valletta" },
-    { text: "How many hospitals are there in Malta?" },
+    { text: "Which hospitals are in Malta?" },
+    { text: "Show hospitals with emergency services" },
+    { text: "List all hospitals" },
+    { text: "What's the closest hospital near me?", highlight: true },
   ],
 };
 
@@ -140,6 +140,8 @@ export default function AIQuery({ country = "US" }) {
       setSaving(false);
     }
   }
+
+  const suggestions = SUGGESTIONS[country] || SUGGESTIONS.US;
 
   return (
     <section
@@ -218,44 +220,44 @@ export default function AIQuery({ country = "US" }) {
         </button>
       </div>
 
-        <div style={{ display: "flex", gap: 8, flexWrap: "wrap", marginTop: 14, alignItems: "center" }}>
-          {(SUGGESTIONS[country] || SUGGESTIONS.US).map((s) => (
-            <button
-              key={s.text}
-              onClick={() => ask(s.text)}
-              style={{
-                background: "transparent",
-                border: `1px solid #2c3b44`,
-                color: s.highlight ? theme.mint : "#a7b6bf",
-                borderRadius: 999,
-                padding: "7px 14px",
-                fontSize: 12.5,
-                cursor: "pointer",
-                whiteSpace: "normal",
-              }}
-            >
-              {s.highlight ? "✦ " : ""}{s.text}
-            </button>
-          ))}
-          {(answer || error) && !loading && (
-            <button
-              onClick={clear}
-              style={{
-                background: "transparent",
-                border: `1px solid #3d5060`,
-                color: "#6f8a95",
-                borderRadius: 999,
-                padding: "7px 14px",
-                fontSize: 12.5,
-                cursor: "pointer",
-                whiteSpace: "normal",
-                marginLeft: "auto",
-              }}
-            >
-              ✕ Clear
-            </button>
-          )}
-        </div>
+      <div style={{ display: "flex", gap: 8, flexWrap: "wrap", marginTop: 14, alignItems: "center" }}>
+        {suggestions.map((s) => (
+          <button
+            key={s.text}
+            onClick={() => ask(s.text)}
+            style={{
+              background: "transparent",
+              border: `1px solid #2c3b44`,
+              color: s.highlight ? theme.mint : "#a7b6bf",
+              borderRadius: 999,
+              padding: "7px 14px",
+              fontSize: 12.5,
+              cursor: "pointer",
+              whiteSpace: "normal",
+            }}
+          >
+            {s.highlight ? "✦ " : ""}{s.text}
+          </button>
+        ))}
+        {(answer || error) && !loading && (
+          <button
+            onClick={clear}
+            style={{
+              background: "transparent",
+              border: `1px solid #3d5060`,
+              color: "#6f8a95",
+              borderRadius: 999,
+              padding: "7px 14px",
+              fontSize: 12.5,
+              cursor: "pointer",
+              whiteSpace: "normal",
+              marginLeft: "auto",
+            }}
+          >
+            ✕ Clear
+          </button>
+        )}
+      </div>
 
       {error && (
         <div style={{ marginTop: 20, color: "#ff6b6b", fontSize: 14 }}>{error}</div>
