@@ -310,7 +310,7 @@ async def get_ai_query_result(job_id: str, current_user: dict = Depends(get_curr
         cache_key = f"ai_query:{hashlib.md5(job['question'].lower().encode()).hexdigest()}"
         await set_cache(cache_key, result, ttl=600)
         return result
-    return {"job_id": job_id, "status": job["status"]}
+    return {"job_id": job_id, "status": job["status"], "error": job.get("error")}
 
 @router.get("/api/v1/infections")
 async def list_infections(

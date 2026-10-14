@@ -45,6 +45,14 @@ async def process_message(message: dict) -> None:
         await set_job_failed(job_id, str(e))
         await delete_message(receipt_handle)
 
+        from app.core.realtime import publish_event
+        await publish_event("ai_query_done", {
+            "job_id": job_id,
+            "question": question,
+            "tools_used": [],
+            "error": True,
+        })
+
 
 async def run_worker() -> None:
     logger.info("agent_worker_started")

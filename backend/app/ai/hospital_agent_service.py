@@ -2,6 +2,7 @@ import asyncio
 import json
 import re
 import os
+import unicodedata
 
 import httpx
 from langdetect import detect
@@ -56,6 +57,23 @@ TOOLS = [
             "name": "get_rating_distribution",
             "description": "Get average hospital rating per state, ordered by rating. Use when asked about hospital quality comparison across states.",
             "parameters": {"type": "object", "properties": {}, "required": []}
+        }
+    },
+    {
+        "type": "function",
+        "function": {
+            "name": "find_nearby_hospitals",
+            "description": "Find the best hospitals near a location, ranked by overall rating (closest first among equally-rated ones). Use this for 'near me', 'closest', 'nearby', 'perto de mim', 'próximo a mim', 'na minha região' questions, or any question that names a neighborhood/city/area as the search point instead of a full state. Works for any selected country. If the user's device location is already known it is used automatically — you don't need to pass lat/lng yourself. Only pass 'location_text' when a specific place is named in the question (e.g. a neighborhood, city, or landmark) and you want that place used instead of (or in addition to) the device location.",
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "location_text": {"type": "string", "description": "A neighborhood, city, or place name mentioned in the question, e.g. 'Zona Norte, São Paulo' or 'Dayton, Ohio'. Omit if the question just says 'near me'/'perto de mim' with no place named."},
+                    "min_rating": {"type": "integer", "description": "Optional minimum overall rating filter."},
+                    "emergency_only": {"type": "boolean", "description": "Set true when the question asks specifically about emergency rooms/emergency care near the location.", "default": False},
+                    "limit": {"type": "integer", "description": "Number of results to return. Default 10.", "default": 10}
+                },
+                "required": []
+            }
         }
     },
     {
@@ -148,8 +166,120 @@ TOOLS = [
     },
 ]
 
+_HOSPITAL_FIELDS_FOR_LLM = [
+    "facility_name", "address", "city", "state", "overall_rating",
+    "emergency_services", "telephone_number", "distance_miles",
+]
 
-async def execute_tool(tool_name: str, tool_args: dict, session: AsyncSession, country: str = "US") -> str:
+def _trim_hospitals(rows):
+    if not isinstance(rows, list):
+        return rows
+    trimmed = []
+    for row in rows:
+        if not isinstance(row, dict):
+            trimmed.append(row)
+            continue
+        trimmed.append({k: row[k] for k in _HOSPITAL_FIELDS_FOR_LLM if k in row})
+    return trimmed
+
+
+def _normalize_text(text: str) -> str:
+    text = unicodedata.normalize("NFKD", text)
+    return "".join(c for c in text if not unicodedata.combining(c)).lower()
+
+def _location_parts(location_text: str) -> list[str]:
+    # Split on commas first. If there's no comma (e.g. "Zona Norte de São Paulo",
+    # a natural phrase with no punctuation), also split on common Portuguese
+    # connector words so the city name doesn't stay trapped inside one opaque blob.
+    raw_segments = [s.strip() for s in location_text.split(",") if s.strip()]
+    if len(raw_segments) <= 1:
+        raw_segments = re.split(
+            r"\s+(?:de|da|do|das|dos|em|na|no|nas|nos)\s+",
+            location_text,
+            flags=re.IGNORECASE,
+        )
+        raw_segments = [s.strip() for s in raw_segments if s.strip()]
+    return raw_segments or [location_text.strip()]
+
+
+async def geocode_location(location_text: str, country: str) -> dict | None:
+    async def _query(q: str, limit: int = 10) -> list:
+        async with httpx.AsyncClient(timeout=10.0) as client:
+            r = await client.get(
+                "https://nominatim.openstreetmap.org/search",
+                params={
+                    "q": q,
+                    "format": "json",
+                    "limit": limit,
+                    "countrycodes": country.lower(),
+                    "addressdetails": 1,
+                },
+                headers={"User-Agent": "DataPulse/1.0"},
+            )
+            if r.status_code != 200 or not r.text.strip():
+                return []
+            return r.json()
+
+    try:
+        results = await _query(location_text, limit=10)
+
+        # A phrase like "Zona Norte de São Paulo" is ambiguous on its own (many
+        # Brazilian cities have a "Zona Norte"), and the city name can appear in
+        # any position. So instead of trusting result #1, require that a candidate
+        # mention EVERY distinct part of the phrase — that's what actually rules
+        # out a same-named neighborhood in the wrong city (e.g. Natal's "Zona Norte").
+        parts = _location_parts(location_text)
+        normalized_parts = [_normalize_text(p) for p in parts]
+
+        chosen = None
+        if len(normalized_parts) > 1:
+            for res in results:
+                name = _normalize_text(res.get("display_name", ""))
+                if all(p in name for p in normalized_parts):
+                    chosen = res
+                    break
+
+        if chosen is None and len(parts) > 1:
+            # No single result mentioned every part — try geocoding each part on
+            # its own and keep the one whose own query had the fewest results
+            # (a more specific/unique name, as opposed to a generic area name
+            # that matches many unrelated places).
+            best = None
+            for part in parts:
+                part_results = await _query(part, limit=5)
+                if part_results and (best is None or len(part_results) < best[1]):
+                    best = (part_results[0], len(part_results))
+            if best:
+                chosen = best[0]
+
+        if chosen is None and results:
+            chosen = results[0]
+
+        if chosen is None:
+            logger.warning("geocode_location_no_match", location_text=location_text)
+            return None
+
+        logger.info(
+            "geocode_location_resolved",
+            location_text=location_text,
+            resolved_name=chosen.get("display_name"),
+            lat=chosen["lat"],
+            lng=chosen["lon"],
+        )
+        return {"lat": float(chosen["lat"]), "lng": float(chosen["lon"])}
+    except Exception as e:
+        logger.error("geocode_location_failed", location_text=location_text, error=str(e))
+        return None
+
+
+async def execute_tool(
+    tool_name: str,
+    tool_args: dict,
+    session: AsyncSession,
+    country: str = "US",
+    user_lat: float | None = None,
+    user_lng: float | None = None,
+) -> str:
     base_url = os.getenv("API_BASE_URL", "http://127.0.0.1:8000")
 
     if tool_name == "search_hospitals":
@@ -163,7 +293,7 @@ async def execute_tool(tool_name: str, tool_args: dict, session: AsyncSession, c
             params += f"&search={search}"
         async with httpx.AsyncClient() as client:
             r = await client.get(f"{base_url}/api/v1/hospitals{params}")
-            return json.dumps(r.json())
+            return json.dumps(_trim_hospitals(r.json()))
 
     elif tool_name == "get_top_rated_hospitals":
         max_rating = tool_args.get("max_rating", None)
@@ -179,7 +309,7 @@ async def execute_tool(tool_name: str, tool_args: dict, session: AsyncSession, c
             params += f"&state={state}"
         async with httpx.AsyncClient() as client:
             r = await client.get(f"{base_url}/api/v1/hospitals{params}")
-            return json.dumps(r.json())
+            return json.dumps(_trim_hospitals(r.json()))
 
     elif tool_name == "get_rating_distribution":
         cache_key = f"rating_distribution:{country}"
@@ -190,6 +320,43 @@ async def execute_tool(tool_name: str, tool_args: dict, session: AsyncSession, c
             r = await client.get(f"{base_url}/api/v1/hospitals/metrics/rating-distribution?country={country}")
             data = r.json()
         return json.dumps(data)
+
+    elif tool_name == "find_nearby_hospitals":
+        lat = tool_args.get("lat") or user_lat
+        lng = tool_args.get("lng") or user_lng
+        location_text = tool_args.get("location_text")
+
+        if (lat is None or lng is None) and location_text:
+            geo = await geocode_location(location_text, country)
+            if geo:
+                lat, lng = geo["lat"], geo["lng"]
+
+        if lat is None or lng is None:
+            return json.dumps({
+                "error": "no_location",
+                "message": "No location is available. Ask the user to share their device location, or to name a specific city or neighborhood to search near.",
+            })
+
+        min_rating = tool_args.get("min_rating")
+        emergency_only = tool_args.get("emergency_only", False)
+        limit = min(tool_args.get("limit", 10), 20)
+
+        params = f"?lat={lat}&lng={lng}&radius=50&limit=30&country={country}"
+        if min_rating is not None:
+            params += f"&min_rating={min_rating}"
+
+        async with httpx.AsyncClient() as client:
+            r = await client.get(f"{base_url}/api/v1/hospitals/nearby{params}")
+            results = r.json()
+
+        if not isinstance(results, list):
+            return json.dumps(results)
+
+        if emergency_only:
+            results = [h for h in results if h.get("emergency_services") in ("Yes", "Sim")]
+
+        results.sort(key=lambda h: (-(h.get("overall_rating") or 0), h.get("distance_miles", 9999)))
+        return json.dumps(_trim_hospitals(results[:limit]))
 
     elif tool_name == "get_scarce_specialties":
         state = tool_args.get("state", "")
@@ -257,7 +424,39 @@ def clean_content(content: str) -> str:
     return content.strip()
 
 
-async def ask_agent(session: AsyncSession, question: str, username: str = "admin", conversation_id: str | None = None, country: str = "US") -> dict:
+APOLOGY_MESSAGES = {
+    "pt": "Desculpe, não consegui gerar uma resposta agora (limite de uso da IA foi atingido). Tente novamente em alguns segundos.",
+    "en": "Sorry, I couldn't generate an answer right now (AI usage limit reached). Please try again in a few seconds.",
+    "es": "Lo siento, no pude generar una respuesta ahora (límite de uso de la IA alcanzado). Inténtalo de nuevo en unos segundos.",
+}
+
+
+async def _safe_fallback(session: AsyncSession, question: str, lang: str) -> dict:
+    try:
+        return await ask_hospital_ai(session, question)
+    except Exception as e:
+        logger.error("ask_hospital_ai_fallback_failed", error=str(e))
+        message = APOLOGY_MESSAGES.get(lang, APOLOGY_MESSAGES["en"])
+        return validate_agent_output({
+            "question": question,
+            "mode": "error",
+            "tools_used": [],
+            "explanation": message,
+            "results": [],
+            "tokens_used": {"prompt": 0, "completion": 0, "total": 0},
+            "estimated_cost_usd": 0,
+        })
+
+
+async def ask_agent(
+    session: AsyncSession,
+    question: str,
+    username: str = "admin",
+    conversation_id: str | None = None,
+    country: str = "US",
+    user_lat: float | None = None,
+    user_lng: float | None = None,
+) -> dict:
     try:
         lang = detect(question)
     except Exception:
@@ -289,6 +488,14 @@ async def ask_agent(session: AsyncSession, question: str, username: str = "admin
         forced_tool = {"type": "function", "function": {"name": "get_rating_distribution"}}
     elif "highest concentration" in question_lower or "concentration of 5-star" in question_lower:
         forced_tool = {"type": "function", "function": {"name": "get_top_rated_hospitals"}}
+    elif any(kw in question_lower for kw in [
+        "near me", "nearby", "close to", "closest",
+        "perto de", "perto da", "perto do", "perto das", "perto dos",
+        "próximo a", "próximo de", "próximo da", "próximo do",
+        "proxima a", "proxima de", "proxima da", "proxima do",
+        "na minha região", "na minha regiao", "nas proximidades",
+    ]):
+        forced_tool = {"type": "function", "function": {"name": "find_nearby_hospitals"}}
 
     messages = [
     {"role": "system", "content": build_agent_system_prompt(country)},
@@ -296,7 +503,7 @@ async def ask_agent(session: AsyncSession, question: str, username: str = "admin
     {"role": "user", "content": question_with_lang},
     ]
 
-    MAX_ITERATIONS = 5
+    MAX_ITERATIONS = 3
     all_tools_used = []
     collected_results = []
     total_prompt_tokens = 0
@@ -322,7 +529,7 @@ async def ask_agent(session: AsyncSession, question: str, username: str = "admin
 
         if response.status_code == 400:
             logger.error("groq_400_error", detail=str(response.json()))
-            return await ask_hospital_ai(session, question)
+            return await _safe_fallback(session, question, lang)
 
         if response.status_code == 429:
             logger.warning("groq_rate_limit", iteration=iteration + 1)
@@ -349,7 +556,7 @@ async def ask_agent(session: AsyncSession, question: str, username: str = "admin
         if finish_reason == "stop" or not message.get("tool_calls"):
             final_content = clean_content(content)
             if not final_content:
-                return await ask_hospital_ai(session, question)
+                return await _safe_fallback(session, question, lang)
             if conversation_id:
                 from app.core.conversation_memory import append_to_conversation
                 await append_to_conversation(username, conversation_id, question, final_content)
@@ -374,15 +581,26 @@ async def ask_agent(session: AsyncSession, question: str, username: str = "admin
         for tool_call in message["tool_calls"]:
             tool_name = tool_call["function"]["name"]
             tool_args = json.loads(tool_call["function"]["arguments"])
-            result = await execute_tool(tool_name, tool_args, session, country)
+            result = await execute_tool(tool_name, tool_args, session, country, user_lat, user_lng)
             all_tools_used.append(tool_name)
             logger.info("tool_executed", tool_name=tool_name)
 
-            if tool_name in ("search_hospitals", "get_top_rated_hospitals", "get_rating_distribution"):
+            if tool_name in ("search_hospitals", "get_top_rated_hospitals", "get_rating_distribution", "find_nearby_hospitals"):
                 try:
                     parsed = json.loads(result)
                     if isinstance(parsed, list):
-                        collected_results.extend(parsed)
+                        if tool_name == "find_nearby_hospitals":
+                            # Each call depends on a resolved location; if this question
+                            # triggered more than one nearby-search call, only the latest
+                            # one is relevant — keep it from mixing with a stale/earlier
+                            # (possibly wrongly-geocoded) batch.
+                            collected_results = [
+                                r for r in collected_results
+                                if not (isinstance(r, dict) and "distance_miles" in r)
+                            ]
+                            collected_results.extend(parsed)
+                        else:
+                            collected_results.extend(parsed)
                 except (json.JSONDecodeError, TypeError):
                     pass
 
@@ -399,7 +617,7 @@ async def ask_agent(session: AsyncSession, question: str, username: str = "admin
     })
 
     final_response = None
-    for attempt in range(3):
+    for attempt in range(2):
         async with httpx.AsyncClient(timeout=60.0) as client:
             final_response = await client.post(
                 GROQ_URL,
@@ -422,7 +640,7 @@ async def ask_agent(session: AsyncSession, question: str, username: str = "admin
 
     if final_response is None or final_response.status_code != 200:
         logger.error("groq_final_error", detail=str(final_response.json()) if final_response else "no response")
-        return await ask_hospital_ai(session, question)
+        return await _safe_fallback(session, question, lang)
 
     final_data = final_response.json()
 
@@ -433,7 +651,7 @@ async def ask_agent(session: AsyncSession, question: str, username: str = "admin
     final_content = clean_content(final_data["choices"][0]["message"]["content"])
 
     if not final_content:
-        return await ask_hospital_ai(session, question)
+        return await _safe_fallback(session, question, lang)
 
     if conversation_id:
         from app.core.conversation_memory import append_to_conversation
@@ -477,9 +695,9 @@ def build_agent_system_prompt(country: str = "US") -> str:
     else:
         scope_intro = (
             f"You are a healthcare data analyst assistant. The user has selected {country_name} as the active "
-            f"country, and your hospital tools (search_hospitals, get_top_rated_hospitals, get_rating_distribution) "
-            f"return real hospital data for {country_name} when called — the country filter is already applied "
-            f"automatically, you don't need to specify it yourself."
+            f"country, and your hospital tools (search_hospitals, get_top_rated_hospitals, get_rating_distribution, "
+            f"find_nearby_hospitals) return real hospital data for {country_name} when called — the country filter "
+            f"is already applied automatically, you don't need to specify it yourself."
         )
         scope_notes = (
             f"\nIMPORTANT: Physician workforce analysis (get_scarce_specialties, get_physician_state_analysis), "
@@ -512,6 +730,11 @@ ALWAYS use tools when the question asks for:
 - Any comparison query that mentions "infection" → use get_hospital_infections for each state mentioned.
 - A specific hospital is named in the question → use search_hospitals with the 'search' parameter set to that hospital's name.
 - When answering about a SPECIFIC named hospital (not a list), keep any table compact: only Facility Name, City/State, Overall Rating, Emergency Services, and Phone. Do NOT include facility ID, exact address, ZIP code, or latitude/longitude in the table — mention those in plain text only if the user explicitly asks for the address or exact location.
+- A question asks for the "best"/"closest" hospital or emergency room "near me"/"nearby"/"perto de mim"/"próximo a mim", or names a neighborhood/city as the search point instead of a full state → use find_nearby_hospitals. Don't pass lat/lng yourself — the device location (if available) is applied automatically. Only pass location_text when a specific place is named in the question. Works the same way for any selected country.
+- "What's the best emergency room near me?" / "qual a melhor emergência perto de mim" → use find_nearby_hospitals with emergency_only=true.
+- IMPORTANT: Specialty-specific rankings (e.g. "best hospital for cardiology near me") are NOT available yet — there is no medical-specialty data in the database. If asked for a specialty-specific nearby hospital, say honestly that specialty-level filtering isn't available yet, then still call find_nearby_hospitals to show the best-rated hospitals nearby in general as the closest useful answer.
+- IMPORTANT: Some countries (e.g. Brazil) have no CMS-style overall_rating — hospitals may show a null/missing rating. When find_nearby_hospitals or search_hospitals returns results with no rating, do NOT get stuck trying to pick a single "best" one. Instead say plainly that no national rating system exists for that country, then list the nearest hospitals by distance/name/address as the most useful answer you can give. Always produce a final plain-text answer — never leave the response empty.
+- Whenever your answer lists hospitals (from find_nearby_hospitals or search_hospitals), always name the top/closest/most relevant hospital explicitly in your own sentence — not only inside the table. For example say "The closest option is São Luiz Rede D'Or, on Rua Figueiredo Magalhães 700, with an emergency room" instead of a generic "Here is a hospital:" followed only by a table. Do this in every language, and especially when there is no rating to anchor the sentence around.
 {scope_notes}
 For simple, direct queries:
 - "Which hospitals have a 5-star rating?" → immediately call get_top_rated_hospitals with min_rating=5, limit=10. Do not ask for clarification.
@@ -525,6 +748,8 @@ For simple, direct queries:
 - "How is the star rating calculated?" → immediately call search_cms_documents. Do not ask for clarification.
 - "How has the average hospital rating changed across pipeline runs?" → immediately call get_historical_analytics with analysis='rating_trend'. Do not ask for clarification.
 - "Which states changed the most between pipeline runs?" → immediately call get_historical_analytics with analysis='rating_changes'. Do not ask for clarification.
+- "What's the best hospital near me?" / "qual o melhor hospital perto de mim" → immediately call find_nearby_hospitals. Do not ask for clarification.
+- "Best hospital near Zona Norte, São Paulo" → call find_nearby_hospitals with location_text="Zona Norte, São Paulo".
 
 For comparison queries in any language:
 - "Compare the healthcare system from Ohio and Vermont" → call get_rating_distribution, then get_physician_state_analysis for OH, then get_physician_state_analysis for VT. Synthesize into a narrative comparison. Do NOT return a raw hospital list.
@@ -543,6 +768,7 @@ NEVER respond with JSON objects — always respond with plain text.
 NEVER say you cannot access the data — you have access to real hospital data for {country_name}, and (for the United States) CMS documents too.
 NEVER give generic descriptions when actual data can be retrieved via tools.
 If a search_hospitals call by name returns no matching hospital, say so honestly instead of inventing a generic sentence about it.
+If find_nearby_hospitals returns a "no_location" error, ask the user to share their location or name a specific city/neighborhood — do not invent nearby hospitals.
 
 State codes: OH=Ohio, CA=California, TX=Texas, FL=Florida, NY=New York, MA=Massachusetts, VT=Vermont, etc.
 

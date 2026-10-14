@@ -81,7 +81,13 @@ export async function askAI(question, conversationId = null, country = "US") {
             headers: { "Authorization": `Bearer ${token}` },
           })
             .then(r => r.json())
-            .then(result => resolve(result))
+            .then(result => {
+              if (result.status === "failed") {
+                reject(new Error(result.error || "AI query failed on the server."));
+              } else {
+                resolve(result);
+              }
+            })
             .catch(reject);
         }
       })
