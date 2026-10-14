@@ -5,6 +5,19 @@ import { needsDeviceLocation, getDeviceLocation } from "../services/geolocation"
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 
+const PLACEHOLDERS = {
+  US: "e.g. Which hospitals in Ohio have a 5-star rating?",
+  BR: "ex: Quais hospitais em São Paulo têm atendimento de emergência?",
+  CA: "e.g. Which hospitals in Ontario have emergency services?",
+  GB: "e.g. Which hospitals in London are rated Outstanding?",
+  FR: "ex : Quels hôpitaux à Paris ont des services d'urgence ?",
+  BE: "ex : Quels hôpitaux à Bruxelles ont des services d'urgence ?",
+  PT: "ex: Quais hospitais em Lisboa têm serviço de urgência?",
+  ES: "ej: ¿Qué hospitales en Madrid tienen servicio de urgencias?",
+  IT: "es: Quali ospedali a Roma hanno il pronto soccorso?",
+  MT: "e.g. Which hospitals in Malta have emergency services?",
+};
+
 const SUGGESTIONS = {
   US: [
     { text: "Which hospitals have a 5-star rating?" },
@@ -188,7 +201,7 @@ export default function AIQuery({ country = "US" }) {
           value={query}
           onChange={(e) => setQuery(e.target.value)}
           onKeyDown={(e) => e.key === "Enter" && ask()}
-          placeholder="e.g. Which hospitals in Ohio have a 5-star rating?"
+          placeholder={PLACEHOLDERS[country] || PLACEHOLDERS.US}
           style={{
             flex: "1 1 320px",
             minWidth: 0,
