@@ -168,7 +168,7 @@ TOOLS = [
 
 _HOSPITAL_FIELDS_FOR_LLM = [
     "facility_name", "address", "city", "state", "overall_rating",
-    "emergency_services", "telephone_number", "distance_miles",
+    "raw_rating_label", "emergency_services", "telephone_number", "distance_miles",
 ]
 
 def _trim_hospitals(rows):
@@ -189,12 +189,13 @@ def _normalize_text(text: str) -> str:
 
 def _location_parts(location_text: str) -> list[str]:
     # Split on commas first. If there's no comma (e.g. "Zona Norte de São Paulo",
-    # a natural phrase with no punctuation), also split on common Portuguese
-    # connector words so the city name doesn't stay trapped inside one opaque blob.
+    # a natural phrase with no punctuation), also split on common connector words
+    # (Portuguese, French, Spanish, Italian) so the city name doesn't stay trapped
+    # inside one opaque blob.
     raw_segments = [s.strip() for s in location_text.split(",") if s.strip()]
     if len(raw_segments) <= 1:
         raw_segments = re.split(
-            r"\s+(?:de|da|do|das|dos|em|na|no|nas|nos)\s+",
+            r"\s+(?:de|da|do|das|dos|du|des|del|dei|degli|delle|em|na|no|nas|nos|en|à|al|in)\s+",
             location_text,
             flags=re.IGNORECASE,
         )
@@ -517,6 +518,9 @@ async def ask_agent(
         "próximo a", "próximo de", "próximo da", "próximo do",
         "proxima a", "proxima de", "proxima da", "proxima do",
         "na minha região", "na minha regiao", "nas proximidades",
+        "près de moi", "proche de moi", "le plus proche",
+        "cerca de mí", "cerca de mi", "más cercano", "mas cercano",
+        "vicino a me", "più vicino", "piu vicino",
     ]):
         forced_tool = {"type": "function", "function": {"name": "find_nearby_hospitals"}}
 
@@ -700,6 +704,14 @@ async def ask_agent(
 COUNTRY_NAMES = {
     "US": "the United States",
     "BR": "Brazil",
+    "CA": "Canada",
+    "GB": "the United Kingdom",
+    "FR": "France",
+    "BE": "Belgium",
+    "PT": "Portugal",
+    "ES": "Spain",
+    "IT": "Italy",
+    "MT": "Malta",
 }
 
 
@@ -729,7 +741,10 @@ def build_agent_system_prompt(country: str = "US") -> str:
             f"{country_name} yet, instead of claiming you have no hospital data at all — you DO have hospital "
             f"listings and ratings for {country_name}.\n"
         )
-
+    state_code_note = (
+            "\nState codes: OH=Ohio, CA=California, TX=Texas, FL=Florida, NY=New York, MA=Massachusetts, VT=Vermont, etc.\n"
+            if country == "US" else ""
+        )
     return f"""{scope_intro}
 
 You have two ways to answer questions:
@@ -755,7 +770,7 @@ ALWAYS use tools when the question asks for:
 - A question asks for the "best"/"closest" hospital or emergency room "near me"/"nearby"/"perto de mim"/"próximo a mim", or names a neighborhood/city as the search point instead of a full state → use find_nearby_hospitals. Don't pass lat/lng yourself — the device location (if available) is applied automatically. Only pass location_text when a specific place is named in the question. Works the same way for any selected country.
 - "What's the best emergency room near me?" / "qual a melhor emergência perto de mim" → use find_nearby_hospitals with emergency_only=true.
 - IMPORTANT: Specialty-specific rankings (e.g. "best hospital for cardiology near me") are NOT available yet — there is no medical-specialty data in the database. If asked for a specialty-specific nearby hospital, say honestly that specialty-level filtering isn't available yet, then still call find_nearby_hospitals to show the best-rated hospitals nearby in general as the closest useful answer.
-- IMPORTANT: Some countries (e.g. Brazil) have no CMS-style overall_rating — hospitals may show a null/missing rating. When find_nearby_hospitals or search_hospitals returns results with no rating, do NOT get stuck trying to pick a single "best" one. Instead say plainly that no national rating system exists for that country, then list the nearest hospitals by distance/name/address as the most useful answer you can give. Always produce a final plain-text answer — never leave the response empty.
+- IMPORTANT: Most non-US countries in this app have no CMS-style numeric overall_rating — some (like Brazil) have no national rating at all, others (like the UK) use a non-numeric category instead, found in the raw_rating_label field (e.g. "Outstanding", "Good", "Requires Improvement") rather than overall_rating. When overall_rating is null, check raw_rating_label before concluding there's no rating — report it honestly if present ("rated Good by the CQC"), and only say no rating system exists if both are empty. Either way, always list hospitals by distance/name/address as the most useful answer — never leave the response empty.
 - Whenever your answer lists hospitals (from find_nearby_hospitals or search_hospitals), always name the top/closest/most relevant hospital explicitly in your own sentence — not only inside the table. For example say "The closest option is São Luiz Rede D'Or, on Rua Figueiredo Magalhães 700, with an emergency room" instead of a generic "Here is a hospital:" followed only by a table. Do this in every language, and especially when there is no rating to anchor the sentence around.
 {scope_notes}
 For simple, direct queries:
@@ -792,7 +807,7 @@ NEVER give generic descriptions when actual data can be retrieved via tools.
 If a search_hospitals call by name returns no matching hospital, say so honestly instead of inventing a generic sentence about it.
 If find_nearby_hospitals returns no_location_fallback=true, tell the user plainly that their exact location wasn't available (no device location shared and no place named), so you're showing the best-rated hospitals countrywide instead — not proximity-based. Still name the top one from that list in your sentence, the same way you would for a real nearby result.
 
-State codes: OH=Ohio, CA=California, TX=Texas, FL=Florida, NY=New York, MA=Massachusetts, VT=Vermont, etc.
+{state_code_note}
 
 Always respond in the language specified in the [LANGUAGE] tag at the end of the user's message.
 After calling tools, synthesize results into a clear, insightful narrative response.

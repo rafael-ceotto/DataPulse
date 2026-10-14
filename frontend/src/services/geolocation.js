@@ -10,6 +10,12 @@ const NEAR_ME_PATTERNS = [
   /pr[óo]xima de mim/i,
   /na minha regi[ãa]o/i,
   /cerca de m[ií]/i,
+  /m[áa]s cercano/i,
+  /pr[èe]s de moi/i,
+  /proche de moi/i,
+  /le plus proche/i,
+  /vicino a me/i,
+  /pi[uù] vicino/i,
 ];
 
 // True only when the question is phrased about the device's own position
