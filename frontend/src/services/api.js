@@ -37,7 +37,7 @@ export async function getHospitalById(facilityId) {
 
 import {supabase} from './supabase'
 
-export async function askAI(question, conversationId = null, country = "US") {
+export async function askAI(question, conversationId = null, country = "US", userLat = null, userLng = null) {
   const token = await getToken();
 
   const response = await fetch(`${API_URL}/api/v1/ai/query`, {
@@ -46,7 +46,7 @@ export async function askAI(question, conversationId = null, country = "US") {
       "Content-Type": "application/json",
       "Authorization": `Bearer ${token}`,
     },
-    body: JSON.stringify({ question, conversation_id: conversationId, country }),
+    body: JSON.stringify({ question, conversation_id: conversationId, country, user_lat: userLat, user_lng: userLng }),
   });
 
   const data = await response.json();
@@ -82,11 +82,8 @@ export async function askAI(question, conversationId = null, country = "US") {
           })
             .then(r => r.json())
             .then(result => {
-              if (result.status === "failed") {
-                reject(new Error(result.error || "AI query failed on the server."));
-              } else {
-                resolve(result);
-              }
+              if (result.status === "failed") reject(new Error(result.error || "AI query failed on the server."));
+              else resolve(result);
             })
             .catch(reject);
         }

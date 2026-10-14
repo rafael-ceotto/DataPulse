@@ -1,6 +1,7 @@
 import React, { useState, useCallback } from "react";
 import { theme } from "../theme";
 import { askAI, saveToNotion } from "../services/api";
+import { needsDeviceLocation, getDeviceLocation } from "../services/geolocation";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 
@@ -56,7 +57,12 @@ export default function AIQuery({ country = "US" }) {
     setAnswer(null);
     setSaved(false);
     try {
-      const data = await askAI(q, conversationId, country);
+      let lat = null, lng = null;
+      if (needsDeviceLocation(q)) {
+        const loc = await getDeviceLocation();
+        if (loc) { lat = loc.lat; lng = loc.lng; }
+      }
+      const data = await askAI(q, conversationId, country, lat, lng);
       setAnswer(data);
     } catch (err) {
       console.error("AI query failed:", err);

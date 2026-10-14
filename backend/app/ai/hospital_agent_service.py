@@ -322,24 +322,47 @@ async def execute_tool(
         return json.dumps(data)
 
     elif tool_name == "find_nearby_hospitals":
-        lat = tool_args.get("lat") or user_lat
-        lng = tool_args.get("lng") or user_lng
         location_text = tool_args.get("location_text")
+        lat = None
+        lng = None
 
-        if (lat is None or lng is None) and location_text:
+        # An explicitly named place ("perto de Copacabana") should win over the
+        # device's physical location — someone in São Paulo can still ask about
+        # a hospital near a place they're not standing in.
+        if location_text:
             geo = await geocode_location(location_text, country)
             if geo:
                 lat, lng = geo["lat"], geo["lng"]
 
         if lat is None or lng is None:
-            return json.dumps({
-                "error": "no_location",
-                "message": "No location is available. Ask the user to share their device location, or to name a specific city or neighborhood to search near.",
-            })
+            lat = user_lat
+            lng = user_lng
 
         min_rating = tool_args.get("min_rating")
         emergency_only = tool_args.get("emergency_only", False)
         limit = min(tool_args.get("limit", 10), 20)
+
+        if lat is None or lng is None:
+            # No device location and no resolvable named place — fall back to a
+            # country-wide "best rated" list instead of failing outright.
+            params = f"?limit={limit}&country={country}"
+            if min_rating is not None:
+                params += f"&min_rating={min_rating}"
+            async with httpx.AsyncClient() as client:
+                r = await client.get(f"{base_url}/api/v1/hospitals{params}")
+                fallback_results = r.json()
+            if not isinstance(fallback_results, list):
+                return json.dumps({
+                    "error": "no_location",
+                    "message": "No location is available. Ask the user to share their device location, or to name a specific city or neighborhood to search near.",
+                })
+            if emergency_only:
+                fallback_results = [h for h in fallback_results if h.get("emergency_services") in ("Yes", "Sim")]
+            return json.dumps({
+                "no_location_fallback": True,
+                "message": "No device location or named place was available — these are the top-rated hospitals countrywide, not proximity-based.",
+                "results": _trim_hospitals(fallback_results[:limit]),
+            })
 
         params = f"?lat={lat}&lng={lng}&radius=50&limit=30&country={country}"
         if min_rating is not None:
@@ -588,19 +611,18 @@ async def ask_agent(
             if tool_name in ("search_hospitals", "get_top_rated_hospitals", "get_rating_distribution", "find_nearby_hospitals"):
                 try:
                     parsed = json.loads(result)
+                    rows = None
                     if isinstance(parsed, list):
+                        rows = parsed
+                    elif isinstance(parsed, dict) and isinstance(parsed.get("results"), list):
+                        rows = parsed["results"]
+                    if rows is not None:
                         if tool_name == "find_nearby_hospitals":
-                            # Each call depends on a resolved location; if this question
-                            # triggered more than one nearby-search call, only the latest
-                            # one is relevant — keep it from mixing with a stale/earlier
-                            # (possibly wrongly-geocoded) batch.
                             collected_results = [
                                 r for r in collected_results
                                 if not (isinstance(r, dict) and "distance_miles" in r)
                             ]
-                            collected_results.extend(parsed)
-                        else:
-                            collected_results.extend(parsed)
+                        collected_results.extend(rows)
                 except (json.JSONDecodeError, TypeError):
                     pass
 
@@ -768,7 +790,7 @@ NEVER respond with JSON objects — always respond with plain text.
 NEVER say you cannot access the data — you have access to real hospital data for {country_name}, and (for the United States) CMS documents too.
 NEVER give generic descriptions when actual data can be retrieved via tools.
 If a search_hospitals call by name returns no matching hospital, say so honestly instead of inventing a generic sentence about it.
-If find_nearby_hospitals returns a "no_location" error, ask the user to share their location or name a specific city/neighborhood — do not invent nearby hospitals.
+If find_nearby_hospitals returns no_location_fallback=true, tell the user plainly that their exact location wasn't available (no device location shared and no place named), so you're showing the best-rated hospitals countrywide instead — not proximity-based. Still name the top one from that list in your sentence, the same way you would for a real nearby result.
 
 State codes: OH=Ohio, CA=California, TX=Texas, FL=Florida, NY=New York, MA=Massachusetts, VT=Vermont, etc.
 

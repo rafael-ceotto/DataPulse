@@ -1,6 +1,7 @@
 import React, { useEffect, useRef, useState } from "react";
 import { theme } from "../theme";
 import { askAI } from "../services/api";
+import { needsDeviceLocation, getDeviceLocation } from "../services/geolocation";
 
 const LANG_CONFIG = {
   US: { lang: "en-US", wakeWords: ["hello doctor"] },
@@ -154,7 +155,7 @@ export default function VoiceAssistant({ country, onAnswer }) {
     };
   }, [enabled, country, restartKey]);
 
-  useEffect(() => {
+    useEffect(() => {
     if (!question) return;
     let cancelled = false;
 
@@ -163,7 +164,12 @@ export default function VoiceAssistant({ country, onAnswer }) {
       setAiError(false);
       onAnswer?.(null);
       try {
-        const data = await askAI(question, conversationIdRef.current, country);
+        let lat = null, lng = null;
+        if (needsDeviceLocation(question)) {
+          const loc = await getDeviceLocation();
+          if (loc) { lat = loc.lat; lng = loc.lng; }
+        }
+        const data = await askAI(question, conversationIdRef.current, country, lat, lng);
         if (cancelled) return;
         onAnswer?.(data);
         speakAnswer(data.explanation);
