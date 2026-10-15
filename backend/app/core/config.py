@@ -5,6 +5,10 @@ class Settings(BaseSettings):
     model_config = ConfigDict(env_file=".env")
 
     DB_URL: str = "postgresql+asyncpg://datapulse:datapulse@localhost:5433/datapulse"
+    JWT_SECRET_KEY: str = "datapulse-secret-key-change-in-production"
+    AUTH_USERNAME: str = "admin"
+    AUTH_PASSWORD: str = "datapulse2024"
+    AUTH_PASSWORD_HASH: str = ""
     GROQ_API_KEY: str = ""
     SLACK_WEBHOOK_URL: str = ""
     TAVILY_API_KEY: str = ""

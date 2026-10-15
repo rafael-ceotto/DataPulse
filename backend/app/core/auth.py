@@ -5,18 +5,21 @@ from fastapi import Depends, HTTPException, status
 from fastapi.security import OAuth2PasswordBearer
 from jose import JWTError, jwt
 
-SECRET_KEY = "datapulse-secret-key-change-in-production"
+from app.core.config import settings
+
+SECRET_KEY = settings.JWT_SECRET_KEY
 ALGORITHM = "HS256"
 ACCESS_TOKEN_EXPIRE_MINUTES = 60
 
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/api/v1/auth/token")
 
-# Gera o hash uma vez
-_password = b"datapulse2024"
-_hashed = bcrypt.hashpw(_password, bcrypt.gensalt())
+if settings.AUTH_PASSWORD_HASH:
+    _hashed = settings.AUTH_PASSWORD_HASH.encode()
+else:
+    _hashed = bcrypt.hashpw(settings.AUTH_PASSWORD.encode(), bcrypt.gensalt())
 
 DEMO_USER = {
-    "username": "admin",
+    "username": settings.AUTH_USERNAME,
     "hashed_password": _hashed,
 }
 
