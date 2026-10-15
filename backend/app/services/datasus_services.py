@@ -41,7 +41,7 @@ def _load_br_hospitals_from_parquet(state: str | None = None) -> list[dict]:
         import pandas as pd
         all_dfs = []
         for tmp_file in tmp_files:
-            state_val = file_state_map[tmp_file]
+            state_val = file_state_map[tmp_file].replace("'", "''")
             con = duckdb.connect()
             df = con.execute(f"""
                 SELECT
