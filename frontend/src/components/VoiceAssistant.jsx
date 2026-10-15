@@ -247,11 +247,12 @@ export default function VoiceAssistant({ country, onAnswer }) {
         🎙 {enabled ? statusLabel : label}
       </button>
 
-      {enabled && voices.length > 0 && (
+      {voices.length > 0 && (
         <select
           value={selectedVoiceURI || voices[0]?.voiceURI || ""}
           onChange={(e) => setSelectedVoiceURI(e.target.value)}
           onClick={(e) => e.stopPropagation()}
+          title={isBR ? "Escolher voz" : "Choose voice"}
           style={{
             fontSize: 11, fontFamily: theme.mono, maxWidth: 160,
             background: "#f4f6f8", border: "1px solid #e0e5e8",
