@@ -408,8 +408,22 @@ poetry run python scripts/ingest_cms_docs.py
 
 ---
 
+## Recent updates
+
+**Voice assistant, shipped.** Wake-free voice input via the Web Speech API: the agent receives the spoken question with geolocation context, and the full answer (markdown explanation + results table) is shown on screen while being read aloud via Speech Synthesis, instead of speech-only with no visible transcript. The voice picker now appears as soon as voices load, before the microphone is even activated.
+
+**Multi-country guardrails.** Per-country suggested questions and localized placeholders for all 10 supported countries (US, BR, CA, GB, FR, BE, PT, ES, IT, MT). If a question mentions a country other than the one selected, the frontend holds it back with a banner ("Use [Country]" / "Send anyway") and, as a second line of defense, the agent itself is instructed server-side to refuse answering about a mismatched country — confirmed working end-to-end live.
+
+**Real device geolocation for "near me" questions.** `navigator.geolocation` now flows through the whole chain (frontend → API → SQS → worker → agent tools), so "hospital near me" resolves to the device's real coordinates when no place is named, in any of the 5 supported languages (EN/PT/ES/FR/IT). A named place still takes priority over the device's position.
+
+**Security hardening.** Login attempts are now rate-limited; LLM-generated SQL is validated before execution; a hardcoded Supabase key was removed from `docker-compose.yml`; the frontend no longer auto-logs in with hardcoded credentials (now reads from env vars). A broader pentest pass is in progress — remaining items (prompt injection, XSS, CORS abuse, IDOR, container hardening, etc.) are tracked separately.
+
+**Alembic autogenerate fixed.** Database objects that exist without a matching SQLAlchemy model (trigram/country indexes, the dbt table) no longer show up as spurious `DROP` candidates on `--autogenerate`.
+
+---
+
 ## What's next
 
-- **Voice integration** — wake word detection ("Hey Doc", "Oi Doc", "Ciao Doc") via Web Speech API. On activation, the agent receives the spoken question with geolocation context and responds in the country's language via Speech Synthesis API. Emergency detection triggers a direct call button to the nearest hospital.
-- **Native app** — Expo + React Native for App Store and Google Play. The FastAPI backend stays unchanged. Voice via expo-speech and expo-av (more robust than Web Speech API on mobile).
+- **Native app** — Expo + React Native for App Store and Google Play. The FastAPI backend stays unchanged (same REST API, no rewrite). Voice via `expo-speech` + `expo-av` (more robust than the Web Speech API on mobile) plus native wake-word detection and push notifications. Mobile-first layout: map-first screen with bottom navigation instead of the web sidebar. Scope, timing and architecture details (auth flow on mobile, store distribution/signing) still to be defined.
+- **Pentest completion** — close out the remaining security review items: prompt injection resistance on the AI agent, XSS payload testing, CORS abuse testing, rate limits on unprotected endpoints, IDOR/enumeration on `facility_id`, security headers (CSP/HSTS/X-Frame-Options), error/stack-trace leakage, log scrubbing, SSRF on the web-search/document-search tools, WebSocket channel authorization, and container hardening (non-root, image scanning).
 - **Data enrichment** — hospitals from Wikidata countries (BE, CA, IT, MT, PT, ES, GB) are missing phone numbers, addresses, and zip codes. OpenStreetMap Overpass API and country-specific open data portals are the next sources to explore.
