@@ -173,7 +173,7 @@ docker compose --profile malta run --rm malta_processor
 
 # 4. Ingest all countries via API
 TOKEN=$(curl -s -X POST http://localhost:8000/api/v1/auth/token \
-  -d "username=admin&password=datapulse2024" | jq -r .access_token)
+  -d "username=$AUTH_USERNAME&password=YOUR_PASSWORD" | jq -r .access_token)
 
 curl -s -X POST http://localhost:8000/api/v1/pipeline/run/belgium -H "Authorization: Bearer $TOKEN"
 curl -s -X POST http://localhost:8000/api/v1/pipeline/run/canada -H "Authorization: Bearer $TOKEN"
@@ -203,7 +203,7 @@ docker compose --profile airflow up airflow_webserver airflow_scheduler -d
 docker compose --profile dbt run --rm dbt
 ```
 
-**Authentication:** `POST /api/v1/auth/token` with `username=admin` / `password=datapulse2024`
+**Authentication:** `POST /api/v1/auth/token` with the `AUTH_USERNAME`/password you configured in `.env` (see Environment Variables below).
 
 ---
 
@@ -258,6 +258,17 @@ Create `backend/.env`:
 
 ```env
 DB_URL=postgresql+asyncpg://datapulse:datapulse@localhost:5433/datapulse
+
+# Auth — required for anything beyond local experimentation.
+# Without these, the app falls back to insecure defaults (admin/datapulse2024
+# and a hardcoded JWT key) baked into app/core/config.py — fine to poke
+# around locally, but never use those defaults anywhere reachable by others.
+JWT_SECRET_KEY=...            # required — generate with: python3 -c "import secrets; print(secrets.token_urlsafe(64))"
+AUTH_USERNAME=...             # required — your own login username
+AUTH_PASSWORD_HASH=...        # required — a bcrypt hash of your password, generate with: python3 -c "import bcrypt; print(bcrypt.hashpw(b'your-password', bcrypt.gensalt()).decode())"
+
+# Note: if this .env is parsed by docker compose (not just by the app), escape every literal $ in the hash as $$, e.g $2b$12$abc...becomes $$2b$$12$$abc... Compose does its own variable interpolation on .env files and will otherwise mangle the hash.
+
 GROQ_API_KEY=gsk_...          # required — free at console.groq.com
 TAVILY_API_KEY=tvly-...       # required — free at tavily.com
 SLACK_WEBHOOK_URL=...         # optional

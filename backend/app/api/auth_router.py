@@ -1,12 +1,14 @@
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, Request, status
 from fastapi.security import OAuth2PasswordRequestForm
 
 from app.core.auth import DEMO_USER, create_access_token, verify_password
+from app.core.rate_limit import limiter
 
 router = APIRouter()
 
 @router.post("/api/v1/auth/token")
-async def login(form_data: OAuth2PasswordRequestForm = Depends()):
+@limiter.limit("5/minute")
+async def login(request: Request, form_data: OAuth2PasswordRequestForm = Depends()):
     if form_data.username != DEMO_USER["username"]:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
