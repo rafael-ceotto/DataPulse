@@ -7,10 +7,17 @@ export async function getToken() {
   if (cachedToken && tokenExpiry && Date.now() < tokenExpiry) {
     return cachedToken;
   }
+  const apiUsername = import.meta.env.VITE_API_USERNAME;
+  const apiPassword = import.meta.env.VITE_API_PASSWORD;
+  if (!apiUsername || !apiPassword) {
+    throw new Error(
+      "VITE_API_USERNAME/VITE_API_PASSWORD are not set. Create frontend/.env.local (see .env.example)."
+    );
+  }
   const response = await fetch("/api/v1/auth/token", {
     method: "POST",
     headers: { "Content-Type": "application/x-www-form-urlencoded" },
-    body: "username=admin&password=datapulse2024",
+    body: `username=${encodeURIComponent(apiUsername)}&password=${encodeURIComponent(apiPassword)}`,
   });
   const data = await response.json();
   cachedToken = data.access_token;

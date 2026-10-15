@@ -44,7 +44,7 @@ router = APIRouter()
 def get_user_id(request: Request) -> str:
     auth = request.headers.get("Authorization", "")
     if auth.startswith("Bearer "):
-        from jose import jwt
+        import jwt
         from app.core.auth import SECRET_KEY, ALGORITHM
         try:
             token = auth.split(" ")[1]
