@@ -1,8 +1,12 @@
+import os
 from datetime import datetime, timedelta
 from airflow import DAG
 from airflow.operators.python import PythonOperator
 from airflow.operators.bash import BashOperator
 import requests
+
+API_USERNAME = os.environ["AUTH_USERNAME"]
+API_PASSWORD = os.environ["AUTH_PASSWORD"]
 
 default_args = {
     "owner": "datapulse",
@@ -13,7 +17,7 @@ default_args = {
 def trigger_hospital_pipeline():
     token_response = requests.post(
         "http://datapulse_api:8000/api/v1/auth/token",
-        data={"username": "admin", "password": "datapulse2024"},
+        data={"username": API_USERNAME, "password": API_PASSWORD},
         headers={"Content-Type": "application/x-www-form-urlencoded"},
     )
     token = token_response.json()["access_token"]
@@ -29,7 +33,7 @@ def trigger_hospital_pipeline():
 def trigger_infection_pipeline():
     token_response = requests.post(
         "http://datapulse_api:8000/api/v1/auth/token",
-        data={"username": "admin", "password": "datapulse2024"},
+        data={"username": API_USERNAME, "password": API_PASSWORD},
         headers={"Content-Type": "application/x-www-form-urlencoded"},
     )
     token = token_response.json()["access_token"]

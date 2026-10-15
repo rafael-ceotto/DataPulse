@@ -6,3 +6,6 @@ __pycache__/
 airflow/logs/
 # CNES e outros arquivos grandes de dados - nao subir pro git
 data/
+/node_modules/
+/package-lock.json
+/package.json

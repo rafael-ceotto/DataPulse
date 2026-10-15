@@ -1,4 +1,5 @@
 import pytest
+import os
 from httpx import AsyncClient, ASGITransport
 from unittest.mock import AsyncMock, patch
 
@@ -16,7 +17,7 @@ async def client():
 async def auth_token(client):
     response = await client.post(
         AUTH_URL,
-        data={"username": "admin", "password": "datapulse2024"},
+        data={"username": os.environ.get("AUTH_USERNAME", "admin"), "password": os.environ.get("AUTH_PASSWORD", "datapulse2024")},
         headers={"Content-Type": "application/x-www-form-urlencoded"}
     )
     assert response.status_code == 200
