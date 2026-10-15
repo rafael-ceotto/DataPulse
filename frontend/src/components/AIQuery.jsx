@@ -2,6 +2,7 @@ import React, { useState, useCallback } from "react";
 import { theme } from "../theme";
 import { askAI, saveToNotion } from "../services/api";
 import { needsDeviceLocation, getDeviceLocation } from "../services/geolocation";
+import { detectMentionedCountry, COUNTRY_LABELS } from "../services/countryDetection";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 
@@ -96,7 +97,7 @@ function generateConversationId() {
   return crypto.randomUUID();
 }
 
-export default function AIQuery({ country = "US" }) {
+export default function AIQuery({ country = "US", onCountryChange }) {
   const [query, setQuery] = useState("");
   const [answer, setAnswer] = useState(null);
   const [loading, setLoading] = useState(false);
@@ -104,12 +105,14 @@ export default function AIQuery({ country = "US" }) {
   const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState(false);
   const [conversationId, setConversationId] = useState(() => generateConversationId());
+  const [pendingMismatch, setPendingMismatch] = useState(null);
 
   function clear() {
     setAnswer(null);
     setQuery("");
     setError(null);
     setSaved(false);
+    setPendingMismatch(null);
   }
 
   function newConversation() {
@@ -117,7 +120,19 @@ export default function AIQuery({ country = "US" }) {
     setConversationId(generateConversationId());
   }
 
-  async function ask(text = query) {
+    async function ask(text = query) {
+    const q = text.trim();
+    if (!q) return;
+    const mentioned = detectMentionedCountry(q, country);
+    if (mentioned) {
+      setQuery(q);
+      setPendingMismatch({ code: mentioned, text: q });
+      return;
+    }
+    await performAsk(q, country);
+  }
+
+  async function performAsk(text, useCountry) {
     const q = text.trim();
     if (!q) return;
     setQuery(q);
@@ -125,13 +140,14 @@ export default function AIQuery({ country = "US" }) {
     setError(null);
     setAnswer(null);
     setSaved(false);
+    setPendingMismatch(null);
     try {
       let lat = null, lng = null;
       if (needsDeviceLocation(q)) {
         const loc = await getDeviceLocation();
         if (loc) { lat = loc.lat; lng = loc.lng; }
       }
-      const data = await askAI(q, conversationId, country, lat, lng);
+      const data = await askAI(q, conversationId, useCountry, lat, lng);
       setAnswer(data);
     } catch (err) {
       console.error("AI query failed:", err);
@@ -139,6 +155,18 @@ export default function AIQuery({ country = "US" }) {
     } finally {
       setLoading(false);
     }
+  }
+
+  function confirmSwitchCountry() {
+    if (!pendingMismatch) return;
+    const { code, text } = pendingMismatch;
+    onCountryChange?.(code);
+    performAsk(text, code);
+  }
+
+  function confirmSendAnyway() {
+    if (!pendingMismatch) return;
+    performAsk(pendingMismatch.text, country);
   }
 
   async function handleSaveToNotion() {
@@ -271,6 +299,42 @@ export default function AIQuery({ country = "US" }) {
           </button>
         )}
       </div>
+
+      {pendingMismatch && (
+        <div style={{
+          marginTop: 14,
+          padding: "12px 16px",
+          background: "#2a2210",
+          border: "1px solid #5a4a1a",
+          borderRadius: 10,
+          display: "flex",
+          alignItems: "center",
+          gap: 12,
+          flexWrap: "wrap",
+        }}>
+          <span style={{ fontSize: 13.5, color: "#f1d78a", flex: "1 1 260px" }}>
+            ⚠ Essa pergunta parece ser sobre <strong>{COUNTRY_LABELS[pendingMismatch.code]}</strong>, mas o país selecionado é <strong>{COUNTRY_LABELS[country]}</strong>.
+          </span>
+          <button
+            onClick={confirmSwitchCountry}
+            style={{
+              background: theme.mint, color: "#0c1418", border: "none",
+              borderRadius: 8, padding: "7px 14px", fontSize: 12.5, fontWeight: 600, cursor: "pointer",
+            }}
+          >
+            Usar {COUNTRY_LABELS[pendingMismatch.code]}
+          </button>
+          <button
+            onClick={confirmSendAnyway}
+            style={{
+              background: "transparent", color: "#f1d78a", border: "1px solid #5a4a1a",
+              borderRadius: 8, padding: "7px 14px", fontSize: 12.5, cursor: "pointer",
+            }}
+          >
+            Enviar mesmo assim
+          </button>
+        </div>
+      )}
 
       {error && (
         <div style={{ marginTop: 20, color: "#ff6b6b", fontSize: 14 }}>{error}</div>

@@ -410,7 +410,7 @@ export default function App() {
           <div style={{ fontFamily: theme.mono, fontSize: 11, color: "#6f8a95", marginBottom: 20 }}>
             Hospital quality data, one view
           </div>
-          <AIQuery country={country} />
+           <AIQuery country={country} onCountryChange={handleCountryChange} />
           </div>
 
           {/* Metric cards */}
