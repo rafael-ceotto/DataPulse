@@ -5,3 +5,7 @@ WORKDIR /app
 RUN pip install --no-cache-dir asyncpg httpx
 
 COPY . .
+
+RUN useradd --create-home --uid 1000 --shell /usr/sbin/nologin appuser \
+    && chown -R appuser:appuser /app
+USER appuser

@@ -66,11 +66,14 @@ export async function askAI(question, conversationId = null, country = "US", use
   const jobId = data.job_id;
 
   // Wait for result via Supabase Realtime
+  //12k -> 18k
+  // Compound questions that involves more than 3 tools need 4-5 GROQ calls
+  // real fix is reducing Groq round-trips per question or highter TPM plan
   return new Promise((resolve, reject) => {
     const timeout = setTimeout(() => {
       channel.unsubscribe();
-      reject(new Error("Query timed out after 2 minutes"));
-    }, 120000);
+      reject(new Error("Query timed out after 3 minutes"));
+    }, 180000);
 
     const channel = supabase
       .channel(`ai-query-done-${jobId}`)

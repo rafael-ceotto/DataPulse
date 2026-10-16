@@ -254,9 +254,10 @@ export default function VoiceAssistant({ country, onAnswer }) {
           onClick={(e) => e.stopPropagation()}
           title={isBR ? "Escolher voz" : "Choose voice"}
           style={{
-            fontSize: 11, fontFamily: theme.mono, maxWidth: 160,
-            background: "#f4f6f8", border: "1px solid #e0e5e8",
-            borderRadius: 6, padding: "4px 6px", color: "#3d5566",
+            fontSize: 13, fontFamily: theme.sans, fontWeight: 600, maxWidth: 160,
+            background: "#0F6F8C", border: "none",
+            borderRadius: 10, padding: "10px 14px", color: "#fff",
+            cursor: "pointer",
           }}
         >
           {voices.map((v) => (

@@ -6,4 +6,8 @@ RUN pip install dbt-postgres
 
 COPY . .
 
+RUN useradd --create-home --uid 1000 --shell /usr/sbin/nologin appuser \
+    && chown -R appuser:appuser /app
+USER appuser
+
 CMD ["dbt", "run", "--profiles-dir", "/app"]

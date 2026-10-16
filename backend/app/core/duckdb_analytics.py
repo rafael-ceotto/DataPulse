@@ -1,8 +1,34 @@
 import json
+import re
 import duckdb
 import pandas as pd
 from app.core.s3 import get_s3_client, BUCKET_NAME
 
+
+_FORBIDDEN_DUCKDB_PATTERN = re.compile(
+    r"\b("
+    r"INSERT|UPDATE|DELETE|DROP|ALTER|CREATE|GRANT|REVOKE|TRUNCATE|COPY|"
+    r"EXECUTE|CALL|VACUUM|MERGE|EXPORT|IMPORT|INTO|"
+    r"ATTACH|DETACH|INSTALL|LOAD|PRAGMA|SET|RESET|CHECKPOINT|FORCE|"
+    r"READ_CSV|READ_CSV_AUTO|READ_PARQUET|READ_JSON|READ_JSON_AUTO|"
+    r"READ_TEXT|READ_BLOB|GLOB|SCAN_ARROW|ICEBERG_SCAN|DELTA_SCAN|"
+    r"SQLITE_SCAN|POSTGRES_SCAN|MYSQL_SCAN"
+    r")\b",
+    re.IGNORECASE,
+)
+
+def _validate_readonly_duckdb_sql(sql: str) -> None:
+    cleaned = sql.strip()
+    if cleaned.endswith(";"):
+        cleaned = cleaned[:-1].strip()
+    if ";" in cleaned:
+        raise ValueError("Only a single SQL statement is allowed.")
+
+    if not re.match(r"^\s*(SELECT|WITH)\b", cleaned, re.IGNORECASE):
+        raise ValueError(f"Only SELECT queries are allowed. Got: {sql}")
+
+    if _FORBIDDEN_DUCKDB_PATTERN.search(cleaned):
+        raise ValueError("Query contains a disallowed keyword or function.")
 
 def _load_runs_from_s3() -> pd.DataFrame:
     """Download all pipeline run JSONs from S3 and return as DataFrame with run_id."""
@@ -35,22 +61,36 @@ def _load_runs_from_s3() -> pd.DataFrame:
     return pd.DataFrame(all_rows)
 
 
-def query_historical(sql: str) -> list[dict]:
+def query_historical(sql: str, *, validate: bool = True) -> list[dict]:
     """
     Run a DuckDB SQL query over all pipeline run snapshots.
     The data is available as a table called 'hospitals'.
     Columns: facility_id, facility_name, city, state, zip_code,
              hospital_type, hospital_ownership, emergency_services,
              overall_rating, telephone_number, run_id
+
+    `validate=False` is only for the hardcoded, trusted queries this module
+    defines itself (get_rating_trend, etc.) — anything built from
+    user-supplied SQL (the /api/v1/analytics/query endpoint) must go through
+    validation.
     """
+    if validate:
+        _validate_readonly_duckdb_sql(sql)
+
     df = _load_runs_from_s3()
     if df.empty:
         return []
 
-    con = duckdb.connect()
+    # enable_external_access=False disables file-system and network access
+    # for the whole connection (read_csv/read_parquet/httpfs/etc. all become
+    # unusable), so even a forbidden function that slips past the regex
+    # above still can't reach the local filesystem or make outbound requests.
+    con = duckdb.connect(config={"enable_external_access": False})
     con.register("hospitals", df)
-    result = con.execute(sql).fetchdf()
-    con.close()
+    try:
+        result = con.execute(sql).fetchdf()
+    finally:
+        con.close()
 
     return result.to_dict(orient="records")
 

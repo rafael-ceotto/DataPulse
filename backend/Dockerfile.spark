@@ -13,4 +13,8 @@ RUN pip install pyspark==3.5.1 httpx boto3 structlog pysus
 COPY backend/app/ ./app/
 COPY backend/scripts/ ./scripts/
 
+RUN useradd --create-home --uid 1000 --shell /usr/sbin/nologin appuser \
+    && chown -R appuser:appuser /app
+USER appuser
+
 CMD ["python", "scripts/process_physicians_spark.py"]

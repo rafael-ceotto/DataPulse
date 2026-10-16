@@ -2,6 +2,8 @@ FROM python:3.13-slim
 
 WORKDIR /app
 
+ENV HF_HOME=/app/.cache/huggingface
+
 RUN pip install poetry dbt-postgres
 
 COPY pyproject.toml poetry.lock ./
@@ -14,6 +16,10 @@ RUN python -c "from sentence_transformers import SentenceTransformer; SentenceTr
 COPY backend/app/ ./app/
 COPY backend/datapulse/ ./datapulse/
 COPY backend/scripts/ ./scripts/
+
+RUN useradd --create-home --uid 1000 --shell /usr/sbin/nologin appuser \
+    && chown -R appuser:appuser /app
+USER appuser
 
 EXPOSE 8000
 
