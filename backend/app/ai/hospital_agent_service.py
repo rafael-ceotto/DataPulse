@@ -57,8 +57,7 @@ TOOLS = [
         "type": "function",
         "function": {
             "name": "search_hospitals",
-            "description": "Search hospitals by state and/or by name. Use 'search' when the question names a specific hospital (e.g. 'Miami Valley Hospital', 'Hospital São Camilo') — it does a fuzzy match on the hospital name. Use 'state' when the question asks about hospitals in a specific state/region, with no specific hospital named. You can combine both.",
-            "parameters": {
+                "description": "Search hospitals by state and/or by name. 'search' = fuzzy match on hospital name (use when a specific hospital is named). 'state' = filter by state/region (use when no specific hospital is named). Combinable.",            "parameters": {
                 "type": "object",
                 "properties": {
                     "state": {"type": "string", "description": "2-letter state/region code, e.g. OH, CA, TX (US) or SP, RJ, MG (Brazil). Optional if 'search' is provided."},
@@ -73,7 +72,7 @@ TOOLS = [
         "type": "function",
         "function": {
             "name": "get_top_rated_hospitals",
-            "description": "Get top rated or lowest rated hospitals nationwide or by state. Use when asked about 5-star hospitals, highest rated facilities, or lowest rated facilities.",
+            "description": "Get top- or lowest-rated hospitals nationwide or by state (5-star, highest/lowest rated facilities).",
             "parameters": {
                 "type": "object",
                 "properties": {
@@ -90,7 +89,7 @@ TOOLS = [
         "type": "function",
         "function": {
             "name": "get_rating_distribution",
-            "description": "Get average hospital rating per state, ordered by rating. Use when asked about hospital quality comparison across states.",
+            "description": "Average hospital rating per state, ordered by rating. Use for quality comparisons across states.",
             "parameters": {"type": "object", "properties": {}, "required": []}
         }
     },
@@ -98,8 +97,7 @@ TOOLS = [
         "type": "function",
         "function": {
             "name": "find_nearby_hospitals",
-            "description": "Find the best hospitals near a location, ranked by overall rating (closest first among equally-rated ones). Use this for 'near me', 'closest', 'nearby', 'perto de mim', 'próximo a mim', 'na minha região' questions, or any question that names a neighborhood/city/area as the search point instead of a full state. Works for any selected country. If the user's device location is already known it is used automatically — you don't need to pass lat/lng yourself. Only pass 'location_text' when a specific place is named in the question (e.g. a neighborhood, city, or landmark) and you want that place used instead of (or in addition to) the device location.",
-            "parameters": {
+                "description": "Best hospitals near a location (ranked by rating, closest first among ties). Use for 'near me'/'nearby'/'perto de mim' questions or any question naming a neighborhood/city instead of a full state. Device location is applied automatically — don't pass lat/lng. Pass 'location_text' only when a specific place is named.",            "parameters": {
                 "type": "object",
                 "properties": {
                     "location_text": {"type": "string", "description": "A neighborhood, city, or place name mentioned in the question, e.g. 'Zona Norte, São Paulo' or 'Dayton, Ohio'. Omit if the question just says 'near me'/'perto de mim' with no place named."},
@@ -115,8 +113,7 @@ TOOLS = [
         "type": "function",
         "function": {
             "name": "get_scarce_specialties",
-            "description": "Get top 10 scarce medical specialties for a given state compared to national average. Use when asked about physician shortages or healthcare gaps.",
-            "parameters": {
+                "description": "Top 10 scarce medical specialties for a state vs. national average. Use for physician shortages/healthcare gaps.",            "parameters": {
                 "type": "object",
                 "properties": {
                     "state": {"type": "string", "description": "2-letter US state code e.g. OH, CA, TX"}
@@ -129,8 +126,7 @@ TOOLS = [
         "type": "function",
         "function": {
             "name": "get_physician_state_analysis",
-            "description": "Get physician count, hospital count, and correlation metrics for a state. Use when asked about physician density or healthcare workforce.",
-            "parameters": {
+                "description": "Physician count, hospital count, and correlation metrics for a state. Use for physician density/healthcare workforce questions.",            "parameters": {
                 "type": "object",
                 "properties": {
                     "state": {"type": "string", "description": "2-letter US state code e.g. OH, CA, TX"}
@@ -143,8 +139,7 @@ TOOLS = [
         "type": "function",
         "function": {
             "name": "get_hospital_infections",
-            "description": "Get healthcare-associated infection (HAI) summary for a state. Returns counts of measures rated worse, better, or average compared to national benchmark. Use when asked about infection rates, HAI data, or hospital safety by state.",
-            "parameters": {
+                "description": "Healthcare-associated infection (HAI) summary for a state — counts of measures worse/better/average vs. national benchmark. Use for infection rates, HAI data, hospital safety by state.",            "parameters": {
                 "type": "object",
                 "properties": {
                     "state": {"type": "string", "description": "2-letter US state code e.g. OH, CA, TX"}
@@ -157,8 +152,7 @@ TOOLS = [
         "type": "function",
         "function": {
             "name": "web_search",
-            "description": "Search the web for current information, news, or context about healthcare, hospitals, or medical topics. Use when the question asks 'why', 'reason', 'explain', or requires context beyond the database.",
-            "parameters": {
+                "description": "Search the web for current info/news/context on healthcare topics. Use for 'why'/'reason'/'explain' questions or anything beyond the database.",            "parameters": {
                 "type": "object",
                 "properties": {
                     "query": {"type": "string", "description": "Search query to find relevant information."}
@@ -171,8 +165,7 @@ TOOLS = [
         "type": "function",
         "function": {
             "name": "search_cms_documents",
-            "description": "Search official CMS policy documents, methodology guides, and star rating technical notes. Use when asked about CMS criteria, rating methodology, how star ratings are calculated, regulatory requirements, or any question about the rules and policies behind hospital quality ratings.",
-            "parameters": {
+                "description": "Search official CMS policy docs/methodology guides/star-rating notes. Use for CMS criteria, rating methodology, or rules behind hospital quality ratings.",            "parameters": {
                 "type": "object",
                 "properties": {
                     "query": {"type": "string", "description": "The question or topic to search for in CMS documents."}
@@ -185,8 +178,7 @@ TOOLS = [
         "type": "function",
         "function": {
             "name": "get_historical_analytics",
-            "description": "Query historical data across multiple pipeline runs stored in S3. Use when asked about trends over time, how ratings changed across runs, or historical comparisons. Available analyses: 'rating_trend' (avg rating per run), 'rating_changes' (states with most change), 'hospital_appearances' (hospitals missing from some runs).",
-            "parameters": {
+                "description": "Historical data across pipeline runs (trends over time, rating changes). Analyses: 'rating_trend' (avg rating per run), 'rating_changes' (states with most change), 'hospital_appearances' (hospitals missing from some runs).",            "parameters": {
                 "type": "object",
                 "properties": {
                     "analysis": {
@@ -450,7 +442,10 @@ async def execute_tool(
     elif tool_name == "search_cms_documents":
         from app.rag.retriever import search_documents
         query = tool_args.get("query", "")
-        chunks = await search_documents(query, session)
+        # top_k=3 instead of the default 5 — chunks are 500 chars each, and 3 is
+        # still enough for a cited answer (source+page), while cutting ~1,000
+        # chars (~250 tokens) of CMS document text out of the context per call.
+        chunks = await search_documents(query, session, top_k=3)
         if not chunks:
             return json.dumps({"results": [], "message": "No CMS documents indexed yet. Run the ingestion script first."})
         formatted = [
