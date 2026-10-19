@@ -19,6 +19,31 @@ async def process_message(message: dict) -> None:
     await set_job_processing(job_id)
     logger.info("agent_worker_processing", job_id=job_id, question=question, country=country)
 
+    from app.core.cost_tracker import check_daily_limit, DAILY_COST_LIMIT_USD
+    allowed, spend_today = await check_daily_limit(username)
+    if not allowed:
+        logger.warning("daily_cost_limit_reached", username=username, spend_today=spend_today, limit=DAILY_COST_LIMIT_USD)
+        limit_result = {
+            "mode": "limit_reached",
+            "explanation": (
+                "You've reached today's AI usage limit for your account. "
+                "Please try again tomorrow, or reach out if you need a higher limit."
+            ),
+            "results": [],
+            "tools_used": [],
+            "tokens_used": {"prompt": 0, "completion": 0, "total": 0},
+            "estimated_cost_usd": 0,
+        }
+        await set_job_done(job_id, limit_result)
+        await delete_message(receipt_handle)
+        from app.core.realtime import publish_event
+        await publish_event("ai_query_done", {
+            "job_id": job_id,
+            "question": question,
+            "tools_used": [],
+        })
+        return
+
     try:
         async with AsyncSessionLocal() as session:
             result = await ask_agent(session, question, username=username, conversation_id=conversation_id, country=country, user_lat=user_lat, user_lng=user_lng)
