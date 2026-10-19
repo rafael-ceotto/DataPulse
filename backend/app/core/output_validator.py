@@ -11,6 +11,7 @@ class AgentOutput(BaseModel):
     results: list[Any]
     tokens_used: dict | None = None
     estimated_cost_usd: float | None = None
+    grounding: dict | None = None
 
     @field_validator("explanation")
     @classmethod
