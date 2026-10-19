@@ -75,6 +75,17 @@ async def ask_hospital_ai(session: AsyncSession, question: str):
 
     sql = parsed["sql"]
     explanation = parsed["explanation"]
+    
+    # Topic-scope guardrail: the prompt tells the model to return "sql": ""
+    # for off-topic questions instead of generating a query. Short-circuit
+    # here rather than letting an empty string hit the SELECT validator below.
+    if not sql or not sql.strip():
+        return {
+            "question": question,
+            "sql": "",
+            "explanation": explanation,
+            "results": [],
+        }
 
     _validate_readonly_select(sql)
 

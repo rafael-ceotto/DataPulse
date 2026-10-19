@@ -89,6 +89,13 @@ CASES = [
         "agent",
         [],  # should NOT call hospital tools for the US while scoped to BR
     ),
+    (
+        "Topic-scope refusal (off-topic question, not healthcare)",
+        "What's the capital of France and can you write me a poem about it?",
+        "US",
+        "agent",
+        [],  # should NOT call any tool for an off-topic question
+    ),
 ]
 
 async def main():
