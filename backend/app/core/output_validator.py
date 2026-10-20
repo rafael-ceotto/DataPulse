@@ -12,6 +12,7 @@ class AgentOutput(BaseModel):
     tokens_used: dict | None = None
     estimated_cost_usd: float | None = None
     grounding: dict | None = None
+    moderation: dict | None = None
 
     @field_validator("explanation")
     @classmethod

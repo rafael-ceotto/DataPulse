@@ -7,6 +7,8 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.ai.prompts import build_hospital_sql_prompt
 from app.core.config import settings
+from app.core.content_moderation import moderate_content
+from app.core.logging import logger
 
 GROQ_URL = "https://api.groq.com/openai/v1/chat/completions"
 GROQ_MODEL = "openai/gpt-oss-120b"
@@ -15,7 +17,7 @@ _FORBIDDEN_SQL_PATTERN = re.compile(
     r"\b("
     r"INSERT|UPDATE|DELETE|DROP|ALTER|CREATE|GRANT|REVOKE|TRUNCATE|COPY|"
     r"EXECUTE|CALL|VACUUM|REINDEX|MERGE|"
-    r"INTO|"  # blocks "SELECT ... INTO new_table" (side-effecting)
+    r"INTO|"
     r"PG_SLEEP|PG_READ_FILE|PG_READ_BINARY_FILE|PG_WRITE_FILE|"
     r"LO_IMPORT|LO_EXPORT|LO_GET|LO_PUT|DBLINK|"
     r"PG_TERMINATE_BACKEND|PG_CANCEL_BACKEND|SET\s+SESSION|SET\s+ROLE"
@@ -75,6 +77,16 @@ async def ask_hospital_ai(session: AsyncSession, question: str, country: str = "
 
     sql = parsed["sql"]
     explanation = parsed["explanation"]
+
+    moderation = await moderate_content(explanation)
+    explanation = moderation["text"]
+    if moderation["harmful_flagged"] or moderation["pii_categories"]:
+        logger.warning(
+            "sql_mode_moderation_flagged",
+            question=question,
+            pii_categories=moderation["pii_categories"],
+            harmful_categories=moderation["harmful_categories"],
+        )
 
     # Topic-scope guardrail: the prompt tells the model to return "sql": "" for off-topic questions instead of generating a query. 
     # Short-circuit here rather than letting an empty string hit the SELECT validator below.

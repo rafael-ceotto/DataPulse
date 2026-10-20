@@ -14,6 +14,7 @@ from app.core.logging import logger
 from app.ai.hospital_ai_service import ask_hospital_ai
 from app.core.output_validator import validate_agent_output
 from app.core.grounding_check import check_grounding
+from app.core.content_moderation import moderate_content
 
 GROQ_URL = "https://api.groq.com/openai/v1/chat/completions"
 GROQ_MODEL = "openai/gpt-oss-120b"
@@ -687,6 +688,17 @@ async def ask_agent(
                     question=question,
                     unverified_numbers=grounding["unverified_numbers"],
                 )
+
+            moderation = await moderate_content(final_content)
+            final_content = moderation["text"]
+            if moderation["harmful_flagged"] or moderation["pii_categories"]:
+                logger.warning(
+                    "agent_moderation_flagged",
+                    question=question,
+                    pii_categories=moderation["pii_categories"],
+                    harmful_categories=moderation["harmful_categories"],
+                )
+
             return validate_agent_output({
                     "question": question,
                     "mode": "agent",
@@ -700,6 +712,7 @@ async def ask_agent(
                     },
                     "estimated_cost_usd": cost,
                     "grounding": grounding,
+                    "moderation": moderation,
             })
 
         messages.append({"role": "assistant", "tool_calls": message["tool_calls"]})
@@ -807,6 +820,16 @@ async def ask_agent(
             unverified_numbers=grounding["unverified_numbers"],
         )
 
+    moderation = await moderate_content(final_content)
+    final_content = moderation["text"]
+    if moderation["harmful_flagged"] or moderation["pii_categories"]:
+        logger.warning(
+            "agent_moderation_flagged",
+            question=question,
+            pii_categories=moderation["pii_categories"],
+            harmful_categories=moderation["harmful_categories"],
+        )
+
     return validate_agent_output({
         "question": question,
         "mode": "agent",
@@ -820,6 +843,7 @@ async def ask_agent(
         },
         "estimated_cost_usd": cost,
         "grounding": grounding,
+        "moderation": moderation
     })
 
 
