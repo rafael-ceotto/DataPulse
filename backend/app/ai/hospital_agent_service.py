@@ -494,9 +494,9 @@ APOLOGY_MESSAGES = {
 }
 
 
-async def _safe_fallback(session: AsyncSession, question: str, lang: str) -> dict:
+async def _safe_fallback(session: AsyncSession, question: str, lang: str, country: str = "US") -> dict:
     try:
-        return await ask_hospital_ai(session, question)
+        return await ask_hospital_ai(session, question, country)
     except Exception as e:
         logger.error("ask_hospital_ai_fallback_failed", error=str(e))
         message = APOLOGY_MESSAGES.get(lang, APOLOGY_MESSAGES["en"])
@@ -630,7 +630,7 @@ async def ask_agent(
 
         if response.status_code == 400:
             logger.error("groq_400_error", detail=str(response.json()))
-            return await _safe_fallback(session, question, lang)
+            return await _safe_fallback(session, question, lang, country)
 
         if response.status_code == 429:
             rate_limit_retries += 1
@@ -648,7 +648,7 @@ async def ask_agent(
                     # from what we already have. Only _safe_fallback if that
                     # synthesis call itself also fails.
                     break
-                return await _safe_fallback(session, question, lang)
+                return await _safe_fallback(session, question, lang, country)
             wait_s = _retry_after_seconds(response, default=2.0 * (2 ** (rate_limit_retries - 1)))
             logger.warning("groq_rate_limit", iteration=iteration + 1, retry=rate_limit_retries, wait_s=wait_s)
             await asyncio.sleep(wait_s)
@@ -674,7 +674,7 @@ async def ask_agent(
         if finish_reason == "stop" or not message.get("tool_calls"):
             final_content = clean_content(content)
             if not final_content:
-                return await _safe_fallback(session, question, lang)
+                return await _safe_fallback(session, question, lang, country)
             if conversation_id:
                 from app.core.conversation_memory import append_to_conversation
                 await append_to_conversation(username, conversation_id, question, final_content)
@@ -779,7 +779,7 @@ async def ask_agent(
 
     if final_response is None or final_response.status_code != 200:
         logger.error("groq_final_error", detail=str(final_response.json()) if final_response else "no response")
-        return await _safe_fallback(session, question, lang)
+        return await _safe_fallback(session, question, lang, country)
 
     final_data = final_response.json()
 
@@ -790,7 +790,7 @@ async def ask_agent(
     final_content = clean_content(final_data["choices"][0]["message"]["content"])
 
     if not final_content:
-        return await _safe_fallback(session, question, lang)
+        return await _safe_fallback(session, question, lang, country)
 
     if conversation_id:
         from app.core.conversation_memory import append_to_conversation

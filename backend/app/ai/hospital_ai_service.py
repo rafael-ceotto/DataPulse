@@ -5,7 +5,7 @@ import httpx
 from sqlalchemy import text
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.ai.prompts import HOSPITAL_SYSTEM_PROMPT
+from app.ai.prompts import build_hospital_sql_prompt
 from app.core.config import settings
 
 GROQ_URL = "https://api.groq.com/openai/v1/chat/completions"
@@ -39,7 +39,7 @@ def _validate_readonly_select(sql: str) -> None:
         raise ValueError("Query contains a disallowed keyword or function.")
 
 
-async def ask_hospital_ai(session: AsyncSession, question: str):
+async def ask_hospital_ai(session: AsyncSession, question: str, country: str = "US"):
     async with httpx.AsyncClient(timeout=60.0) as client:
         response = await client.post(
             GROQ_URL,
@@ -52,7 +52,7 @@ async def ask_hospital_ai(session: AsyncSession, question: str):
                 "messages": [
                     {
                         "role": "system",
-                        "content": HOSPITAL_SYSTEM_PROMPT,
+                        "content": build_hospital_sql_prompt(country),
                     },
                     {
                         "role": "user",
@@ -75,10 +75,9 @@ async def ask_hospital_ai(session: AsyncSession, question: str):
 
     sql = parsed["sql"]
     explanation = parsed["explanation"]
-    
-    # Topic-scope guardrail: the prompt tells the model to return "sql": ""
-    # for off-topic questions instead of generating a query. Short-circuit
-    # here rather than letting an empty string hit the SELECT validator below.
+
+    # Topic-scope guardrail: the prompt tells the model to return "sql": "" for off-topic questions instead of generating a query. 
+    # Short-circuit here rather than letting an empty string hit the SELECT validator below.
     if not sql or not sql.strip():
         return {
             "question": question,

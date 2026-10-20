@@ -56,7 +56,7 @@ export async function askAI(question, conversationId = null, country = "US", use
     body: JSON.stringify({ question, conversation_id: conversationId, country, user_lat: userLat, user_lng: userLng }),
   });
 
-  const data = await response.json();
+    const data = await response.json();
 
   // Cached result returned directly
   if (data.explanation || data.sql) {
@@ -65,15 +65,57 @@ export async function askAI(question, conversationId = null, country = "US", use
 
   const jobId = data.job_id;
 
-  // Wait for result via Supabase Realtime
-  //12k -> 18k
-  // Compound questions that involves more than 3 tools need 4-5 GROQ calls
-  // real fix is reducing Groq round-trips per question or highter TPM plan
+  // Wait for result via Supabase Realtime, with a polling safety net.
+  // Was 120000ms (2 min), but a compound comparison question (e.g. comparing
+  // two states' rating + infections + CMS docs) can need 4-5 real Groq calls
+  // in ask_agent(), and under the account's current rate limit each one can
+  // carry a real Retry-After wait of up to 30s — a live test hit ~113s just
+  // to gather tool results, before the final synthesis call even ran, so 2
+  // minutes wasn't enough margin. Raised to 3 minutes. This is a band-aid for
+  // the account's Groq TPM limit (see DataPulse_Pending_Items.md), not a fix
+  // for it — if compound questions keep approaching this ceiling too, the
+  // real fix is reducing Groq round-trips per question or a higher-TPM plan.
+  //
+  // The Realtime subscription below is set up AFTER the POST above already
+  // returned job_id — subscribing takes a real WebSocket handshake, which
+  // can take longer than a fast job (a guardrail refusal can finish in
+  // ~1-2s). If the backend publishes "job done" before the subscription is
+  // confirmed, Realtime does not replay it, and the UI used to sit waiting
+  // for the full 3-minute timeout even though the answer was ready almost
+  // instantly. The polling fallback below guarantees we notice within a few
+  // seconds regardless of what Realtime does.
   return new Promise((resolve, reject) => {
-    const timeout = setTimeout(() => {
+    let settled = false;
+
+    const finish = (fn, arg) => {
+      if (settled) return;
+      settled = true;
+      clearTimeout(timeout);
+      clearInterval(pollInterval);
       channel.unsubscribe();
-      reject(new Error("Query timed out after 3 minutes"));
+      fn(arg);
+    };
+
+    const fetchResult = () => {
+      fetch(`${API_URL}/api/v1/ai/query/${jobId}`, {
+        headers: { "Authorization": `Bearer ${token}` },
+      })
+        .then(r => r.json())
+        .then(result => {
+          if (!result || result.status === "pending") return;
+          if (result.status === "failed") finish(reject, new Error(result.error || "AI query failed on the server."));
+          else finish(resolve, result);
+        })
+        .catch(() => {
+          // transient poll error — ignore, Realtime or the next poll may still land
+        });
+    };
+
+    const timeout = setTimeout(() => {
+      finish(reject, new Error("Query timed out after 3 minutes"));
     }, 180000);
+
+    const pollInterval = setInterval(fetchResult, 3000);
 
     const channel = supabase
       .channel(`ai-query-done-${jobId}`)
@@ -84,18 +126,7 @@ export async function askAI(question, conversationId = null, country = "US", use
         filter: `type=eq.ai_query_done`,
       }, (payload) => {
         if (payload.new?.payload?.job_id === jobId) {
-          clearTimeout(timeout);
-          channel.unsubscribe();
-          // Fetch the actual result
-          fetch(`${API_URL}/api/v1/ai/query/${jobId}`, {
-            headers: { "Authorization": `Bearer ${token}` },
-          })
-            .then(r => r.json())
-            .then(result => {
-              if (result.status === "failed") reject(new Error(result.error || "AI query failed on the server."));
-              else resolve(result);
-            })
-            .catch(reject);
+          fetchResult();
         }
       })
       .subscribe();
