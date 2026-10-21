@@ -418,8 +418,6 @@ poetry run python scripts/ingest_cms_docs.py
 
 ## Recent updates
 
-*## Recent updates
-
 **Voice assistant, shipped.** -  Wake-free voice input via the Web Speech API: the agent receives the spoken question with geolocation context, and the full answer (markdown explanation + results table) is shown on screen while being read aloud via Speech Synthesis, instead of speech-only with no visible transcript. The voice picker now appears as soon as voices load, before the microphone is even activated.
 
 **Multi-country guardrails.** Per-country suggested questions and localized placeholders for all 10 supported countries (US, BR, CA, GB, FR, BE, PT, ES, IT, MT). If a question mentions a country other than the one selected, the frontend holds it back with a banner ("Use [Country]" / "Send anyway") and, as a second line of defense, the agent itself is instructed server-side to refuse answering about a mismatched country, which now is enforced in both the tool-calling agent mode and the legacy SQL fallback mode.
