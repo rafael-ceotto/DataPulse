@@ -98,13 +98,17 @@ def query_historical(sql: str, *, validate: bool = True) -> list[dict]:
 def get_rating_trend() -> list[dict]:
     """Average rating per pipeline run, ordered by run_id."""
     return query_historical("""
-        SELECT
-            run_id,
-            ROUND(AVG(overall_rating), 3) AS avg_rating,
-            COUNT(*) AS total_hospitals,
-            COUNT(CASE WHEN overall_rating IS NOT NULL THEN 1 END) AS rated_hospitals
-        FROM hospitals
-        GROUP BY run_id
+        SELECT * FROM (
+            SELECT
+                run_id,
+                ROUND(AVG(overall_rating), 3) AS avg_rating,
+                COUNT(*) AS total_hospitals,
+                COUNT(CASE WHEN overall_rating IS NOT NULL THEN 1 END) AS rated_hospitals
+            FROM hospitals
+            GROUP BY run_id
+            ORDER BY run_id DESC
+            LIMIT 20
+        ) recent_runs
         ORDER BY run_id
     """)
 

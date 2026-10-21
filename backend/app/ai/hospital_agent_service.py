@@ -323,7 +323,7 @@ async def execute_tool(
     if tool_name == "search_hospitals":
         state = tool_args.get("state", "")
         search = tool_args.get("search", "")
-        limit = tool_args.get("limit", 10)
+        limit = min(tool_args.get("limit", 10), 20)
         params = f"?limit={limit}&country={country}"
         if state:
             params += f"&state={state}"
