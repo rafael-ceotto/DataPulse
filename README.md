@@ -15,17 +15,17 @@ Hospital quality data is public. 18,595 hospitals across 10 countries. Quality r
 - **Backend:** Python, FastAPI, SQLAlchemy, Alembic, PostgreSQL + pgvector, Pydantic V2, httpx
 - **AI:** Groq API (openai/gpt-oss-120b) with tool calling, web search via Tavily, and RAG over CMS documents
 - **Embeddings:** sentence-transformers (all-MiniLM-L6-v2) running locally
-- **Messaging:** SQS via Floci — async AI query processing with job polling
+- **Messaging:** SQS via Floci (async AI query processing with job polling)
 - **Data:** dbt (staging, intermediate, marts), Apache Airflow, APScheduler
 - **Storage:** Redis, Floci (local AWS S3 emulator) via boto3
 - **Analytics:** DuckDB (historical queries over S3 pipeline snapshots)
 - **Observability:** Prometheus, Grafana, Loki, structlog
 - **Realtime:** Supabase Realtime (WebSocket events for AI queries and pipeline runs)
 - **Infra:** Docker, Docker Compose, GitHub Actions CI/CD
-- **Frontend:** React + Vite — light sidebar + dark content layout, geolocation, multi-language support (EN, PT, FR, ES, IT)
+- **Frontend:** React + Vite (light sidebar + dark content layout, geolocation, multi-language support (EN, PT, FR, ES, IT))
 - **Integrations:** Slack, Notion, GitHub
 - **Geolocation:** ZIP code geocoding via US Census lookup (33,792 ZIP codes) + Haversine proximity search
-- **Big Data:** PySpark 3.5 — full 3.3M physician records processed as temporary Docker container, output saved as Parquet to S3
+- **Big Data:** PySpark 3.5 for full 3.3M physician records processed as temporary Docker container, output saved as Parquet to S3
 
 ---
 
@@ -148,7 +148,7 @@ graph TB
     UI -->|polling 60s| GHActions
 ```
 
-The pipeline follows **Medallion Architecture** principles — Bronze (raw source data), Silver (validated via Pydantic), Gold (PostgreSQL + dbt), Data Lake (S3 snapshots per run).
+The pipeline follows **Medallion Architecture** principles: Bronze (raw source data), Silver (validated via Pydantic), Gold (PostgreSQL + dbt), Data Lake (S3 snapshots per run).
 
 ---
 
@@ -259,13 +259,13 @@ Create `backend/.env`:
 ```env
 DB_URL=postgresql+asyncpg://datapulse:datapulse@localhost:5433/datapulse
 
-# Auth — required for anything beyond local experimentation.
+# Auth required for anything beyond local experimentation.
 # Without these, the app falls back to insecure defaults (admin/datapulse2024
 # and a hardcoded JWT key) baked into app/core/config.py — fine to poke
 # around locally, but never use those defaults anywhere reachable by others.
-JWT_SECRET_KEY=...            # required — generate with: python3 -c "import secrets; print(secrets.token_urlsafe(64))"
-AUTH_USERNAME=...             # required — your own login username
-AUTH_PASSWORD_HASH=...        # required — a bcrypt hash of your password, generate with: python3 -c "import bcrypt; print(bcrypt.hashpw(b'your-password', bcrypt.gensalt()).decode())"
+JWT_SECRET_KEY=...            # required — Generate with: python3 -c "import secrets; print(secrets.token_urlsafe(64))"
+AUTH_USERNAME=...             # required — Your own login username
+AUTH_PASSWORD_HASH=...        # required — A bcrypt hash of your password, generate with: python3 -c "import bcrypt; print(bcrypt.hashpw(b'your-password', bcrypt.gensalt()).decode())"
 
 # Note: if this .env is parsed by docker compose (not just by the app), escape every literal $ in the hash as $$, e.g $2b$12$abc...becomes $$2b$$12$$abc... Compose does its own variable interpolation on .env files and will otherwise mangle the hash.
 
@@ -278,6 +278,7 @@ GITHUB_TOKEN=...              # optional
 GITHUB_REPO=your-username/DataPulse
 PIPELINE_INTERVAL_HOURS=6
 AI_RATE_LIMIT_PER_MINUTE=5
+DAILY_COST_LIMIT_USD=1.00     # optional — per-user daily Groq spend cap before queries are blocked
 SUPABASE_URL=https://...      # required for Realtime
 SUPABASE_ANON_KEY=eyJ...      # required for Realtime
 CMS_HOSPITAL_ENROLLMENTS_URL=...   # optional — CMS Hospital Enrollments CSV (dated filename, published monthly)
@@ -294,13 +295,15 @@ AI queries are processed asynchronously via SQS. The endpoint returns a `job_id`
 
 The country summary endpoint generates a 3–4 sentence overview of each country's healthcare system in the country's primary language (Italian for IT, Portuguese for BR and PT, French for FR and BE, Spanish for ES, English for US/CA/GB/MT). Results are cached in Redis for 24 hours.
 
-**Available tools:** `search_hospitals`, `get_top_rated_hospitals`, `get_rating_distribution`, `get_physician_state_analysis`, `get_scarce_specialties`, `get_hospital_infections`, `web_search`, `search_cms_documents`, `get_historical_analytics`
+**Available tools:** `search_hospitals`, `get_top_rated_hospitals`, `get_rating_distribution`, `find_nearby_hospitals`, `get_physician_state_analysis`, `get_scarce_specialties`, `get_hospital_infections`, `web_search`, `search_cms_documents`, `get_historical_analytics`
 
 The agent is multilingual. It detects the language of the question and responds in the same language (EN, PT, ES, FR, IT, DE).
 
-Each response shows token usage and estimated cost. User-level stats available at `GET /api/v1/ai/stats`.
+Each response shows token usage and estimated cost. User-level stats available at `GET /api/v1/ai/stats`. Each user also has a configurable daily cost cap (`DAILY_COST_LIMIT_USD`, default $1.00/day). Once hit, queries return a polite limit-reached message instead of calling Groq again.
 
-The agent supports **conversational memory**. Each conversation has a unique ID and the agent remembers context across queries for 24 hours. Users can start a new conversation at any time via the "↺ New conversation" button.
+The agent supports **conversational memory**. Each conversation has a unique ID and the agent remembers context across queries for 24 hours. Older turns beyond a small recent-pairs window are folded into a running summary (via a small Groq model) instead of being dropped outright, so long conversations keep useful context without resending the full transcript every turn. Users can start a new conversation at any time via the "↺ New conversation" button.
+
+**Guardrails on every response:** a post-hoc grounding check flags numbers in the answer that don't trace back to any tool result; a content-moderation pass redacts PII (email, phone, credit card, SSN, CPF) via regex and classifies harmful content via a policy-based Groq safety model; both are non-blocking signals (logged, never a hard refusal) so a false positive never breaks a legitimate answer. The agent also refuses off-topic questions and questions about a country other than the one selected, in both its tool-calling mode and the legacy SQL fallback mode.
 
 ---
 
@@ -322,7 +325,7 @@ The agent supports **conversational memory**. Each conversation has a unique ID 
 
 **Wikidata SPARQL for 7 of 10 countries** — most countries don't have structured, open hospital APIs. Wikidata covers them all with a consistent SPARQL query — only the country QID changes (Q38 for Italy, Q233 for Malta, etc.). This allowed scaling from 2 to 10 countries in one week.
 
-**City filter instead of state filter for Wikidata countries** — Wikidata countries store a fixed country name in the `state` column (e.g. "Italia"). The `CITY_FILTER_COUNTRIES` set in the repository layer switches the filter to `city ILIKE '%value%'` for BE, CA, IT, MT, PT, ES, GB, FR — keeping the API interface consistent across all countries.
+**City filter instead of state filter for Wikidata countries** — Wikidata countries store a fixed country name in the `state` column (e.g. "Italia"). The `CITY_FILTER_COUNTRIES` set in the repository layer switches the filter to `city ILIKE '%value%'` for BE, CA, IT, MT, PT, ES, GB, and FR, keeping the API interface consistent across all countries.
 
 **SQS for async AI queries** — queries go into a Floci SQS queue. A worker processes them without blocking the API. Cached queries bypass the queue entirely.
 
@@ -344,7 +347,11 @@ The agent supports **conversational memory**. Each conversation has a unique ID 
 
 **Upsert instead of delete+insert** — the pipeline can run as many times as needed without duplicates.
 
-**Conversational memory per session** — each conversation is stored in Redis under `conversation:{username}:{conversation_id}` with a 24h TTL.
+**Conversational memory per session, summarized when it grows** — each conversation is stored in Redis under `conversation:{username}:{conversation_id}` with a 24h TTL. Only the most recent few pairs are kept verbatim; anything older is folded into a running summary by a small Groq model instead of being discarded, so the token cost stays bounded without losing earlier context.
+
+**Safety model swapped after an upstream decommission** — content moderation was originally built on Llama Guard; Groq decommissioned that model mid-project, so it was replaced with `openai/gpt-oss-safeguard-20b`, a policy-based safety model (the violation policy is defined in our own system prompt rather than a fixed taxonomy).
+
+**Golden-set regression testing for the agent** — `backend/scripts/golden_set_test.py` exercises 9 representative scenarios (including the hardest one: a multi-state comparison question that originally took 6 rounds of fixes) end-to-end against the real agent, checking which tools got called and how many times — used to catch behavior regressions whenever the prompt or tool schemas change.
 
 **Proactive anomaly detection** — after every pipeline run, the system automatically checks for rating drops, completeness issues, and unusual counts of low-rated hospitals. Alerts go to Slack independently of the insight generation.
 
@@ -362,9 +369,10 @@ The agent supports **conversational memory**. Each conversation has a unique ID 
 cd backend
 poetry run pytest tests/ -v           # all tests
 poetry run pytest tests/evaluation -v # agent evaluation suite
+docker compose exec api python scripts/golden_set_test.py
 ```
 
-The evaluation suite runs in CI with `continue-on-error: true` — it reports agent behavior without blocking the pipeline.
+The evaluation suite runs in CI with `continue-on-error: true` and it reports agent behavior without blocking the pipeline.
 
 ---
 
@@ -410,13 +418,19 @@ poetry run python scripts/ingest_cms_docs.py
 
 ## Recent updates
 
-**Voice assistant, shipped.** Wake-free voice input via the Web Speech API: the agent receives the spoken question with geolocation context, and the full answer (markdown explanation + results table) is shown on screen while being read aloud via Speech Synthesis, instead of speech-only with no visible transcript. The voice picker now appears as soon as voices load, before the microphone is even activated.
+*## Recent updates
 
-**Multi-country guardrails.** Per-country suggested questions and localized placeholders for all 10 supported countries (US, BR, CA, GB, FR, BE, PT, ES, IT, MT). If a question mentions a country other than the one selected, the frontend holds it back with a banner ("Use [Country]" / "Send anyway") and, as a second line of defense, the agent itself is instructed server-side to refuse answering about a mismatched country — confirmed working end-to-end live.
+**Voice assistant, shipped.** -  Wake-free voice input via the Web Speech API: the agent receives the spoken question with geolocation context, and the full answer (markdown explanation + results table) is shown on screen while being read aloud via Speech Synthesis, instead of speech-only with no visible transcript. The voice picker now appears as soon as voices load, before the microphone is even activated.
 
-**Real device geolocation for "near me" questions.** `navigator.geolocation` now flows through the whole chain (frontend → API → SQS → worker → agent tools), so "hospital near me" resolves to the device's real coordinates when no place is named, in any of the 5 supported languages (EN/PT/ES/FR/IT). A named place still takes priority over the device's position.
+**Multi-country guardrails.** Per-country suggested questions and localized placeholders for all 10 supported countries (US, BR, CA, GB, FR, BE, PT, ES, IT, MT). If a question mentions a country other than the one selected, the frontend holds it back with a banner ("Use [Country]" / "Send anyway") and, as a second line of defense, the agent itself is instructed server-side to refuse answering about a mismatched country, which now is enforced in both the tool-calling agent mode and the legacy SQL fallback mode.
 
-**Security hardening.** Login attempts are now rate-limited; LLM-generated SQL is validated before execution; a hardcoded Supabase key was removed from `docker-compose.yml`; the frontend no longer auto-logs in with hardcoded credentials (now reads from env vars). A broader pentest pass is in progress — remaining items (prompt injection, XSS, CORS abuse, IDOR, container hardening, etc.) are tracked separately.
+**Real device geolocation for "near me" questions**: navigator.geolocation now flows through the whole chain (frontend → API → SQS → worker → agent tools), so "hospital near me" resolves to the device's real coordinates when no place is named, in any of the 5 supported languages (EN/PT/ES/FR/IT). A named place still takes priority over the device's position.
+
+**Pentest completed** Prompt-injection resistance on both AI prompts; global rate limiting across all endpoints; a read-only SQL validator (plus `enable_external_access=False`) on the DuckDB analytics endpoint; confirmed-live login brute-force protection; `npm audit` clean; security headers (CSP/HSTS/X-Frame-Options/etc.); generic error responses instead of leaking stack traces; non-root users in every Docker image; Supabase Realtime locked down with RLS policies. XSS, CORS, IDOR, SSRF, deserialization, and file-upload paths were reviewed and found to be safe by construction; authorization granularity is accepted as-is for the current single-user design.
+
+**LLM guardrails and reliability.** Post-hoc grounding check flags unverified numbers in the agent's answer; content moderation redacts PII and classifies harmful content via a policy-based Groq safety model (non-blocking: a flag is logged, never a refusal); a per-user daily cost cap stops runaway spend before it reaches Groq; tool results that had no size cap (`search_hospitals`, the rating-trend historical query) are now bounded like their sibling tools; and long conversation histories are summarized instead of hard-truncated, so old context isn't just dropped. All of this is covered by a golden-set regression test (`backend/scripts/golden_set_test.py`) that exercises 9 representative agent scenarios end-to-end.
+
+**Token/latency optimization.** The agent's tool schemas and system prompt were trimmed by roughly 9% of the fixed per-iteration token cost (resent on every loop iteration, so the saving compounds on multi-step questions) without changing any previously-fixed behavior.
 
 **Alembic autogenerate fixed.** Database objects that exist without a matching SQLAlchemy model (trigram/country indexes, the dbt table) no longer show up as spurious `DROP` candidates on `--autogenerate`.
 
@@ -424,6 +438,6 @@ poetry run python scripts/ingest_cms_docs.py
 
 ## What's next
 
-- **Native app** — Expo + React Native for App Store and Google Play. The FastAPI backend stays unchanged (same REST API, no rewrite). Voice via `expo-speech` + `expo-av` (more robust than the Web Speech API on mobile) plus native wake-word detection and push notifications. Mobile-first layout: map-first screen with bottom navigation instead of the web sidebar. Scope, timing and architecture details (auth flow on mobile, store distribution/signing) still to be defined.
-- **Pentest completion** — close out the remaining security review items: prompt injection resistance on the AI agent, XSS payload testing, CORS abuse testing, rate limits on unprotected endpoints, IDOR/enumeration on `facility_id`, security headers (CSP/HSTS/X-Frame-Options), error/stack-trace leakage, log scrubbing, SSRF on the web-search/document-search tools, WebSocket channel authorization, and container hardening (non-root, image scanning).
+- **Native app** — Expo + React Native for App Store and Google Play. The FastAPI backend stays unchanged (same REST API, no rewrite). Voice via `expo-speech` + `expo-av` (more robust than the Web Speech API on mobile) plus native wake-word detection and push notifications. Mobile-first layout: map-first screen with bottom navigation instead of the web sidebar. Going multi-tenant (a real `users` table, per-user conversation isolation, Supabase Auth for Realtime) is a natural prerequisite once this has more than one real user. Scope, timing and architecture details (auth flow on mobile, store distribution/signing) still to be defined.
+- **Groq rate-limit headroom** — the account's current TPM/RPM budget is the main source of response latency on compound questions today; the code already retries and recovers gracefully, but a plan upgrade or further token reduction would remove the bottleneck itself rather than just handling it.
 - **Data enrichment** — hospitals from Wikidata countries (BE, CA, IT, MT, PT, ES, GB) are missing phone numbers, addresses, and zip codes. OpenStreetMap Overpass API and country-specific open data portals are the next sources to explore.
