@@ -400,6 +400,11 @@ export default function AIQuery({ country = "US", onCountryChange }) {
                   )}
                 </span>
               )}
+              {answer.data_as_of && (
+                <span style={{ fontFamily: theme.mono, fontSize: 11, color: "#6f8a95", letterSpacing: "0.04em" }}>
+                  📅 Data as of {answer.data_as_of}
+                </span>
+              )}
             </div>
           )}
 

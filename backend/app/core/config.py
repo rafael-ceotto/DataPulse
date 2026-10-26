@@ -20,6 +20,7 @@ class Settings(BaseSettings):
     AI_RATE_LIMIT_PER_MINUTE: int = 5
     SUPABASE_URL: str = ""
     SUPABASE_ANON_KEY: str = ""
+    ENVIRONMENT: str = "production"
     CMS_HOSPITAL_ENROLLMENTS_URL: str = "https://data.cms.gov/sites/default/files/2026-08/bcf5ccda-1482-4c43-8198-de1efa2f83c8/Hospital_Enrollments_2026.07.31.csv"
     ANS_INSURANCE_NETWORK_URL: str = "https://dadosabertos.ans.gov.br/FTP/PDA/produtos_e_prestadores_hospitalares/produtos_e_prestadores_hospitalares.zip"
 

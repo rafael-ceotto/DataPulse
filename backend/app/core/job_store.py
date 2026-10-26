@@ -4,10 +4,12 @@ from app.core.logging import logger
 
 JOB_TTL = 3600
 
-async def create_job(job_id: str, question: str) -> None:
+async def create_job(job_id: str, question: str, country: str = "US", conversation_id: str | None = None) -> None:
     await set_cache(f"job:{job_id}", {
         "job_id": job_id,
         "question": question,
+        "country": country,
+        "conversation_id": conversation_id,
         "status": "queued",
         "result": None,
     }, ttl=JOB_TTL)

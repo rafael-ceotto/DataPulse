@@ -424,8 +424,13 @@ export default function App() {
           {voiceAnswer && (voiceAnswer.explanation || voiceAnswer.results?.length > 0) && (
             <div style={{ padding: "20px 40px", borderBottom: "1px solid #243d4d", display: "flex", justifyContent: "center", flexShrink: 0 }}>
               <div style={{ maxWidth: 800, width: "100%" }}>
-                <div style={{ fontFamily: theme.mono, fontSize: 10, color: "#6f8a95", letterSpacing: "0.07em", textTransform: "uppercase", marginBottom: 10 }}>
-                  🎙 Voice Answer
+                <div style={{ fontFamily: theme.mono, fontSize: 10, color: "#6f8a95", letterSpacing: "0.07em", textTransform: "uppercase", marginBottom: 10, display: "flex", alignItems: "center", justifyContent: "space-between", gap: 10 }}>
+                  <span>🎙 Voice Answer</span>
+                  {voiceAnswer.data_as_of && (
+                    <span style={{ textTransform: "none", letterSpacing: "0.04em" }}>
+                      📅 Data as of {voiceAnswer.data_as_of}
+                    </span>
+                  )}
                 </div>
                                 {voiceAnswer.explanation && (
                   <div style={{ marginBottom: voiceAnswer.results?.length > 0 ? 18 : 0, fontSize: 14, lineHeight: 1.7, color: "#a0b8c4" }}>

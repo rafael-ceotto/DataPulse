@@ -3,6 +3,7 @@ import asyncio
 from unittest.mock import AsyncMock, patch
 from httpx import AsyncClient, ASGITransport
 from app.main import app
+from app.core.auth import create_access_token, DEMO_USER
 
 AUTH_URL = "/api/v1/auth/token"
 AI_URL = "/api/v1/ai/query"
@@ -56,13 +57,7 @@ async def client():
 
 @pytest.fixture(scope="session")
 async def auth_token(client):
-    response = await client.post(
-        AUTH_URL,
-        data={"username": "admin", "password": "datapulse2024"},
-        headers={"Content-Type": "application/x-www-form-urlencoded"},
-    )
-    assert response.status_code == 200
-    return response.json()["access_token"]
+    return create_access_token({"sub": DEMO_USER["username"]})
 
 
 @pytest.mark.parametrize("case", EVAL_CASES, ids=[c["id"] for c in EVAL_CASES])

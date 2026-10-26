@@ -612,6 +612,16 @@ async def ask_agent(
     iteration = 0
     rate_limit_retries = 0
     while iteration < MAX_ITERATIONS:
+        skip_tools = bool(forced_tool) and iteration > 0
+        payload = {
+            "model": GROQ_MODEL,
+            "messages": messages,
+            "temperature": 0.1,
+        }
+        if not skip_tools:
+            payload["tools"] = TOOLS
+            payload["tool_choice"] = forced_tool if (iteration == 0 and forced_tool) else "auto"
+            payload["parallel_tool_calls"] = True
         async with httpx.AsyncClient(timeout=60.0) as client:
             response = await client.post(
                 GROQ_URL,
@@ -637,17 +647,7 @@ async def ask_agent(
             rate_limit_retries += 1
             if rate_limit_retries > MAX_RATE_LIMIT_RETRIES:
                 logger.error("groq_rate_limit_exhausted", retries=rate_limit_retries, tools_used=all_tools_used)
-                if all_tools_used:
-                    # We already gathered real data (e.g. in the OH/VT
-                    # reproduction: rating distribution + infections for both
-                    # states + CMS docs, all 4 tool calls succeeded before the
-                    # 5th call's retries ran out). Throwing that away and
-                    # falling back to the legacy raw-SQL mode wastes it for no
-                    # reason — fall through to the same final-synthesis step
-                    # used when MAX_ITERATIONS is exhausted normally, so the
-                    # model still gets a shot at writing the narrative answer
-                    # from what we already have. Only _safe_fallback if that
-                    # synthesis call itself also fails.
+                if all_tools_used:                   
                     break
                 return await _safe_fallback(session, question, lang, country)
             wait_s = _retry_after_seconds(response, default=2.0 * (2 ** (rate_limit_retries - 1)))
@@ -690,6 +690,9 @@ async def ask_agent(
                 )
 
             moderation = await moderate_content(final_content)
+            from app.repositories.pipeline_run_repository import get_latest_successful_run_at
+            latest_run_at = await get_latest_successful_run_at(session)
+            data_as_of = latest_run_at.strftime("%Y-%m-%d") if latest_run_at else None
             final_content = moderation["text"]
             if moderation["harmful_flagged"] or moderation["pii_categories"]:
                 logger.warning(
@@ -713,6 +716,7 @@ async def ask_agent(
                     "estimated_cost_usd": cost,
                     "grounding": grounding,
                     "moderation": moderation,
+                    "data_as_of": data_as_of,
             })
 
         messages.append({"role": "assistant", "tool_calls": message["tool_calls"]})
@@ -779,6 +783,7 @@ async def ask_agent(
                 json={
                     "model": GROQ_MODEL,
                     "messages": messages,
+                    "tool_choice": "none",
                     "temperature": 0.1,
                     "max_tokens": 1024,
                 }
@@ -821,6 +826,9 @@ async def ask_agent(
         )
 
     moderation = await moderate_content(final_content)
+    from app.repositories.pipeline_run_repository import get_latest_successful_run_at
+    latest_run_at = await get_latest_successful_run_at(session)
+    data_as_of = latest_run_at.strftime("%Y-%m-%d") if latest_run_at else None
     final_content = moderation["text"]
     if moderation["harmful_flagged"] or moderation["pii_categories"]:
         logger.warning(
@@ -843,7 +851,8 @@ async def ask_agent(
         },
         "estimated_cost_usd": cost,
         "grounding": grounding,
-        "moderation": moderation
+        "moderation": moderation,
+        "data_as_of": data_as_of,
     })
 
 

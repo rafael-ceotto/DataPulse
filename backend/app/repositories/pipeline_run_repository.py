@@ -70,6 +70,13 @@ async def get_recent_insights(session: AsyncSession, limit: int = 5) -> list[dic
         for r in reversed(runs)
     ]
     
+async def get_latest_successful_run_at(session: AsyncSession) -> datetime | None:
+    result = await session.execute(
+        select(PipelineRun).where(PipelineRun.status == "success").order_by(PipelineRun.finished_at.desc()).limit(1)
+    )
+    run = result.scalar_one_or_none()
+    return run.finished_at if run else None
+    
 async def get_previous_avg_rating(session: AsyncSession) -> float | None:
     result = await session.execute(
         select(PipelineRun)

@@ -13,6 +13,7 @@ class AgentOutput(BaseModel):
     estimated_cost_usd: float | None = None
     grounding: dict | None = None
     moderation: dict | None = None
+    data_as_of: str | None = None
 
     @field_validator("explanation")
     @classmethod

@@ -9,6 +9,7 @@ from app.ai.prompts import build_hospital_sql_prompt
 from app.core.config import settings
 from app.core.content_moderation import moderate_content
 from app.core.logging import logger
+from app.repositories.pipeline_run_repository import get_latest_successful_run_at
 
 GROQ_URL = "https://api.groq.com/openai/v1/chat/completions"
 GROQ_MODEL = "openai/gpt-oss-120b"
@@ -87,6 +88,8 @@ async def ask_hospital_ai(session: AsyncSession, question: str, country: str = "
             pii_categories=moderation["pii_categories"],
             harmful_categories=moderation["harmful_categories"],
         )
+    latest_run_at = await get_latest_successful_run_at(session)
+    data_as_of = latest_run_at.strftime("%Y-%m-%d") if latest_run_at else None
 
     # Topic-scope guardrail: the prompt tells the model to return "sql": "" for off-topic questions instead of generating a query. 
     # Short-circuit here rather than letting an empty string hit the SELECT validator below.
@@ -96,6 +99,7 @@ async def ask_hospital_ai(session: AsyncSession, question: str, country: str = "
             "sql": "",
             "explanation": explanation,
             "results": [],
+            "data_as_of": data_as_of,
         }
 
     _validate_readonly_select(sql)
@@ -117,4 +121,5 @@ async def ask_hospital_ai(session: AsyncSession, question: str, country: str = "
             })
             for row in rows
         ],
+        "data_as_of": data_as_of,
     }

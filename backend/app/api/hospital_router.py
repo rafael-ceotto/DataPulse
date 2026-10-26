@@ -293,11 +293,16 @@ async def get_hospitals_facility_id(facility_id: str, session: AsyncSession = De
 @limiter.limit("5/minute")
 async def ai_query(request: Request, body: AIQueryRequest, session: AsyncSession = Depends(get_session), current_user: dict = Depends(get_current_user)):
     cache_key = f"ai_query:{body.country}:{hashlib.md5(body.question.lower().encode()).hexdigest()}"
-    cached = await get_cache(cache_key)
-    if cached:
-        return cached
+    # Only serve/populate the cache for standalone questions — a question
+    # asked inside an ongoing conversation can depend on prior turns, so
+    # caching it under a bare question+country key could leak another
+    # conversation's answer into this one.
+    if not body.conversation_id:
+        cached = await get_cache(cache_key)
+        if cached:
+            return cached
     job_id = str(uuid.uuid4())
-    await create_job(job_id, body.question)
+    await create_job(job_id, body.question, country=body.country, conversation_id=body.conversation_id)
     await publish_query(job_id, body.question, username=current_user["username"], conversation_id=body.conversation_id, country=body.country, user_lat=body.user_lat, user_lng=body.user_lng)
 
     return {"job_id": job_id, "status": "queued"}
@@ -309,8 +314,10 @@ async def get_ai_query_result(job_id: str, current_user: dict = Depends(get_curr
         raise HTTPException(status_code=404, detail="Job not found")
     if job["status"] == "done":
         result = job["result"]
-        cache_key = f"ai_query:{hashlib.md5(job['question'].lower().encode()).hexdigest()}"
-        await set_cache(cache_key, result, ttl=600)
+        if not job.get("conversation_id"):
+            country = job.get("country", "US")
+            cache_key = f"ai_query:{country}:{hashlib.md5(job['question'].lower().encode()).hexdigest()}"
+            await set_cache(cache_key, result, ttl=600)
         return result
     return {"job_id": job_id, "status": job["status"], "error": job.get("error")}
 
