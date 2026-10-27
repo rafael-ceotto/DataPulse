@@ -102,7 +102,7 @@ export async function askAI(question, conversationId = null, country = "US", use
       })
         .then(r => r.json())
         .then(result => {
-          if (!result || result.status === "pending") return;
+          if (!result || result.status === "queued" || result.status === "processing") return;
           if (result.status === "failed") finish(reject, new Error(result.error || "AI query failed on the server."));
           else finish(resolve, result);
         })
