@@ -376,8 +376,26 @@ function HospitalCard({ hospital, expanded, onExpand, onClose, onInfectionsLoade
         <span style={{ fontFamily: theme.mono, fontSize: 12, color: theme.faint, letterSpacing: "0.04em" }}>
           {zipLabel} {hospital.zip_code}
         </span>
-        {isUS ? <Stars rating={hospital.overall_rating ?? 0} /> :
-          sourceBadge ? <span style={{ fontFamily: theme.mono, fontSize: 11, color: "#6f8a95" }}>{sourceBadge}</span> : null}
+        <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+          {isUS && hospital.accepts_medicare && (
+            <span style={{
+              fontFamily: theme.mono, fontSize: 10.5, padding: "3px 8px", borderRadius: 20,
+              background: "#2f9e6f22", color: "#2f9e6f", border: "1px solid #2f9e6f55",
+            }}>
+              ✓ Medicare
+            </span>
+          )}
+          {isBR && hospital.insurance_operator_count > 0 && (
+            <span style={{
+              fontFamily: theme.mono, fontSize: 10.5, padding: "3px 8px", borderRadius: 20,
+              background: "#2f9e6f22", color: "#2f9e6f", border: "1px solid #2f9e6f55",
+            }}>
+              {hospital.insurance_operator_count} convênio{hospital.insurance_operator_count > 1 ? "s" : ""}
+            </span>
+          )}
+          {isUS ? <Stars rating={hospital.overall_rating ?? 0} /> :
+            sourceBadge ? <span style={{ fontFamily: theme.mono, fontSize: 11, color: "#6f8a95" }}>{sourceBadge}</span> : null}
+        </div>
       </div>
     </article>
   );
@@ -413,6 +431,8 @@ export default function HospitalList({ country = "US" }) {
   const [expandedId, setExpandedId] = useState(null);
   const [selected, setSelected] = useState({});
   const [exportingState, setExportingState] = useState(false);
+  const [acceptsMedicare, setAcceptsMedicare] = useState(false);
+  const [insuranceOperator, setInsuranceOperator] = useState("");
   const limit = 8;
   const isBR = country === "BR";
   const isFR = country === "FR";
@@ -425,8 +445,8 @@ export default function HospitalList({ country = "US" }) {
 
   useEffect(() => {
     if (!open) return;
-    getHospitals(page, limit, stateFilter, search, country).then(setHospitals);
-  }, [page, stateFilter, search, open, country]);
+    getHospitals(page, limit, stateFilter, search, country, { acceptsMedicare, insuranceOperator }).then(setHospitals);
+  }, [page, stateFilter, search, open, country, acceptsMedicare, insuranceOperator]);
 
   useEffect(() => {
     setPage(1);
@@ -435,6 +455,8 @@ export default function HospitalList({ country = "US" }) {
     setSearch("");
     setExpandedId(null);
     setSelected({});
+    setAcceptsMedicare(false);
+    setInsuranceOperator("");
   }, [country]);
 
   function handleExpand(hospital) {
@@ -453,6 +475,7 @@ export default function HospitalList({ country = "US" }) {
 
   function handleClear() {
     setStateFilter(""); setSearch(""); setPage(1); setSelected({}); setExpandedId(null);
+    setAcceptsMedicare(false); setInsuranceOperator("");
   }
 
   async function exportStateCSV() {
@@ -570,7 +593,7 @@ export default function HospitalList({ country = "US" }) {
           padding: "20px 22px",
           boxShadow: "0 4px 12px rgba(16,26,32,.3)",
         }}>
-          <div style={{ display: "flex", gap: 10, flexWrap: "wrap", marginBottom: 20 }}>
+                    <div style={{ display: "flex", gap: 10, flexWrap: "wrap", marginBottom: 20 }}>
             <input type="text" value={search} onChange={(e) => { setSearch(e.target.value); setPage(1); }} placeholder={searchPlaceholder} style={{ ...control, flex: "1 1 220px" }} />
             <input type="text" value={stateFilter} onChange={(e) => { 
               const val = country === "US" || country === "BR" ? e.target.value.toUpperCase() : e.target.value;
@@ -579,6 +602,26 @@ export default function HospitalList({ country = "US" }) {
             }} 
             placeholder={filterPlaceholder} 
             style={{ ...control, width: 180 }} />
+            {country === "US" && (
+              <label style={{ ...control, display: "flex", alignItems: "center", gap: 8, cursor: "pointer", width: "auto" }}>
+                <input
+                  type="checkbox"
+                  checked={acceptsMedicare}
+                  onChange={(e) => { e.stopPropagation(); setAcceptsMedicare(e.target.checked); setPage(1); }}
+                />
+                Accepts Medicare
+              </label>
+            )}
+            {isBR && (
+              <input
+                type="text"
+                value={insuranceOperator}
+                onClick={(e) => e.stopPropagation()}
+                onChange={(e) => { setInsuranceOperator(e.target.value); setPage(1); }}
+                placeholder="Filtrar por convênio (ex: Unimed)"
+                style={{ ...control, width: 220 }}
+              />
+            )}
             <button onClick={(e) => { e.stopPropagation(); handleClear(); }} style={{ ...control, cursor: "pointer", color: "#a7b6bf" }}>{clearLabel}</button>
             {hospitals.length > 0 && (
               <button onClick={(e) => { e.stopPropagation(); exportCSV(hospitals, `hospitals_${hospitals[0]?.state || "all"}_page.csv`, country); }} style={{ ...control, cursor: "pointer", color: theme.mint, borderColor: theme.mint }}>↓ Export CSV</button>

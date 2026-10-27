@@ -6,6 +6,8 @@ from sqlalchemy.dialects.postgresql import insert
 
 from app.models.hospital import Hospital as HospitalModel
 from app.schemas.hospital import Hospital as HospitalSchema
+from app.models.insurance import HospitalEnrollment as EnrollmentModel
+from app.models.insurance_br import HospitalInsuranceNetwork as NetworkModel
 
 CITY_FILTER_COUNTRIES = {"IT", "ES", "PT", "BE", "CA", "MT", "GB", "FR"}
 
@@ -65,7 +67,9 @@ async def get_hospitals(
     search: str | None = None,
     min_rating: int | None = None,
     max_rating: int | None = None,
-    country: str | None = "US"
+    country: str | None = "US",
+    accepts_medicare: bool | None = None,
+    insurance_operator: str | None = None,
 ) -> list[HospitalModel]:
     query = select(HospitalModel)
     if country:
@@ -79,6 +83,23 @@ async def get_hospitals(
         query = query.where(HospitalModel.overall_rating >= min_rating)
     if max_rating is not None:
         query = query.where(HospitalModel.overall_rating <= max_rating)
+
+    if accepts_medicare:
+        query = query.where(
+            select(EnrollmentModel.id)
+            .where(EnrollmentModel.facility_id == HospitalModel.facility_id)
+            .exists()
+        )
+    if insurance_operator:
+        query = query.where(
+            select(NetworkModel.id)
+            .where(
+                NetworkModel.facility_id == HospitalModel.facility_id,
+                NetworkModel.is_active.is_(True),
+                NetworkModel.operator_name.ilike(f"%{insurance_operator}%"),
+            )
+            .exists()
+        )
 
     ordered_by_relevance = False
     if search:
@@ -97,7 +118,34 @@ async def get_hospitals(
 
     query = query.offset((page - 1) * limit).limit(limit)
     result = await session.execute(query)
-    return result.scalars().all()
+    hospitals = result.scalars().all()
+
+    await _attach_access_badges(session, hospitals, country)
+    return hospitals
+
+
+async def _attach_access_badges(session: AsyncSession, hospitals: list[HospitalModel], country: str | None ) -> None:    
+    if not hospitals:
+        return
+    facility_ids = [h.facility_id for h in hospitals]
+
+    if country == "US":
+        result = await session.execute(
+            select(EnrollmentModel.facility_id).where(EnrollmentModel.facility_id.in_(facility_ids))
+        )
+        enrolled_ids = {row[0] for row in result.all()}
+        for h in hospitals:
+            h.accepts_medicare = h.facility_id in enrolled_ids
+
+    elif country == "BR":
+        result = await session.execute(
+            select(NetworkModel.facility_id, func.count(NetworkModel.id))
+            .where(NetworkModel.facility_id.in_(facility_ids), NetworkModel.is_active.is_(True))
+            .group_by(NetworkModel.facility_id)
+        )
+        counts = {fid: cnt for fid, cnt in result.all()}
+        for h in hospitals:
+            h.insurance_operator_count = counts.get(h.facility_id, 0)
 
 
 async def get_hospitals_by_id(session: AsyncSession, facility_id: str) -> HospitalModel | None:

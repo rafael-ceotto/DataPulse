@@ -65,7 +65,9 @@ TOOLS = [
                 "properties": {
                     "state": {"type": "string", "description": "2-letter state/region code, e.g. OH, CA, TX (US) or SP, RJ, MG (Brazil). Optional if 'search' is provided."},
                     "search": {"type": "string", "description": "Hospital name (or part of it) to search for, e.g. 'Miami Valley Hospital' or 'São Camilo'. Use this whenever a specific hospital is named in the question."},
-                    "limit": {"type": "integer", "description": "Number of results to return. Default 10.", "default": 10}
+                    "limit": {"type": "integer", "description": "Number of results to return. Default 10.", "default": 10},
+                    "accepts_medicare": {"type": "boolean", "description": "US only. Set true to only return hospitals enrolled in Medicare."},
+                    "insurance_operator": {"type": "string", "description": "Brazil only. Health insurance operator/convênio name to filter by, e.g. 'Unimed', 'Bradesco Saúde'."}
                 },
                 "required": []
             }
@@ -82,7 +84,9 @@ TOOLS = [
                     "min_rating": {"type": "integer", "description": "Minimum rating filter. Use 5 for 5-star hospitals, 1 for lowest rated.", "default": 5},
                     "max_rating": {"type": "integer", "description": "Maximum rating filter. Use 1 for lowest rated hospitals."},
                     "limit": {"type": "integer", "description": "Number of results to return. Default 10.", "default": 10},
-                    "state": {"type": "string", "description": "Optional 2-letter US state code to filter by state."}
+                    "state": {"type": "string", "description": "Optional 2-letter US state code to filter by state."},
+                    "accepts_medicare": {"type": "boolean", "description": "US only. Set true to only return hospitals enrolled in Medicare."},
+                    "insurance_operator": {"type": "string", "description": "Brazil only. Health insurance operator/convênio name to filter by, e.g. 'Unimed', 'Bradesco Saúde'."}
                 },
                 "required": []
             }
@@ -206,6 +210,7 @@ TOOLS = [
 _HOSPITAL_FIELDS_FOR_LLM = [
     "facility_name", "address", "city", "state", "overall_rating",
     "raw_rating_label", "emergency_services", "telephone_number", "distance_miles",
+    "accepts_medicare", "insurance_operator_count",
 ]
 
 def _trim_hospitals(rows):
@@ -324,11 +329,17 @@ async def execute_tool(
         state = tool_args.get("state", "")
         search = tool_args.get("search", "")
         limit = min(tool_args.get("limit", 10), 20)
+        accepts_medicare = tool_args.get("accepts_medicare")
+        insurance_operator = tool_args.get("insurance_operator")
         params = f"?limit={limit}&country={country}"
         if state:
             params += f"&state={state}"
         if search:
             params += f"&search={search}"
+        if accepts_medicare:
+            params += "&accepts_medicare=true"
+        if insurance_operator:
+            params += f"&insurance_operator={insurance_operator}"
         async with httpx.AsyncClient() as client:
             r = await client.get(f"{base_url}/api/v1/hospitals{params}")
             return json.dumps(_trim_hospitals(r.json()))
@@ -338,6 +349,8 @@ async def execute_tool(
         min_rating = tool_args.get("min_rating", None if max_rating is not None else 5)
         limit = min(tool_args.get("limit", 10), 20)
         state = tool_args.get("state", "")
+        accepts_medicare = tool_args.get("accepts_medicare")
+        insurance_operator = tool_args.get("insurance_operator")
         params = f"?limit={limit}&country={country}"
         if min_rating is not None:
             params += f"&min_rating={min_rating}"
@@ -345,6 +358,10 @@ async def execute_tool(
             params += f"&max_rating={max_rating}"
         if state:
             params += f"&state={state}"
+        if accepts_medicare:
+            params += "&accepts_medicare=true"
+        if insurance_operator:
+            params += f"&insurance_operator={insurance_operator}"
         async with httpx.AsyncClient() as client:
             r = await client.get(f"{base_url}/api/v1/hospitals{params}")
             return json.dumps(_trim_hospitals(r.json()))
@@ -946,6 +963,10 @@ For simple, direct queries:
 - "Which states changed the most between pipeline runs?" → immediately call get_historical_analytics with analysis='rating_changes'. Do not ask for clarification.
 - "What's the best hospital near me?" / "qual o melhor hospital perto de mim" → immediately call find_nearby_hospitals. Do not ask for clarification.
 - "Best hospital near Zona Norte, São Paulo" → call find_nearby_hospitals with location_text="Zona Norte, São Paulo".
+- "Quais hospitais 5 estrelas aceitam Medicare em Ohio?" → call get_top_rated_hospitals with min_rating=5, state=OH, accepts_medicare=true.
+- "Esse hospital está na rede da Unimed?" / "está na rede do Bradesco Saúde?" → use search_hospitals with search=<nome do hospital>, insurance_operator=<nome da operadora citada>.
+- "Quais hospitais bem avaliados em SP estão na rede da Unimed?" → call get_top_rated_hospitals with min_rating=4, state=SP, insurance_operator="Unimed".
+- IMPORTANT: accepts_medicare only means anything for country=US, and insurance_operator only for country=BR — don't pass either one for other countries, and if asked about Medicare in BR or convênios in the US, say honestly that dataset doesn't apply there instead of guessing.
 
 For comparison queries, in ANY language (the keyword itself may be "compare", "comparar", "comparação", "versus", "vs", "difference between", "diferença entre", etc.):
 - Always call get_rating_distribution once, plus the relevant per-state tool (get_physician_state_analysis, and/or get_hospital_infections if infections are mentioned) ONCE FOR EACH state named in the question. Synthesize into a narrative comparison. NEVER return a raw hospital list or raw row dump as the answer.

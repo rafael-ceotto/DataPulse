@@ -112,8 +112,17 @@ async def list_pipeline_runs(limit: int = 20, session: AsyncSession = Depends(ge
     ]
 
 @router.get("/api/v1/hospitals")
-async def list_hospitals(page: int = 1, limit: int = 20, state: str | None = None, search: str | None = None, min_rating: int | None = None, max_rating: int | None = None, country: str | None = "US", session: AsyncSession = Depends(get_session)):
-    return await get_hospitals(session, page, limit, state, search, min_rating, max_rating, country)
+async def list_hospitals(
+    page: int = 1, limit: int = 20, state: str | None = None, search: str | None = None,
+    min_rating: int | None = None, max_rating: int | None = None, country: str | None = "US",
+    accepts_medicare: bool | None = None,
+    insurance_operator: str | None = None,
+    session: AsyncSession = Depends(get_session),
+):
+    return await get_hospitals(
+        session, page, limit, state, search, min_rating, max_rating, country,
+        accepts_medicare, insurance_operator,
+    )
 
 @router.get("/api/v1/hospitals/export")
 async def export_hospitals_by_state(

@@ -25,14 +25,15 @@ export async function getToken() {
   return cachedToken;
 }
 
-export async function getHospitals(page = 1, limit = 20, state = "", search = "", country = "US") {
-  const params = new URLSearchParams({
-    page: page.toString(),
-    limit: limit.toString(),
-    country,
-  });
+export async function getHospitals(
+  page = 1, limit = 20, state = "", search = "", country = "US",
+  { acceptsMedicare = false, insuranceOperator = "" } = {}
+) {
+  const params = new URLSearchParams({ page: page.toString(), limit: limit.toString(), country });
   if (state) params.append("state", state);
   if (search) params.append("search", search);
+  if (acceptsMedicare) params.append("accepts_medicare", "true");
+  if (insuranceOperator) params.append("insurance_operator", insuranceOperator);
   const response = await fetch(`${API_URL}/api/v1/hospitals?${params}`);
   return response.json();
 }

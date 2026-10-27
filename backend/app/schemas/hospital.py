@@ -19,6 +19,8 @@ class Hospital(BaseModel):
     normalized_score: float | None = None
     rating_system: str | None = None
     raw_rating_label: str | None = None
+    accepts_medicare: bool | None = None
+    insurance_operator_count: int | None = None
 
     @field_validator("overall_rating", mode="before")
     @classmethod
