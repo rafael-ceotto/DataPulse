@@ -5,6 +5,7 @@ import { needsDeviceLocation, getDeviceLocation } from "../services/geolocation"
 import { detectMentionedCountry, COUNTRY_LABELS } from "../services/countryDetection";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
+import TransparencyModal from "./TransparencyModal"
 
 const PLACEHOLDERS = {
   US: "e.g. Which hospitals in Ohio have a 5-star rating?",
@@ -106,6 +107,7 @@ export default function AIQuery({ country = "US", onCountryChange }) {
   const [saved, setSaved] = useState(false);
   const [conversationId, setConversationId] = useState(() => generateConversationId());
   const [pendingMismatch, setPendingMismatch] = useState(null);
+  const [showTransparency, setShowTransparency] = useState(false);
 
   function clear() {
     setAnswer(null);
@@ -204,6 +206,16 @@ export default function AIQuery({ country = "US", onCountryChange }) {
         <span style={{ fontFamily: theme.mono, fontSize: 11, color: theme.mint, letterSpacing: "0.06em", textTransform: "uppercase" }}>
           AI query
         </span>
+        <button
+          onClick={() => setShowTransparency(true)}
+          style={{
+            background: theme.mint, color: "#0c1418", border: "none",
+            borderRadius: 999, padding: "6px 14px", fontSize: 12,
+            fontWeight: 600, fontFamily: theme.sans, cursor: "pointer",
+          }}
+        >
+          ℹ How our AI works
+        </button>
         <button
           onClick={newConversation}
           style={{
@@ -451,6 +463,7 @@ export default function AIQuery({ country = "US", onCountryChange }) {
           )}
         </div>
       )}
+      {showTransparency && <TransparencyModal onClose={() => setShowTransparency(false)} />}
     </section>
   );
 }
