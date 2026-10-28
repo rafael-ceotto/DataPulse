@@ -8,6 +8,7 @@ from app.models.hospital import Hospital as HospitalModel
 from app.schemas.hospital import Hospital as HospitalSchema
 from app.models.insurance import HospitalEnrollment as EnrollmentModel
 from app.models.insurance_br import HospitalInsuranceNetwork as NetworkModel
+from app.models.procedure_outcomes import HospitalProcedureOutcome as ProcedureOutcomeModel
 
 CITY_FILTER_COUNTRIES = {"IT", "ES", "PT", "BE", "CA", "MT", "GB", "FR"}
 
@@ -70,6 +71,7 @@ async def get_hospitals(
     country: str | None = "US",
     accepts_medicare: bool | None = None,
     insurance_operator: str | None = None,
+    procedure_category: str | None = None,
 ) -> list[HospitalModel]:
     query = select(HospitalModel)
     if country:
@@ -100,6 +102,17 @@ async def get_hospitals(
             )
             .exists()
         )
+    if procedure_category:
+        query = query.where(
+            select(ProcedureOutcomeModel.id)
+            .where(
+                ProcedureOutcomeModel.facility_id == HospitalModel.facility_id,
+                ProcedureOutcomeModel.procedure_category == procedure_category,
+                ProcedureOutcomeModel.score.isnot(None),
+                ProcedureOutcomeModel.score != "Not Available", 
+            )
+            .exists()
+        )
 
     ordered_by_relevance = False
     if search:
@@ -121,6 +134,7 @@ async def get_hospitals(
     hospitals = result.scalars().all()
 
     await _attach_access_badges(session, hospitals, country)
+    await _attach_procedure_outcome(session, hospitals, procedure_category)
     return hospitals
 
 
@@ -146,6 +160,29 @@ async def _attach_access_badges(session: AsyncSession, hospitals: list[HospitalM
         counts = {fid: cnt for fid, cnt in result.all()}
         for h in hospitals:
             h.insurance_operator_count = counts.get(h.facility_id, 0)
+            
+async def _attach_procedure_outcome(
+    session: AsyncSession, hospitals: list[HospitalModel], procedure_category: str | None
+) -> None:    
+    if not procedure_category or not hospitals:
+        return
+    facility_ids = [h.facility_id for h in hospitals]
+    result = await session.execute(
+        select(ProcedureOutcomeModel).where(
+            ProcedureOutcomeModel.facility_id.in_(facility_ids),
+            ProcedureOutcomeModel.procedure_category == procedure_category,
+        )
+    )
+    by_facility = {row.facility_id: row for row in result.scalars().all()}
+    for h in hospitals:
+        outcome = by_facility.get(h.facility_id)
+        if outcome:
+            h.procedure_outcome = {
+                "procedure_category": outcome.procedure_category,
+                "measure_name": outcome.measure_name,
+                "compared_to_national": outcome.compared_to_national,
+                "score": outcome.score,
+            }
 
 
 async def get_hospitals_by_id(session: AsyncSession, facility_id: str) -> HospitalModel | None:

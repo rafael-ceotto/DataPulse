@@ -12,6 +12,7 @@ from app.models.infection import HospitalInfection
 from app.models.insurance import HospitalEnrollment
 from app.models.document_chunk import DocumentChunk
 from app.models.insurance_br import HospitalInsuranceNetwork
+from app.models.procedure_outcomes import HospitalProcedureOutcome
 
 settings = Settings()
 config = context.config

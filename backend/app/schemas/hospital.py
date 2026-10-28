@@ -21,6 +21,7 @@ class Hospital(BaseModel):
     raw_rating_label: str | None = None
     accepts_medicare: bool | None = None
     insurance_operator_count: int | None = None
+    procedure_outcome: dict | None = None
 
     @field_validator("overall_rating", mode="before")
     @classmethod

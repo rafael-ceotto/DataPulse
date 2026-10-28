@@ -27,13 +27,14 @@ export async function getToken() {
 
 export async function getHospitals(
   page = 1, limit = 20, state = "", search = "", country = "US",
-  { acceptsMedicare = false, insuranceOperator = "" } = {}
+  { acceptsMedicare = false, insuranceOperator = "", procedureCategory = "" } = {}
 ) {
   const params = new URLSearchParams({ page: page.toString(), limit: limit.toString(), country });
   if (state) params.append("state", state);
   if (search) params.append("search", search);
   if (acceptsMedicare) params.append("accepts_medicare", "true");
   if (insuranceOperator) params.append("insurance_operator", insuranceOperator);
+  if (procedureCategory) params.append("procedure_category", procedureCategory);
   const response = await fetch(`${API_URL}/api/v1/hospitals?${params}`);
   return response.json();
 }

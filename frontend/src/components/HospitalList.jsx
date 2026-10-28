@@ -4,6 +4,17 @@ import { getHospitals, getHospitalInfections, getHospitalEnrollment, getInsuranc
 
 const CITY_FILTER_COUNTRIES = ["IT", "ES", "PT", "BE", "CA", "MT", "GB", "FR"];
 
+const PROCEDURE_CATEGORIES = [
+  { value: "", label: "All outcomes" },
+  { value: "heart_attack", label: "Heart attack" },
+  { value: "heart_failure", label: "Heart failure" },
+  { value: "pneumonia", label: "Pneumonia" },
+  { value: "copd", label: "COPD" },
+  { value: "cabg", label: "CABG" },
+  { value: "hip_knee_replacement", label: "Hip/knee replacement" },
+  { value: "outpatient_visit_followup", label: "Outpatient follow-up" },
+];
+
 function Stars({ rating }) {
   return (
     <div style={{ display: "flex", alignItems: "center", gap: 3 }}>
@@ -280,6 +291,24 @@ function HospitalCard({ hospital, expanded, onExpand, onClose, onInfectionsLoade
                   </div>
                 )}
               </div>
+
+              {hospital.procedure_outcome && (
+                <div style={{ borderTop: `1px solid ${theme.border}`, paddingTop: 14 }}>
+                  <div style={{ fontFamily: theme.mono, fontSize: 10.5, color: theme.faint, letterSpacing: "0.06em", textTransform: "uppercase", marginBottom: 10 }}>
+                    Procedure Outcome — {hospital.procedure_outcome.measure_name}
+                  </div>
+                  <span style={{
+                    fontFamily: theme.mono, fontSize: 11, padding: "4px 10px", borderRadius: 20,
+                    background: hospital.procedure_outcome.compared_to_national?.includes("Better") ? "#2f9e6f22"
+                      : hospital.procedure_outcome.compared_to_national?.includes("Worse") ? "#d97b2622" : "#6f8a9522",
+                    color: hospital.procedure_outcome.compared_to_national?.includes("Better") ? "#2f9e6f"
+                      : hospital.procedure_outcome.compared_to_national?.includes("Worse") ? "#d97b26" : "#6f8a95",
+                    border: "1px solid currentColor",
+                  }}>
+                    {hospital.procedure_outcome.compared_to_national || "Data available"}
+                  </span>
+                </div>
+              )}
             </>
           ) : isBR ? (
             <>
@@ -393,6 +422,18 @@ function HospitalCard({ hospital, expanded, onExpand, onClose, onInfectionsLoade
               {hospital.insurance_operator_count} convênio{hospital.insurance_operator_count > 1 ? "s" : ""}
             </span>
           )}
+          {isUS && hospital.procedure_outcome && (
+            <span style={{
+              fontFamily: theme.mono, fontSize: 10.5, padding: "3px 8px", borderRadius: 20,
+              background: hospital.procedure_outcome.compared_to_national?.includes("Better") ? "#2f9e6f22"
+                : hospital.procedure_outcome.compared_to_national?.includes("Worse") ? "#d97b2622" : "#6f8a9522",
+              color: hospital.procedure_outcome.compared_to_national?.includes("Better") ? "#2f9e6f"
+                : hospital.procedure_outcome.compared_to_national?.includes("Worse") ? "#d97b26" : "#6f8a95",
+              border: "1px solid currentColor",
+            }}>
+              {hospital.procedure_outcome.compared_to_national || "Data available"}
+            </span>
+          )}
           {isUS ? <Stars rating={hospital.overall_rating ?? 0} /> :
             sourceBadge ? <span style={{ fontFamily: theme.mono, fontSize: 11, color: "#6f8a95" }}>{sourceBadge}</span> : null}
         </div>
@@ -433,6 +474,7 @@ export default function HospitalList({ country = "US" }) {
   const [exportingState, setExportingState] = useState(false);
   const [acceptsMedicare, setAcceptsMedicare] = useState(false);
   const [insuranceOperator, setInsuranceOperator] = useState("");
+  const [procedureCategory, setProcedureCategory] = useState("");
   const limit = 8;
   const isBR = country === "BR";
   const isFR = country === "FR";
@@ -445,8 +487,8 @@ export default function HospitalList({ country = "US" }) {
 
   useEffect(() => {
     if (!open) return;
-    getHospitals(page, limit, stateFilter, search, country, { acceptsMedicare, insuranceOperator }).then(setHospitals);
-  }, [page, stateFilter, search, open, country, acceptsMedicare, insuranceOperator]);
+    getHospitals(page, limit, stateFilter, search, country, { acceptsMedicare, insuranceOperator, procedureCategory }).then(setHospitals);
+  }, [page, stateFilter, search, open, country, acceptsMedicare, insuranceOperator, procedureCategory]);
 
   useEffect(() => {
     setPage(1);
@@ -457,6 +499,7 @@ export default function HospitalList({ country = "US" }) {
     setSelected({});
     setAcceptsMedicare(false);
     setInsuranceOperator("");
+    setProcedureCategory("");
   }, [country]);
 
   function handleExpand(hospital) {
@@ -475,7 +518,7 @@ export default function HospitalList({ country = "US" }) {
 
   function handleClear() {
     setStateFilter(""); setSearch(""); setPage(1); setSelected({}); setExpandedId(null);
-    setAcceptsMedicare(false); setInsuranceOperator("");
+    setAcceptsMedicare(false); setInsuranceOperator(""); setProcedureCategory("");
   }
 
   async function exportStateCSV() {
@@ -611,6 +654,18 @@ export default function HospitalList({ country = "US" }) {
                 />
                 Accepts Medicare
               </label>
+            )}
+            {country === "US" && (
+              <select
+                value={procedureCategory}
+                onClick={(e) => e.stopPropagation()}
+                onChange={(e) => { setProcedureCategory(e.target.value); setPage(1); }}
+                style={{ ...control, width: 200, cursor: "pointer" }}
+              >
+                {PROCEDURE_CATEGORIES.map((opt) => (
+                  <option key={opt.value} value={opt.value}>{opt.label}</option>
+                ))}
+              </select>
             )}
             {isBR && (
               <input

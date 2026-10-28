@@ -67,8 +67,8 @@ TOOLS = [
                     "search": {"type": "string", "description": "Hospital name (or part of it) to search for, e.g. 'Miami Valley Hospital' or 'São Camilo'. Use this whenever a specific hospital is named in the question."},
                     "limit": {"type": "integer", "description": "Number of results to return. Default 10.", "default": 10},
                     "accepts_medicare": {"type": "boolean", "description": "US only. Set true to only return hospitals enrolled in Medicare."},
-                    "insurance_operator": {"type": "string", "description": "Brazil only. Health insurance operator/convênio name to filter by, e.g. 'Unimed', 'Bradesco Saúde'."}
-                },
+                    "insurance_operator": {"type": "string", "description": "Brazil only. Health insurance operator/convênio name to filter by, e.g. 'Unimed', 'Bradesco Saúde'."},
+                    "procedure_category": {"type": "string", "description": "US only. Filter/rank hospitals by outcome for a specific condition or procedure. One of: heart_attack, heart_failure, pneumonia, copd, cabg, hip_knee_replacement, outpatient_visit_followup. Source: CMS Unplanned Hospital Visits dataset."}                },
                 "required": []
             }
         }
@@ -86,8 +86,8 @@ TOOLS = [
                     "limit": {"type": "integer", "description": "Number of results to return. Default 10.", "default": 10},
                     "state": {"type": "string", "description": "Optional 2-letter US state code to filter by state."},
                     "accepts_medicare": {"type": "boolean", "description": "US only. Set true to only return hospitals enrolled in Medicare."},
-                    "insurance_operator": {"type": "string", "description": "Brazil only. Health insurance operator/convênio name to filter by, e.g. 'Unimed', 'Bradesco Saúde'."}
-                },
+                    "insurance_operator": {"type": "string", "description": "Brazil only. Health insurance operator/convênio name to filter by, e.g. 'Unimed', 'Bradesco Saúde'."},
+                    "procedure_category": {"type": "string", "description": "US only. Filter/rank hospitals by outcome for a specific condition or procedure. One of: heart_attack, heart_failure, pneumonia, copd, cabg, hip_knee_replacement, outpatient_visit_followup. Source: CMS Unplanned Hospital Visits dataset."}                },
                 "required": []
             }
         }
@@ -210,7 +210,7 @@ TOOLS = [
 _HOSPITAL_FIELDS_FOR_LLM = [
     "facility_name", "address", "city", "state", "overall_rating",
     "raw_rating_label", "emergency_services", "telephone_number", "distance_miles",
-    "accepts_medicare", "insurance_operator_count",
+    "accepts_medicare", "insurance_operator_count", "procedure_outcome",
 ]
 
 def _trim_hospitals(rows):
@@ -331,6 +331,7 @@ async def execute_tool(
         limit = min(tool_args.get("limit", 10), 20)
         accepts_medicare = tool_args.get("accepts_medicare")
         insurance_operator = tool_args.get("insurance_operator")
+        procedure_category = tool_args.get("procedure_category")
         params = f"?limit={limit}&country={country}"
         if state:
             params += f"&state={state}"
@@ -340,6 +341,8 @@ async def execute_tool(
             params += "&accepts_medicare=true"
         if insurance_operator:
             params += f"&insurance_operator={insurance_operator}"
+        if procedure_category:
+            params += f"&procedure_category={procedure_category}"
         async with httpx.AsyncClient() as client:
             r = await client.get(f"{base_url}/api/v1/hospitals{params}")
             return json.dumps(_trim_hospitals(r.json()))
@@ -351,6 +354,7 @@ async def execute_tool(
         state = tool_args.get("state", "")
         accepts_medicare = tool_args.get("accepts_medicare")
         insurance_operator = tool_args.get("insurance_operator")
+        procedure_category = tool_args.get("procedure_category")
         params = f"?limit={limit}&country={country}"
         if min_rating is not None:
             params += f"&min_rating={min_rating}"
@@ -362,6 +366,8 @@ async def execute_tool(
             params += "&accepts_medicare=true"
         if insurance_operator:
             params += f"&insurance_operator={insurance_operator}"
+        if procedure_category:
+            params += f"&procedure_category={procedure_category}"
         async with httpx.AsyncClient() as client:
             r = await client.get(f"{base_url}/api/v1/hospitals{params}")
             return json.dumps(_trim_hospitals(r.json()))
@@ -967,6 +973,10 @@ For simple, direct queries:
 - "Esse hospital está na rede da Unimed?" / "está na rede do Bradesco Saúde?" → use search_hospitals with search=<nome do hospital>, insurance_operator=<nome da operadora citada>.
 - "Quais hospitais bem avaliados em SP estão na rede da Unimed?" → call get_top_rated_hospitals with min_rating=4, state=SP, insurance_operator="Unimed".
 - IMPORTANT: accepts_medicare only means anything for country=US, and insurance_operator only for country=BR — don't pass either one for other countries, and if asked about Medicare in BR or convênios in the US, say honestly that dataset doesn't apply there instead of guessing.
+- "Quais hospitais são bons pra cirurgia de quadril/joelho em Ohio?" → call get_top_rated_hospitals with state=OH, procedure_category="hip_knee_replacement".
+- "Esse hospital é confiável pra pneumonia?" → use search_hospitals with search=<nome do hospital>, procedure_category="pneumonia".
+- "Hospitais bem avaliados na Califórnia pra insuficiência cardíaca" → call get_top_rated_hospitals with state=CA, min_rating=4, procedure_category="heart_failure".
+- IMPORTANT: procedure_category only applies to country=US (CMS "Unplanned Hospital Visits" dataset) — if asked about a specific condition/procedure outcome in another country, say honestly that this dataset doesn't cover that country instead of guessing. When a result includes procedure_outcome, cite the real measure_name and compared_to_national value from it in your answer (e.g. "rated Same as the National Rate for stroke readmissions"), not just that the hospital matched the filter.
 
 For comparison queries, in ANY language (the keyword itself may be "compare", "comparar", "comparação", "versus", "vs", "difference between", "diferença entre", etc.):
 - Always call get_rating_distribution once, plus the relevant per-state tool (get_physician_state_analysis, and/or get_hospital_infections if infections are mentioned) ONCE FOR EACH state named in the question. Synthesize into a narrative comparison. NEVER return a raw hospital list or raw row dump as the answer.
