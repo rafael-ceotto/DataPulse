@@ -13,6 +13,7 @@ from app.models.insurance import HospitalEnrollment
 from app.models.document_chunk import DocumentChunk
 from app.models.insurance_br import HospitalInsuranceNetwork
 from app.models.procedure_outcomes import HospitalProcedureOutcome
+from app.models.patient_experience import HospitalPatientExperience
 
 settings = Settings()
 config = context.config

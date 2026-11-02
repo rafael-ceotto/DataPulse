@@ -9,6 +9,7 @@ from app.schemas.hospital import Hospital as HospitalSchema
 from app.models.insurance import HospitalEnrollment as EnrollmentModel
 from app.models.insurance_br import HospitalInsuranceNetwork as NetworkModel
 from app.models.procedure_outcomes import HospitalProcedureOutcome as ProcedureOutcomeModel
+from app.models.patient_experience import HospitalPatientExperience as PatientExperienceModel
 
 CITY_FILTER_COUNTRIES = {"IT", "ES", "PT", "BE", "CA", "MT", "GB", "FR"}
 
@@ -72,6 +73,7 @@ async def get_hospitals(
     accepts_medicare: bool | None = None,
     insurance_operator: str | None = None,
     procedure_category: str | None = None,
+    patient_experience_category: str | None = None,
 ) -> list[HospitalModel]:
     query = select(HospitalModel)
     if country:
@@ -113,6 +115,18 @@ async def get_hospitals(
             )
             .exists()
         )
+    if patient_experience_category:
+        query = query.where(
+            select(PatientExperienceModel.id)
+            .where(
+                PatientExperienceModel.facility_id == HospitalModel.facility_id,
+                PatientExperienceModel.patient_experience_category == patient_experience_category,
+                PatientExperienceModel.is_star_rating.is_(True),
+                PatientExperienceModel.star_rating.isnot(None),
+                PatientExperienceModel.star_rating.notin_(["Not Available", "Not Applicable"]),
+            )
+            .exists()
+        )
 
     ordered_by_relevance = False
     if search:
@@ -135,6 +149,7 @@ async def get_hospitals(
 
     await _attach_access_badges(session, hospitals, country)
     await _attach_procedure_outcome(session, hospitals, procedure_category)
+    await _attach_patient_experience(session, hospitals, patient_experience_category)
     return hospitals
 
 
@@ -182,6 +197,32 @@ async def _attach_procedure_outcome(
                 "measure_name": outcome.measure_name,
                 "compared_to_national": outcome.compared_to_national,
                 "score": outcome.score,
+            }
+
+
+async def _attach_patient_experience(
+    session: AsyncSession,
+    hospitals: list[HospitalModel],
+    patient_experience_category: str | None,
+) -> None:
+    if not patient_experience_category or not hospitals:
+        return
+    facility_ids = [h.facility_id for h in hospitals]
+    result = await session.execute(
+        select(PatientExperienceModel).where(
+            PatientExperienceModel.facility_id.in_(facility_ids),
+            PatientExperienceModel.patient_experience_category == patient_experience_category,
+            PatientExperienceModel.is_star_rating.is_(True),
+        )
+    )
+    by_facility = {row.facility_id: row for row in result.scalars().all()}
+    for h in hospitals:
+        experience = by_facility.get(h.facility_id)
+        if experience:
+            h.patient_experience = {
+                "patient_experience_category": experience.patient_experience_category,
+                "hcahps_question": experience.hcahps_question,
+                "star_rating": experience.star_rating,
             }
 
 

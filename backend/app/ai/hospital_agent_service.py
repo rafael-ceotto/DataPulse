@@ -68,7 +68,9 @@ TOOLS = [
                     "limit": {"type": "integer", "description": "Number of results to return. Default 10.", "default": 10},
                     "accepts_medicare": {"type": "boolean", "description": "US only. Set true to only return hospitals enrolled in Medicare."},
                     "insurance_operator": {"type": "string", "description": "Brazil only. Health insurance operator/convênio name to filter by, e.g. 'Unimed', 'Bradesco Saúde'."},
-                    "procedure_category": {"type": "string", "description": "US only. Filter/rank hospitals by outcome for a specific condition or procedure. One of: heart_attack, heart_failure, pneumonia, copd, cabg, hip_knee_replacement, outpatient_visit_followup. Source: CMS Unplanned Hospital Visits dataset."}                },
+                    "procedure_category": {"type": "string", "description": "US only. Filter/rank hospitals by outcome for a specific condition or procedure. One of: heart_attack, heart_failure, pneumonia, copd, cabg, hip_knee_replacement, outpatient_visit_followup. Source: CMS Unplanned Hospital Visits dataset."},
+                    "patient_experience_category": {"type": "string", "description": "US only. Filter/rank hospitals by HCAHPS patient-experience star rating in a specific dimension. One of: nurse_communication, doctor_communication, medication_communication, discharge_information, cleanliness, quietness, overall_rating, recommend_hospital. Source: CMS HCAHPS patient survey dataset."}
+                },
                 "required": []
             }
         }
@@ -87,7 +89,9 @@ TOOLS = [
                     "state": {"type": "string", "description": "Optional 2-letter US state code to filter by state."},
                     "accepts_medicare": {"type": "boolean", "description": "US only. Set true to only return hospitals enrolled in Medicare."},
                     "insurance_operator": {"type": "string", "description": "Brazil only. Health insurance operator/convênio name to filter by, e.g. 'Unimed', 'Bradesco Saúde'."},
-                    "procedure_category": {"type": "string", "description": "US only. Filter/rank hospitals by outcome for a specific condition or procedure. One of: heart_attack, heart_failure, pneumonia, copd, cabg, hip_knee_replacement, outpatient_visit_followup. Source: CMS Unplanned Hospital Visits dataset."}                },
+                    "procedure_category": {"type": "string", "description": "US only. Filter/rank hospitals by outcome for a specific condition or procedure. One of: heart_attack, heart_failure, pneumonia, copd, cabg, hip_knee_replacement, outpatient_visit_followup. Source: CMS Unplanned Hospital Visits dataset."},
+                    "patient_experience_category": {"type": "string", "description": "US only. Filter/rank hospitals by HCAHPS patient-experience star rating in a specific dimension. One of: nurse_communication, doctor_communication, medication_communication, discharge_information, cleanliness, quietness, overall_rating, recommend_hospital. Source: CMS HCAHPS patient survey dataset."}
+                },
                 "required": []
             }
         }
@@ -210,7 +214,7 @@ TOOLS = [
 _HOSPITAL_FIELDS_FOR_LLM = [
     "facility_name", "address", "city", "state", "overall_rating",
     "raw_rating_label", "emergency_services", "telephone_number", "distance_miles",
-    "accepts_medicare", "insurance_operator_count", "procedure_outcome",
+    "accepts_medicare", "insurance_operator_count", "procedure_outcome", "patient_experience",
 ]
 
 def _trim_hospitals(rows):
@@ -332,6 +336,7 @@ async def execute_tool(
         accepts_medicare = tool_args.get("accepts_medicare")
         insurance_operator = tool_args.get("insurance_operator")
         procedure_category = tool_args.get("procedure_category")
+        patient_experience_category = tool_args.get("patient_experience_category")
         params = f"?limit={limit}&country={country}"
         if state:
             params += f"&state={state}"
@@ -343,6 +348,8 @@ async def execute_tool(
             params += f"&insurance_operator={insurance_operator}"
         if procedure_category:
             params += f"&procedure_category={procedure_category}"
+        if patient_experience_category:
+            params += f"&patient_experience_category={patient_experience_category}"
         async with httpx.AsyncClient() as client:
             r = await client.get(f"{base_url}/api/v1/hospitals{params}")
             return json.dumps(_trim_hospitals(r.json()))
@@ -355,6 +362,7 @@ async def execute_tool(
         accepts_medicare = tool_args.get("accepts_medicare")
         insurance_operator = tool_args.get("insurance_operator")
         procedure_category = tool_args.get("procedure_category")
+        patient_experience_category = tool_args.get("patient_experience_category")
         params = f"?limit={limit}&country={country}"
         if min_rating is not None:
             params += f"&min_rating={min_rating}"
@@ -368,6 +376,8 @@ async def execute_tool(
             params += f"&insurance_operator={insurance_operator}"
         if procedure_category:
             params += f"&procedure_category={procedure_category}"
+        if patient_experience_category:
+            params += f"&patient_experience_category={patient_experience_category}"
         async with httpx.AsyncClient() as client:
             r = await client.get(f"{base_url}/api/v1/hospitals{params}")
             return json.dumps(_trim_hospitals(r.json()))
@@ -977,6 +987,10 @@ For simple, direct queries:
 - "Esse hospital é confiável pra pneumonia?" → use search_hospitals with search=<nome do hospital>, procedure_category="pneumonia".
 - "Hospitais bem avaliados na Califórnia pra insuficiência cardíaca" → call get_top_rated_hospitals with state=CA, min_rating=4, procedure_category="heart_failure".
 - IMPORTANT: procedure_category only applies to country=US (CMS "Unplanned Hospital Visits" dataset) — if asked about a specific condition/procedure outcome in another country, say honestly that this dataset doesn't cover that country instead of guessing. When a result includes procedure_outcome, cite the real measure_name and compared_to_national value from it in your answer (e.g. "rated Same as the National Rate for stroke readmissions"), not just that the hospital matched the filter.
+- "Quais hospitais têm boa comunicação da equipe de enfermagem em Ohio?" → call get_top_rated_hospitals with state=OH, patient_experience_category="nurse_communication".
+- "Esse hospital é limpo e silencioso?" → use search_hospitals with search=<nome do hospital>, patient_experience_category="cleanliness" (and, if asked about noise specifically, a separate check with patient_experience_category="quietness" — each HCAHPS dimension is a separate star rating, don't assume one implies the other).
+- "Os pacientes recomendam esse hospital?" → use search_hospitals with search=<nome do hospital>, patient_experience_category="recommend_hospital".
+- IMPORTANT: patient_experience_category only applies to country=US (CMS HCAHPS patient survey dataset) — if asked about patient experience/satisfaction for another country, say honestly that this dataset doesn't cover that country instead of guessing. When a result includes patient_experience, cite the real hcahps_question and star_rating from it in your answer (e.g. "rated 4 stars on nurse communication"), not just that the hospital matched the filter. patient_experience_category and procedure_category are independent filters from two different CMS datasets (survey-based satisfaction vs. clinical outcome measures) — don't conflate them, and only pass one of each per call unless the question genuinely asks about both.
 
 For comparison queries, in ANY language (the keyword itself may be "compare", "comparar", "comparação", "versus", "vs", "difference between", "diferença entre", etc.):
 - Always call get_rating_distribution once, plus the relevant per-state tool (get_physician_state_analysis, and/or get_hospital_infections if infections are mentioned) ONCE FOR EACH state named in the question. Synthesize into a narrative comparison. NEVER return a raw hospital list or raw row dump as the answer.

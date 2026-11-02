@@ -15,6 +15,18 @@ const PROCEDURE_CATEGORIES = [
   { value: "outpatient_visit_followup", label: "Outpatient follow-up" },
 ];
 
+const PATIENT_EXPERIENCE_CATEGORIES = [
+  { value: "", label: "All patient experience" },
+  { value: "nurse_communication", label: "Nurse communication" },
+  { value: "doctor_communication", label: "Doctor communication" },
+  { value: "medication_communication", label: "Medication communication" },
+  { value: "discharge_information", label: "Discharge information" },
+  { value: "cleanliness", label: "Cleanliness" },
+  { value: "quietness", label: "Quietness" },
+  { value: "overall_rating", label: "Overall hospital rating" },
+  { value: "recommend_hospital", label: "Would recommend" },
+];
+
 function Stars({ rating }) {
   return (
     <div style={{ display: "flex", alignItems: "center", gap: 3 }}>
@@ -309,6 +321,24 @@ function HospitalCard({ hospital, expanded, onExpand, onClose, onInfectionsLoade
                   </span>
                 </div>
               )}
+
+              {hospital.patient_experience && (
+                <div style={{ borderTop: `1px solid ${theme.border}`, paddingTop: 14 }}>
+                  <div style={{ fontFamily: theme.mono, fontSize: 10.5, color: theme.faint, letterSpacing: "0.06em", textTransform: "uppercase", marginBottom: 10 }}>
+                    Patient Experience — {hospital.patient_experience.hcahps_question}
+                  </div>
+                  {hospital.patient_experience.star_rating && hospital.patient_experience.star_rating !== "Not Available" && hospital.patient_experience.star_rating !== "Not Applicable" ? (
+                    <Stars rating={parseInt(hospital.patient_experience.star_rating, 10) || 0} />
+                  ) : (
+                    <span style={{
+                      fontFamily: theme.mono, fontSize: 11, padding: "4px 10px", borderRadius: 20,
+                      background: "#6f8a9522", color: "#6f8a95", border: "1px solid currentColor",
+                    }}>
+                      {hospital.patient_experience.star_rating || "Not Available"}
+                    </span>
+                  )}
+                </div>
+              )}
             </>
           ) : isBR ? (
             <>
@@ -434,6 +464,24 @@ function HospitalCard({ hospital, expanded, onExpand, onClose, onInfectionsLoade
               {hospital.procedure_outcome.compared_to_national || "Data available"}
             </span>
           )}
+          {isUS && hospital.patient_experience && (
+            hospital.patient_experience.star_rating && hospital.patient_experience.star_rating !== "Not Available" && hospital.patient_experience.star_rating !== "Not Applicable" ? (
+              <span style={{
+                fontFamily: theme.mono, fontSize: 10.5, padding: "3px 8px", borderRadius: 20,
+                background: "#5b8def22", color: "#5b8def", border: "1px solid #5b8def55",
+                display: "flex", alignItems: "center", gap: 3,
+              }}>
+                {hospital.patient_experience.star_rating}★ experience
+              </span>
+            ) : (
+              <span style={{
+                fontFamily: theme.mono, fontSize: 10.5, padding: "3px 8px", borderRadius: 20,
+                background: "#6f8a9522", color: "#6f8a95", border: "1px solid currentColor",
+              }}>
+                Experience: N/A
+              </span>
+            )
+          )}
           {isUS ? <Stars rating={hospital.overall_rating ?? 0} /> :
             sourceBadge ? <span style={{ fontFamily: theme.mono, fontSize: 11, color: "#6f8a95" }}>{sourceBadge}</span> : null}
         </div>
@@ -475,6 +523,7 @@ export default function HospitalList({ country = "US" }) {
   const [acceptsMedicare, setAcceptsMedicare] = useState(false);
   const [insuranceOperator, setInsuranceOperator] = useState("");
   const [procedureCategory, setProcedureCategory] = useState("");
+  const [patientExperienceCategory, setPatientExperienceCategory] = useState("");
   const limit = 8;
   const isBR = country === "BR";
   const isFR = country === "FR";
@@ -487,8 +536,8 @@ export default function HospitalList({ country = "US" }) {
 
   useEffect(() => {
     if (!open) return;
-    getHospitals(page, limit, stateFilter, search, country, { acceptsMedicare, insuranceOperator, procedureCategory }).then(setHospitals);
-  }, [page, stateFilter, search, open, country, acceptsMedicare, insuranceOperator, procedureCategory]);
+    getHospitals(page, limit, stateFilter, search, country, { acceptsMedicare, insuranceOperator, procedureCategory, patientExperienceCategory }).then(setHospitals);
+  }, [page, stateFilter, search, open, country, acceptsMedicare, insuranceOperator, procedureCategory, patientExperienceCategory]);
 
   useEffect(() => {
     setPage(1);
@@ -500,6 +549,7 @@ export default function HospitalList({ country = "US" }) {
     setAcceptsMedicare(false);
     setInsuranceOperator("");
     setProcedureCategory("");
+    setPatientExperienceCategory("");
   }, [country]);
 
   function handleExpand(hospital) {
@@ -518,7 +568,7 @@ export default function HospitalList({ country = "US" }) {
 
   function handleClear() {
     setStateFilter(""); setSearch(""); setPage(1); setSelected({}); setExpandedId(null);
-    setAcceptsMedicare(false); setInsuranceOperator(""); setProcedureCategory("");
+    setAcceptsMedicare(false); setInsuranceOperator(""); setProcedureCategory(""); setPatientExperienceCategory("");
   }
 
   async function exportStateCSV() {
@@ -663,6 +713,18 @@ export default function HospitalList({ country = "US" }) {
                 style={{ ...control, width: 200, cursor: "pointer" }}
               >
                 {PROCEDURE_CATEGORIES.map((opt) => (
+                  <option key={opt.value} value={opt.value}>{opt.label}</option>
+                ))}
+              </select>
+            )}
+            {country === "US" && (
+              <select
+                value={patientExperienceCategory}
+                onClick={(e) => e.stopPropagation()}
+                onChange={(e) => { setPatientExperienceCategory(e.target.value); setPage(1); }}
+                style={{ ...control, width: 210, cursor: "pointer" }}
+              >
+                {PATIENT_EXPERIENCE_CATEGORIES.map((opt) => (
                   <option key={opt.value} value={opt.value}>{opt.label}</option>
                 ))}
               </select>

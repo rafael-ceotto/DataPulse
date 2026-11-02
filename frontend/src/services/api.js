@@ -27,7 +27,7 @@ export async function getToken() {
 
 export async function getHospitals(
   page = 1, limit = 20, state = "", search = "", country = "US",
-  { acceptsMedicare = false, insuranceOperator = "", procedureCategory = "" } = {}
+  { acceptsMedicare = false, insuranceOperator = "", procedureCategory = "", patientExperienceCategory = "" } = {}
 ) {
   const params = new URLSearchParams({ page: page.toString(), limit: limit.toString(), country });
   if (state) params.append("state", state);
@@ -35,6 +35,7 @@ export async function getHospitals(
   if (acceptsMedicare) params.append("accepts_medicare", "true");
   if (insuranceOperator) params.append("insurance_operator", insuranceOperator);
   if (procedureCategory) params.append("procedure_category", procedureCategory);
+  if (patientExperienceCategory) params.append("patient_experience_category", patientExperienceCategory);
   const response = await fetch(`${API_URL}/api/v1/hospitals?${params}`);
   return response.json();
 }

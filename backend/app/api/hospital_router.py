@@ -118,11 +118,12 @@ async def list_hospitals(
     accepts_medicare: bool | None = None,
     insurance_operator: str | None = None,
     procedure_category: str | None = None,
+    patient_experience_category: str | None = None,
     session: AsyncSession = Depends(get_session),
 ):
     return await get_hospitals(
         session, page, limit, state, search, min_rating, max_rating, country,
-        accepts_medicare, insurance_operator, procedure_category,
+        accepts_medicare, insurance_operator, procedure_category, patient_experience_category,
     )
 
 @router.get("/api/v1/hospitals/export")
